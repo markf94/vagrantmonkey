@@ -1,0 +1,50 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+@import "jf_global_00_mixins.less";
+@import "jf_global_00_variables.less";
+
+/* ===========_______________________________ START - EASYBLOG VARIABLES ________________________________________===========
+	@jf_eb_UC_MainColor:				#37AFCD;
+	@jf_eb_UC_ToolbarTopGR:				#37AFCD;
+	@jf_eb_UC_ToolbarBottomGR:			#37AFCD;
+===========_______________________________   END - EASYBLOG VARIABLES ________________________________________=========== */
+
+/* ===========_______________________________ START - EASYBLOG STYLE ________________________________________=========== */
+	body #eblog-wrapper {
+		/* start - @jf_eb_UC_MainColor ----------------------------------------------------------------- */
+			a,
+			a:hover, 
+			a:focus, 
+			a:active,
+			#eblog-calendar td.withpost a,
+			.blog-meta a:hover {
+				color: @jf_eb_UC_MainColor;
+			}
+			#ezblog-menu .blog-navi li .tips,
+			#eblog-calendar .calendar_month {
+				background-color: @jf_eb_UC_MainColor;
+			}
+			#ezblog-menu .blog-navi li .tips i {
+				border-bottom-color: @jf_eb_UC_MainColor;
+			}
+			#ezblog-menu .blog-navi #easyblog-login-form .button {
+				background: @jf_eb_UC_MainColor !important;
+			}
+			.list-pagination li a:hover {
+				border-top-color: @jf_eb_UC_MainColor;
+			}
+		/* end   - @jf_eb_UC_MainColor ----------------------------------------------------------------- */
+
+		/* start - @jf_eb_UC_ToolbarTopGR / @jf_eb_UC_ToolbarBottomGR ----------------------------------------------------------------- */
+			#ezblog-menu .blog-navi,
+			#ezblog-menu.narrow {
+				#gradient > .vertical(@jf_eb_UC_ToolbarTopGR, @jf_eb_UC_ToolbarBottomGR);
+			}
+		/* end   - @jf_eb_UC_ToolbarTopGR / @jf_eb_UC_ToolbarBottomGR ----------------------------------------------------------------- */
+	}
+/* ===========_______________________________   END - EASYBLOG STYLE ________________________________________=========== */

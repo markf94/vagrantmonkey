@@ -1,0 +1,146 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+@import "jf_global_00_mixins.less";
+@import "jf_global_00_variables.less";
+
+/* ===========_______________________________ START - MAIN VARIABLES ________________________________________===========
+	// PART 1 - style for "Site Background"
+		@jf_colors_bg:							#ffffff;
+
+	// PART 2 - style for header
+		@jf_colors_header:						#37AFCD;
+
+	// PART 3 - style for "jf_slideshow"
+		@jf_colors_slideshow:					#37AFCD;
+
+	// PART 4 - style for breadcrumb background + border
+		@jf_colors_breadcrumb:					#F8F8F8;
+		@jf_colors_breadcrumb_border:			#EEEEEE;
+
+	// PART 5 - style for footer background + text color + Link Color
+		@jf_colors_footer_bg:					#ffffff;
+		@jf_colors_footer_text:					#555555;
+		@jf_colors_footer_link:					#37AFCD;
+
+	// PART 6 - style for "JF Modules" Main color
+		@jf_colors_main:						#448A94;
+	
+	
+===========_______________________________   END - MAIN VARIABLES ________________________________________=========== */
+
+/* ===========_______________________________ START - DEFAULT STYLE ________________________________________=========== */
+	body {
+		/* start - PART 1 ----------------------------------------------------------------- */
+			background-color: @jf_colors_bg;
+		/*   end - PART 1 ----------------------------------------------------------------- */
+
+		/* start - PART 2 ----------------------------------------------------------------- */
+			#rt-top-surround {
+				background-color: @jf_colors_header;
+			}
+		/*   end - PART 2 ----------------------------------------------------------------- */
+
+		/* start - PART 3 ----------------------------------------------------------------- */
+			#jf_slideshow {
+				background-color: @jf_colors_slideshow;
+			}
+		/*   end - PART 3 ----------------------------------------------------------------- */
+
+		/* start - PART 4 ----------------------------------------------------------------- */
+			#rt-breadcrumbs {
+				background-color: @jf_colors_breadcrumb;
+				border-color: @jf_colors_breadcrumb_border;
+			}
+		/*   end - PART 4 ----------------------------------------------------------------- */
+
+		/* start - PART 5 ----------------------------------------------------------------- */
+			#rt-footer-surround {
+				background-color: @jf_colors_footer_bg;
+			}
+			#rt-footer-surround,
+			#rt-footer-surround #rt-footer .rt-container .rt-block .module-title .title,
+			#rt-footer-surround #rt-copyright .rt-block {
+				color: @jf_colors_footer_text;
+			}
+			#rt-footer ul.menu li a,
+			#rt-footer ul.menu li span {
+				color: @jf_colors_footer_link;
+			}
+		/*   end - PART 5 ----------------------------------------------------------------- */
+
+		/* start - PART 6 ----------------------------------------------------------------- */
+			a, ul.menu li .separator, #jf_welcome .features i, #jf_scrolltop {
+				color: @jf_colors_main;
+			}
+			#jf_scrolltop:hover,
+			#jf_preloader_css3 .container .animated-preloader, #jf_preloader_css3 .container .animated-preloader:before {
+				background-color: @jf_colors_main;
+			}
+			.component-content .pagination .counter + ul li a:hover,
+			.item-page .tags a:hover,
+			.component-content .tag-category ul.thumbnails li h3 a:hover,
+			#jf_scrolltop {
+				border-color: @jf_colors_main;
+			}
+			.readon, .readmore, button.validate, #member-profile a, #member-registration a, .formelm-buttons button, .btn-primary, .button, .btn {
+				
+			}
+			// MODULES
+			#jf_login .jf_profile_links a:hover {
+				color: @jf_colors_main;
+			}
+			// TYPOS
+			.jf_typo_highlight_blue,
+			.jf_typo_dropcap.style3 {
+				background-color: @jf_colors_main;
+			}
+			.jf_typo_button.blue {
+				border-color: @jf_colors_main;
+				color: @jf_colors_main;
+			}
+			.jf_typo_button.filled.blue {
+				background-color: @jf_colors_main;
+				border-color: @jf_colors_main;
+			}
+			#jf_pricing_table.blue .jf_pricing_column.jf_recommended h3 {
+				background-color: @jf_colors_main;
+			}
+			#jf_pricing_table.blue .jf_recommended .jf_buynow a {
+				border-color: @jf_colors_main;
+				color: @jf_colors_main;
+			}
+		/*   end - PART 6 ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+			#jf_SS_1 .jf_typo_button.filled.light {
+				color: @jf_colors_main;
+			}
+		/*   end - PART X ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+		/*   end - PART X ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+		/*   end - PART X ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+		/*   end - PART X ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+		/*   end - PART X ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+		/*   end - PART X ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+		/*   end - PART X ----------------------------------------------------------------- */
+
+		/* start - PART X ----------------------------------------------------------------- */
+		/*   end - PART X ----------------------------------------------------------------- */
+	}
+/* ===========_______________________________   END - DEFAULT STYLE ________________________________________=========== */

@@ -1,0 +1,200 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+@import "jf_global_00_mixins.less";
+@import "jf_global_00_variables.less";
+
+/* ===========_______________________________ START - IMAGES ________________________________________=========== */
+	body .jf_image_block {
+		padding: 0;
+		margin: 0 0 15px 0;
+		float: none;
+		position: relative;
+		line-height: 0;
+		display: inline-block;
+		overflow: hidden;
+		img {
+			border: none;
+			padding: 0;
+			width:100%;
+			display: block;
+			margin: 0;
+			.transition(all 0.5s ease-out);
+		}
+		.zoom {
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			margin: 28px 0 0 -30px;
+			height: 56px;
+			width: 52px;
+			.opacity(0);
+			.transition(all 0.3s ease-out);
+			i {
+				color: rgba(0, 0, 0, 0.5);
+				font-size: 56px;
+				width: 56px;
+				text-shadow: 0px 0px 15px rgba(255, 255, 255, 0.5);
+			}
+		}
+		&:hover {
+			img {
+				.opacity(10);
+				.scale(1.2);
+			}
+			.zoom {
+				margin: -28px 0 0 -28px;
+				.opacity(100);
+			}
+		}
+		// Style 2 --------------------------------
+			&.big {
+				width: 70%;
+				margin: 5px auto 15px auto;
+				display: block;
+			}
+		// Style 3 --------------------------------
+			&.small {
+				margin: 5px auto 15px auto;
+				width: 50%;
+				float: left;
+				display: block;
+			}
+		// Style 5 --------------------------------
+			&.style2 {
+				.descr {
+					text-align: center;
+					display: table;
+					width: 100%;
+					margin: auto;
+					position: absolute;
+					top: 0;
+					left: 0;
+					bottom: -40px;
+					right: 0;
+					.transition(all 0.3s ease);
+					.opacity(0);
+					font-weight: 700;
+					font-size: 24px;
+					color: rgba(0, 0, 0, 0.6);
+					span {
+						display: table-cell;
+						vertical-align: middle;
+						line-height: 50px;
+						text-shadow: 0 0 3px #FFF;
+						i {
+							display: inline-flex;
+							text-decoration: none;
+							border-top: 3px solid rgba(0, 0, 0, 0.5);
+							font-size: 16px;
+							line-height: 42px;
+							clear: both;
+						}
+				    }
+				}
+				&:hover {
+					.descr {
+						.opacity(100);
+						bottom: 0;
+					}
+				}
+			}
+	}
+/* ===========_______________________________   END - IMAGES ________________________________________=========== */
+
+/* ===========_______________________________ START - GALLERY ________________________________________=========== */
+	.jf_typo_gallery {
+		margin: 0;
+		list-style: none;
+		text-align: center;
+		line-height: 0;
+		font-size: 0;
+		li {
+			display: inline-block;
+			margin: 0;
+			position: relative;
+			overflow: hidden;
+			padding: 0;
+			font-size: 0;
+			border: 0;
+			width: 20%;
+			.box-sizing(border-box);
+			a {
+				margin: 0;
+				img {
+					border: none;
+					padding: 0;
+					width:100%;
+					display: block;
+					margin: 0;
+				}
+				.zoom {
+					height: 38px;
+					width: 38px;
+					margin: 28px 0 0 -16px;
+					i {
+						font-size: 38px;
+						width: 38px;
+					}
+				}
+				&:hover {
+					.zoom {
+						margin: -19px 0 0 -16px;
+					}
+				}
+				&.style2 {
+					.descr {
+						font-size: 18px;
+						span {
+							u {
+								font-size: 14px;
+								line-height: 44px;
+								border-width: 2px;
+							}
+						}
+					}
+				}
+			}
+
+		}
+	}
+/* ===========_______________________________   END - GALLERY ________________________________________=========== */
+
+
+/* ===========_______________________________ START - RESPONSIVE ________________________________________=========== */
+	@media (max-width: 767px) {
+		body {
+			.jf_typo_gallery {
+				li {
+					width: 50%;
+				}
+			}
+			.jf_image_block.style2 .descr {
+				span {
+					font-size: 13px;
+				}
+				i {
+					font-size: 12px;
+				}
+			}
+		}
+	}
+	@media (max-width: 320px) {
+		body .jf_image_block{
+			&.big,
+			&.small {
+				width: 100%;
+			}
+		}
+	}
+/* ===========_______________________________   END - RESPONSIVE ________________________________________=========== */
+
+/* ===========_______________________________ START - IMAGES RTL ________________________________________=========== */
+	body.rtl {
+
+	}
+/* ===========_______________________________   END - IMAGES RTL ________________________________________=========== */

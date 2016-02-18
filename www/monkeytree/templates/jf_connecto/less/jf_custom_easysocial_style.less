@@ -1,0 +1,219 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+@import "jf_global_00_mixins.less";
+@import "jf_global_00_variables.less";
+
+/* ===========_______________________________ START - EASYSOCIAL VARIABLES ________________________________________===========
+	@jf_es_UC_MainColor:				#37AFCD;
+	@jf_es_UC_ToolbarTopGR:				#37AFCD;
+	@jf_es_UC_ToolbarBottomGR:			#37AFCD;
+	@jf_es_UC_ButtonRed:				#dd0000;
+	@jf_es_UC_ButtonGreen:				#00B856;
+===========_______________________________      END - EASYSOCIAL VARIABLES ________________________________________=========== */
+
+/* ===========_______________________________ START - EASYSOCIAL LESS ________________________________________=========== */
+	/* start - @jf_es_UC_MainColor ----------------------------------------------------------------- */
+		body div#fd.es a:hover,
+		body div#fd.es a:focus,
+		body div#fd.es a:active {
+		  color: @jf_es_UC_MainColor;
+		}
+		body div#fd.es .btn-es-primary,
+		body div#fd.es .btn-es-primary:hover,
+		body div#fd.es .btn-es-primary:focus,
+		body div#fd.es .btn-es-primary:active,
+		body div#fd.es .btn-es-primary.active,
+		body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-primary,
+		body div#fd.es .btn-es-primary:focus:hover,
+		body div#fd.es .btn-es-primary:focus:focus,
+		body div#fd.es .btn-es-primary:focus:active,
+		body div#fd.es .btn-es-primary:focus.active,
+		body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-primary:focus {
+		  background-color: @jf_es_UC_MainColor !important;
+		  border-color: @jf_es_UC_MainColor !important;
+		}
+		body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle,
+		body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle:hover,
+		body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle:focus,
+		body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle:active {
+		  background-color: @jf_es_UC_MainColor !important;
+		  border-color: @jf_es_UC_MainColor !important;
+		}
+		body div#fd.es.es-main .es-comments-form .es-form-footer .btn-sm {
+		  background-color: @jf_es_UC_MainColor !important;
+		  border-color: @jf_es_UC_MainColor !important;
+		}
+		body div#fd.es.es-main .es-container .es-sidebar .fd-nav>li.active {
+			border-color: @jf_es_UC_MainColor;
+		}
+	/* end   - @jf_es_UC_MainColor ----------------------------------------------------------------- */
+
+	/* start - @jf_es_UC_ToolbarTopGR / @jf_es_UC_ToolbarBottomGR ----------------------------------------------------------------- */
+		body div#fd.es.es-main .es-toolbar {
+			background: @jf_es_UC_ToolbarBottomGR;
+		}
+		body div#fd.es.es-main .es-toolbar .navbar-inner {
+			background-color: @jf_es_UC_ToolbarTopGR;
+			background-image: -moz-linear-gradient(top,@jf_es_UC_ToolbarTopGR,@jf_es_UC_ToolbarBottomGR);
+			background-image: -webkit-gradient(linear,0 0,0 100%,from(@jf_es_UC_ToolbarTopGR),to(@jf_es_UC_ToolbarBottomGR));
+			background-image: -webkit-linear-gradient(top,@jf_es_UC_ToolbarTopGR,@jf_es_UC_ToolbarBottomGR);
+			background-image: -o-linear-gradient(top,@jf_es_UC_ToolbarTopGR,@jf_es_UC_ToolbarBottomGR);
+			background-image: linear-gradient(to bottom,@jf_es_UC_ToolbarTopGR,@jf_es_UC_ToolbarBottomGR);
+			background-repeat: repeat-x;
+			filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff111111', endColorstr='#ff222222', GradientType=0);
+		}
+		@media (max-width: 667px) {
+			body div#fd.es.es-main .es-toolbar .fd-navbar-search {
+				border-color: @jf_es_UC_ToolbarBottomGR;
+			}
+		}
+		@media (max-width: 375px) {
+			body div#fd.es.es-main .es-toolbar .fd-navbar-search {
+				border-color: @jf_es_UC_ToolbarBottomGR;
+			}
+		}
+	/* end   - @jf_es_UC_ToolbarTopGR / @jf_es_UC_ToolbarBottomGR ----------------------------------------------------------------- */
+
+	/* start - @jf_es_UC_ButtonRed ----------------------------------------------------------------- */
+		body div#fd.es .btn-es-danger, 
+		body div#fd.es .btn-es-danger:focus {
+			background-color: @jf_es_UC_ButtonRed !important;
+			border-color: @jf_es_UC_ButtonRed !important;
+		}
+		body div#fd.es .btn-es-danger:hover, 
+		body div#fd.es .btn-es-danger:focus, 
+		body div#fd.es .btn-es-danger:active, 
+		body div#fd.es .btn-es-danger.active, 
+		body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-danger, 
+		body div#fd.es .btn-es-danger:focus:hover, 
+		body div#fd.es .btn-es-danger:focus:focus, 
+		body div#fd.es .btn-es-danger:focus:active, 
+		body div#fd.es .btn-es-danger:focus.active, 
+		body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-danger:focus {
+			background-color: @jf_es_UC_ButtonRed !important;
+			border-color: @jf_es_UC_ButtonRed !important;
+		}
+	/* end   - @jf_es_UC_ButtonRed ----------------------------------------------------------------- */
+
+	/* start - @jf_es_UC_ButtonGreen ----------------------------------------------------------------- */
+		body div#fd.es .btn-es-success,
+		body div#fd.es .btn-es-success:hover, 
+		body div#fd.es .btn-es-success:focus, 
+		body div#fd.es .btn-es-success:active, 
+		body div#fd.es .btn-es-success.active, 
+		body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-success, 
+		body div#fd.es .btn-es-success:focus:hover, 
+		body div#fd.es .btn-es-success:focus:focus, 
+		body div#fd.es .btn-es-success:focus:active, 
+		body div#fd.es .btn-es-success:focus.active, 
+		body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-success:focus {
+			background-color: @jf_es_UC_ButtonGreen !important;
+			border-color: @jf_es_UC_ButtonGreen !important;
+		}
+		body div#fd.es .label-success {
+			background-color: @jf_es_UC_ButtonGreen;
+		}
+	/* end   - @jf_es_UC_ButtonGreen ----------------------------------------------------------------- */
+/* ===========_______________________________ END   - EASYSOCIAL LESS ________________________________________=========== */
+
+/* ===========_______________________________ START - EASYSOCIAL STYLE ________________________________________===========
+	body div#fd.es a,
+	body div#fd.es a:hover,
+	body div#fd.es a:focus,
+	body div#fd.es a:active {
+	  color: '.$jf_es_UC_MainColor.';
+	}
+	body div#fd.es .btn-es-primary,
+	body div#fd.es .btn-es-primary:hover,
+	body div#fd.es .btn-es-primary:focus,
+	body div#fd.es .btn-es-primary:active,
+	body div#fd.es .btn-es-primary.active,
+	body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-primary,
+	body div#fd.es .btn-es-primary:focus:hover,
+	body div#fd.es .btn-es-primary:focus:focus,
+	body div#fd.es .btn-es-primary:focus:active,
+	body div#fd.es .btn-es-primary:focus.active,
+	body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-primary:focus {
+	  background-color: '.$jf_es_UC_MainColor.' !important;
+	  border-color: '.$jf_es_UC_MainColor.' !important;
+	}
+	body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle,
+	body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle:hover,
+	body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle:focus,
+	body div#fd.es.es-main .es-story-privacy .es-privacy .es-privacy-toggle:active {
+	  background-color: '.$jf_es_UC_MainColor.' !important;
+	  border-color: '.$jf_es_UC_MainColor.' !important;
+	}
+	body div#fd.es.es-main .es-comments-form .es-form-footer .btn-sm {
+	  background-color: '.$jf_es_UC_MainColor.' !important;
+	  border-color: '.$jf_es_UC_MainColor.' !important;
+	}
+	body div#fd.es.es-main .es-container .es-sidebar .fd-nav>li.active {
+		border-color: '.$jf_es_UC_MainColor.';
+	}
+
+	body div#fd.es.es-main .es-toolbar {
+		background: '.$jf_es_UC_ToolbarBottomGR.';
+	}
+	body div#fd.es.es-main .es-toolbar .navbar-inner {
+		background-color: '.$jf_es_UC_ToolbarTopGR.';
+		background-image: -moz-linear-gradient(top,'.$jf_es_UC_ToolbarTopGR.','.$jf_es_UC_ToolbarBottomGR.');
+		background-image: -webkit-gradient(linear,0 0,0 100%,from('.$jf_es_UC_ToolbarTopGR.'),to('.$jf_es_UC_ToolbarBottomGR.'));
+		background-image: -webkit-linear-gradient(top,'.$jf_es_UC_ToolbarTopGR.','.$jf_es_UC_ToolbarBottomGR.');
+		background-image: -o-linear-gradient(top,'.$jf_es_UC_ToolbarTopGR.','.$jf_es_UC_ToolbarBottomGR.');
+		background-image: linear-gradient(to bottom,'.$jf_es_UC_ToolbarTopGR.','.$jf_es_UC_ToolbarBottomGR.');
+		filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#ff111111", endColorstr="#ff222222", GradientType=0);
+	}
+	@media (max-width: 667px) {
+		body div#fd.es.es-main .es-toolbar .fd-navbar-search {
+			border-color: '.$jf_es_UC_ToolbarBottomGR.';
+		}
+	}
+	@media (max-width: 375px) {
+		body div#fd.es.es-main .es-toolbar .fd-navbar-search {
+			border-color: '.$jf_es_UC_ToolbarBottomGR.';
+		}
+	}
+
+	body div#fd.es .btn-es-danger, 
+	body div#fd.es .btn-es-danger:focus {
+		background-color: '.$jf_es_UC_ButtonRed.' !important;
+		border-color: '.$jf_es_UC_ButtonRed.' !important;
+	}
+	body div#fd.es .btn-es-danger:hover, 
+	body div#fd.es .btn-es-danger:focus, 
+	body div#fd.es .btn-es-danger:active, 
+	body div#fd.es .btn-es-danger.active, 
+	body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-danger, 
+	body div#fd.es .btn-es-danger:focus:hover, 
+	body div#fd.es .btn-es-danger:focus:focus, 
+	body div#fd.es .btn-es-danger:focus:active, 
+	body div#fd.es .btn-es-danger:focus.active, 
+	body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-danger:focus {
+		background-color: '.$jf_es_UC_ButtonRed.' !important;
+		border-color: '.$jf_es_UC_ButtonRed.' !important;
+	}
+
+	body div#fd.es .btn-es-success,
+	body div#fd.es .btn-es-success:hover, 
+	body div#fd.es .btn-es-success:focus, 
+	body div#fd.es .btn-es-success:active, 
+	body div#fd.es .btn-es-success.active, 
+	body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-success, 
+	body div#fd.es .btn-es-success:focus:hover, 
+	body div#fd.es .btn-es-success:focus:focus, 
+	body div#fd.es .btn-es-success:focus:active, 
+	body div#fd.es .btn-es-success:focus.active, 
+	body div#fd.es .open .dropdown-toggle_body div#fd.es .btn-es-success:focus {
+		background-color: '.$jf_es_UC_ButtonGreen.' !important;
+		border-color: '.$jf_es_UC_ButtonGreen.' !important;
+	}
+	body div#fd.es .label-success {
+		background-color: '.$jf_es_UC_ButtonGreen.';
+	}
+===========_______________________________   END - EASYSOCIAL STYLE ________________________________________=========== */

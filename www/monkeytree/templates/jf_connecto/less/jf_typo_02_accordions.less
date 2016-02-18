@@ -1,0 +1,65 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+@import "jf_global_00_mixins.less";
+@import "jf_global_00_variables.less";
+
+/* ===========_______________________________ START - ACCORDIONS ________________________________________=========== */
+	.jf_typo_accord {
+		.trigger {
+			background: #EEE;
+			margin: 0 2px 10px 2px;
+			line-height: 31px;
+			font-size: 14px;
+			font-weight: 600;
+			cursor: pointer;
+			padding: 4px 0 4px 40px;
+			position: relative;
+			i {
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 40px;
+				height: 40px;
+				background: url(../images/jf/jf_typo/jf_typo_plus.png) no-repeat 14px 14px;
+				.opacity(80);
+			}
+			&:hover {
+			    background: #e6e6e6;
+			}
+			&.active {
+				background: #e6e6e6;
+				i {
+				    background: url(../images/jf/jf_typo/jf_typo_minus.png) no-repeat 14px 14px;
+				}
+				&:hover {
+				    background-color: #e6e6e6;
+				}
+			}
+		}
+		.container {
+			display: none;
+			margin: 0 0 10px;
+			padding: 0;
+			font-size: 12px;
+			clear: both;
+			padding: 10px;
+		}
+	}
+/* ===========_______________________________   END - ACCORDIONS ________________________________________=========== */
+
+/* ===========_______________________________ START - ACCORDIONS RTL ________________________________________=========== */
+	body.rtl {
+		.jf_typo_accord .trigger {
+			padding: 4px 40px 4px 0;
+			i {
+				right: 0;
+				left: auto;
+			}
+		}
+	}
+/* ===========_______________________________   END - ACCORDIONS RTL ________________________________________=========== */
