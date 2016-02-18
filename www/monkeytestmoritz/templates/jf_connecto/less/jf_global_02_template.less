@@ -1,0 +1,1276 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+/* ===========_______________________________ START - CORE (Links,..) ________________________________________=========== */
+	html, body {
+		width: 100%;
+		margin: 0px;
+		padding: 0px;
+		height: 100% !important;
+		min-height: 100% !important;
+	}
+	/* DISABLED for EASYSOCIAL CONFLICT
+	html {
+		overflow-x: hidden; 
+	} 
+	*/
+	a {
+		.transition(color 0.2s ease-out);
+	}
+	ul {
+		padding: 0;
+	}
+/* ===========_______________________________   END - CORE (Links,..) ________________________________________=========== */
+
+/* ===========_______________________________ START - GANTRY CORE TRANSITION ________________________________________=========== */
+	#rt-transition.rt-hidden {
+		.opacity(0);
+	}
+	#rt-transition.rt-visible {
+		.opacity(100);
+		.transition(opacity 0.4s ease-in);
+	}
+/* ===========_______________________________   END - GANTRY CORE TRANSITION ________________________________________=========== */
+
+/* ===========_______________________________ START - MAIN BODY  ________________________________________=========== */
+	#rt-main {
+		padding: 10px 0 0 0;
+	}
+/* ===========_______________________________ END   - MAIN BODY  ________________________________________=========== */
+
+/* ===========_______________________________ START - RT BLOCK ________________________________________=========== */
+	.rt-block {
+		padding: 10px;
+		margin: 10px;
+		position: relative;
+	}
+/* ===========_______________________________   END - RT BLOCK ________________________________________=========== */
+
+/* ===========_______________________________ START - LOGO ________________________________________=========== */
+	.logo-block {
+		padding: 0 10px;
+	}
+	#rt-logo {
+		margin: 0;
+		height: 62px;
+		display: block;
+	}
+	.logo-type-gantry #rt-logo {
+		background: url(../images/jf/jf_template/jf_logo.png) left top no-repeat;
+	}
+	@media (max-width: 767px) {
+		body.layout-mode-responsive #rt-logo {
+			background-position: 25px top;
+		}
+		body.logo-type-gantry .jf_stickyHeader_light #rt-header.headroom--not-top #rt-logo {
+			background-position: 25px bottom;
+		}
+	}
+	@media (max-width: 736px) {
+		html body.layout-mode-responsive #rt-logo {
+			margin: 0;
+			width: 73px;
+		}
+	}
+/* ===========_______________________________   END - LOGO ________________________________________=========== */
+
+/* ===========_______________________________ START - "RT-TOP" Position ________________________________________=========== */
+	#rt-top .rt-container {
+		padding: 10px 0;
+	}
+/* ===========_______________________________   END - "RT-TOP" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - HEADER ________________________________________=========== */
+	#rt-top-surround {
+		position: relative;
+		z-index: 99990;
+		background: @jf_baseColor;
+		top: 0;
+		left: 0;
+		.rt-container {
+			z-index: 1;
+			position: relative;
+		}
+	}
+	#rt-top-surround:after {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 0;
+		width: 0;
+		height: 0;
+		z-index: 0;
+	}
+	#rt-header {
+		z-index: 9;
+	}
+	#rt-header, #rt-top {
+		position: relative;
+	}
+	#jf_page_heading {
+		display: inline-block;
+		width: 100%;
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+		h1 {
+			color: #fff;
+			margin: 60px 0;
+			font-size: 44px;
+		}
+	}
+/* ===========_______________________________   END - HEADER ________________________________________=========== */
+
+/* ===========_______________________________ START - STICKY HEADER feature ________________________________________=========== */
+/* ===========_______________________________ END   - STICKY HEADER feature ________________________________________=========== */
+
+/* ===========_______________________________ START - NAVIGATION ________________________________________=========== */
+	.menu-block {
+		padding: 15px 10px 15px 10px;
+		float: right;
+	}
+	.rt-menu-mobile {
+		text-align: center;
+		padding: 0 0 15px 0;
+	}
+/* ===========_______________________________   END - NAVIGATION ________________________________________=========== */
+
+/* ===========_______________________________ START - "RT-MAINTOP" Position ________________________________________=========== */
+	#rt-maintop {
+		margin-bottom: 20px;
+		padding: 10px 0;
+	}
+/* ===========_______________________________   END - "RT-MAINTOP" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - "RT-BREADCRUMB" Position ________________________________________=========== */
+	#rt-breadcrumbs {
+		line-height: 0;
+		background: #f8f8f8;
+		margin: 0;
+		border-top: 1px solid #EEE;
+		border-bottom: 1px solid #EEE;
+		.rt-grid {
+			float: none;
+			display: inline-block;
+			width: 100%;
+			.rt-block {
+				padding: 0 10px;
+				line-height: 2.4em;
+				.custom {
+					height: 0;
+				}
+			}
+		}
+		.jf_bread_marker {
+			width: 10px;
+			height: 1px;
+			i {
+				position: absolute;
+				top: 5px;
+				font-size: 15px;
+				margin-left: 3px;
+				color: rgba(0, 0, 0, 0.5);
+			}
+		}
+	}
+/* ===========_______________________________   END - "RT-BREADCRUMB" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - MODULES ________________________________________=========== */
+	.module-title .title {
+		margin-top: 0;
+		padding-bottom: 15px;
+		margin-bottom: 15px;
+		color: @bodytitle;
+		border-bottom: 1px solid #E5E5E5;
+		font-size: 24px;
+		line-height: 1.1em;
+		font-weight: 700;
+	}
+	#rt-top-surround, #rt-showcase {
+		.title {
+			border: none;
+			.box-shadow(none);
+		}
+	}
+	#rt-main .module-title .title {
+		padding: 15px 0;
+		margin: -10px 0 0 0;
+		text-shadow: 1px 1px 1px #FFF;
+		font-size: 24px;
+		line-height: 1.1em;
+		border-bottom: 0;
+		color: #444;
+		font-weight: 700;
+	}
+	.moule-content p {
+		margin: 15px 0;
+	}
+/* ===========_______________________________   END - MODULES ________________________________________=========== */
+
+/* ===========_______________________________ START - MENU MODULE ________________________________________=========== */
+	ul.menu {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		ul {
+			list-style: none;
+		}
+		li {
+			.transition(all 0.2s ease-in);
+			margin-bottom: 8px;
+			a, .item, .separator {
+				display: block;
+				font-size: 1.1em;
+				font-weight: bold;
+			}
+		}
+		ul.small {
+			font-size: 14px;
+		}
+	}
+/* ===========_______________________________   END - MENU MODULE ________________________________________=========== */
+
+/* ===========_______________________________ START - BUTTONS ________________________________________=========== */
+	.readon, .readmore, button.validate, #member-profile a, #member-registration a, .formelm-buttons button,
+	.button, .btn {
+		display: inline-block;
+		padding: 5px 30px;
+		border: none;
+		font-size: 12px;
+		cursor: pointer;
+		line-height: 20px;
+		margin-bottom: 10px;
+		font-weight: 600;
+		border: 2px solid rgba(0, 0, 0, 0.15);
+		background: 0;
+		.border-radius(2px);
+		outline: 0;
+		font-size: 12px;
+		line-height: 28px;
+		font-weight: 700;
+		color: #555;
+		&:hover {
+			border-color: rgba(0, 0, 0, 0.3);
+		}
+	}
+	.readmore a:active {
+		background: none;
+	}
+/* ===========_______________________________   END - BUTTONS ________________________________________=========== */
+
+/* ===========_______________________________ START - GANTRY CORE FEATURES ________________________________________=========== */
+	// gantry totop
+	#gantry-totop {
+		display: inline-block;
+		padding: 4px 10px;
+		.border-radius(3px);
+	}
+	// font sizer
+	#rt-accessibility {
+		.rt-desc {
+			float: left;
+			margin-right: 8px;
+			font-weight: bold;
+		}
+		#rt-buttons {
+			.button {
+				line-height: 1em;
+				padding: 0;
+				width: 14px;
+				height: 14px;
+				text-align: center;
+			}
+			.small {
+				font-size: inherit;
+			}
+			.small .button:after {
+				content: '-';
+			}
+			.large .button:after {
+				content: '+';
+			}
+		}
+	}
+/* ===========_______________________________   END - GANTRY CORE FEATURES ________________________________________=========== */
+
+/* ===========_______________________________ START - OFFLINE LESS ________________________________________=========== */
+	#rt-offline-body {
+		.offline-image {
+			text-align: center;
+			h1.sitename {
+				font-size: 64px;
+				font-weight: 100;
+				color: #444;
+				text-shadow: 1px 1px 1px #FFF;
+				letter-spacing: 1px;
+				margin: 20px 0;
+			}
+		}
+		.row {
+			text-align: center;
+			.cell {
+				text-align: left;
+				display: inline-block;
+				width: 100%;
+				max-width: 400px;
+				vertical-align: top;
+				h1 {
+					font-size: 22px;
+					font-weight: 100;
+					color: #333;
+					text-shadow: 1px 1px 1px #FFF;
+					margin: 0;
+				}
+				.offline {
+					p {
+						font-size: 14px;
+						line-height: 22px;
+						color: #666;
+						margin: 10px 0;
+					}
+				}
+				.box1 {
+					form {
+						.control-label {
+							display: none;
+						}
+						.controls {
+							margin-left: 0;
+							text-align: left;
+						}
+						label[for="remember"] {
+							margin: 0 0 15px 0;
+							font-size: 13px;
+						}
+						input[type="text"],
+						input[type="password"] {
+							background-color: #f4f4f4;
+							border: 0;
+							.border-radius(2px);
+							padding: 10px;
+							min-width: 100%;
+							font-size: 14px;
+							line-height: 24px;
+							.box-shadow(none);
+						}
+
+					}
+				}
+			}
+		}
+		.jf_offline_submits {
+			label {
+				display: block;
+				margin: 20px 0 20px 0;
+				line-height: 20px;
+				color: #666;
+			}
+			input {
+				display: block;
+			}
+		}
+		.control-group {
+			margin: 20px 0;
+		}
+	}
+	@media only screen and (max-width: 320px) {
+		#rt-offline-body .row .cell .box1 form input[type="text"], 
+		#rt-offline-body .row .cell .box1 form input[type="password"] {
+			min-width: 87%;
+		}
+	}
+/* ===========_______________________________   END - OFFLINE LESS ________________________________________=========== */
+
+/* ===========_______________________________ START - ERROR LESS ________________________________________=========== */
+	.rt-error-content {
+	    margin-left: 0;
+	    margin-top: 12%;
+	    text-align: center;
+	    .error-title {
+			font-size: 132px;
+			color: #303030;
+			text-shadow: 1px 1px 0 #FFF;
+			border-bottom: 1px solid #eee;
+			.box-shadow(0 1px 0 #FFF);
+			font-weight: normal;
+			letter-spacing: normal;
+			margin-top: 0;
+			padding-bottom: 10px;
+			margin-bottom: 10px;
+		}
+		.jf_page_not_found {
+		    font-size: 24px;
+		    letter-spacing: 1px;
+		    text-shadow: 1px 1px 1px white;
+		    margin: 25px 0 20px 0;
+		    color: #6E6E6E;
+		}
+		.readon {
+		    padding: 12px 20px;
+		    .border-radius(2px);
+		    border: none;
+		    color: #555;
+		    font-size: 18px;
+		    text-transform: uppercase;
+		    cursor: pointer;
+		    line-height: 15px;
+		    margin-top: 10px;
+		    text-decoration: none;
+		    border: 2px solid #CCC;
+		    &:hover {
+			    border: 2px solid #aaa;
+			}
+		}
+	}
+/* ===========_______________________________   END - ERROR LESS ________________________________________=========== */
+
+/* ===========_______________________________ START - FEATURE: JF SCROLL TOP ________________________________________=========== */
+	#jf_scrolltop {
+		color: @jf_baseColor;
+		position: fixed;
+		bottom: -60px;
+		right: 25px;
+		width: 50px;
+		height: 50px;
+		cursor: pointer;
+		z-index: 99;
+		text-align: center;
+		font-size: 30px;
+		.border-radius(100%);
+		border: 2px solid @jf_baseColor;
+		.transition(all 0.3s ease);
+		i {
+			margin-top: 10px;
+		}
+		&:hover {
+			background-color: @jf_baseColor;
+			color: #fff; 
+		}
+	}
+/* ===========_______________________________   END - FEATURE: JF SCROLL TOP ________________________________________=========== */
+
+/* ===========_______________________________ START - FOOTER ________________________________________=========== */
+	#rt-footer-surround {
+		position: relative;
+		color: #555;
+		font-size: 12px;
+		overflow: hidden;
+		#rt-footer {
+			.rt-container {
+				border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+				.rt-block {
+					padding: 30px 10px;
+					.module-title .title {
+						margin: 0 0 14px 0;
+						padding-bottom: 12px;
+						color: #555;
+						border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+						font-size: 14px;
+						line-height: 1.6em;
+						font-weight: 700;
+					}
+				}
+			}
+			.jf_social_icons li {
+				margin: 8px;
+			}
+		}
+		#rt-copyright {
+			.rt-block {
+				text-align: center;
+				margin: 10px 10% 0 10%;
+				padding: 25px;
+				color: #555;
+				font-size: 10px;
+			}
+		}
+	}
+	ul.jf_bottom_info {
+		color: #fff;
+		font-size: 12px;
+		&.jf_fa {
+			padding: 0 0 0 15px;
+			li i {
+				color: #fff;
+				margin-left: -19px;
+			}
+		}
+	}
+/* ===========_______________________________   END - FOOTER ________________________________________=========== */
+
+/* ===========_______________________________ START - FOOTER BRANDING ________________________________________=========== */
+	.jf_branding {
+		padding-top: 0 !important;
+		margin: 0 0 2px 0 !important;
+		.powered-by {
+			background: url(../images/jf/jf_template/jf_anim_logo.gif) no-repeat center;
+			display: block;
+			width: 165px;
+			height: 60px;
+			margin: 0 auto;
+			.transition(all 0.5s ease);
+		}
+	}
+	#rt-copyright {
+		font-size: 12px;
+	}
+/* ===========_______________________________   END - FOOTER BRANDING ________________________________________=========== */
+
+/* ===========_______________________________ START - FOOTER MENU ________________________________________=========== */
+	#rt-footer {
+		ul.menu {
+			margin: 0;
+			li {
+				border-bottom: none;
+				clear: both;
+				margin: 0;
+				&:hover {
+					border-bottom: none;
+					clear: both;
+				}
+				a,
+				span {
+					color: @jf_baseColor;
+					font-size: 12px;
+					line-height: 20px;
+					padding: 5px;
+					font-weight: 700;
+				}
+			}
+		}
+	}
+	/* start - bottom menu - pirobox inline html ---------------- */
+		.jf_bottom_piro_html {
+			display: none;
+			height: auto !important;
+			padding: 20px;
+			width: auto !important;
+			li {
+				margin-bottom: 10px;
+			}
+		}
+	/*   end - bottom menu - pirobox inline html ---------------- */
+/* ===========_______________________________   END - FOOTER MENU ________________________________________=========== */
+
+/* ===========_______________________________ START - "SHOWCASE" Position ________________________________________=========== */
+	body #rt-showcase .rt-container .rt-block {
+		padding: 0;
+		.module-surround {
+			padding: 10px;
+		}
+	}
+/* ===========_______________________________   END - "SHOWCASE" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - "FEATURE" Position ________________________________________=========== */
+	#rt-feature .rt-block {
+		margin-top: 0;
+		margin-bottom: 0;
+		padding-top: 0;
+		padding-bottom: 0;
+	}
+/* ===========_______________________________   END - "FEATURE" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - "UTILITY" Position ________________________________________=========== */
+	#rt-utility .rt-container {
+		padding: 10px 0;
+	}
+/* ===========_______________________________   END - "UTILITY" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - "RT-CONTENT-TOP | BOTTOM & SIDEBAR-C" Position ________________________________________=========== */
+	#rt-content-top, #rt-content-bottom {
+		overflow: hidden;
+		
+	}
+	#rt-main #rt-content-top .module-title .title,
+	#rt-main #rt-content-bottom .module-title .title,
+	#rt-main #rt-sidebar-c .module-title .title {
+		color: #444;
+		border-bottom: 1px solid #EEE;
+		margin: 5px 0 15px 0;
+		padding: 0 0 15px 0;
+	}
+/* ===========_______________________________   END - "RT-CONTENT-TOP | BOTTOM & SIDEBAR-C" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - "RT-MAINBOTTOM | RT-EXTENSION | RT-BOTTOM" Position ________________________________________=========== */
+	#rt-mainbottom .module-title .title,
+	#rt-extension .module-title .title,
+	#rt-bottom .module-title .title {
+		line-height: 28px;
+		padding-top: 5px;
+		.box-shadow(0 1px 0 #FFF);
+	}
+	#rt-mainbottom .module-title .title {
+		border-bottom: 0;
+		margin-bottom: 0;
+		font-size: 24px;
+	}
+	#rt-mainbottom .readmore {
+		margin-top: 0;
+	}
+/* ===========_______________________________   END - "RT-MAINBOTTOM | RT-EXTENSION | RT-BOTTOM" Position ________________________________________=========== */
+
+/* ===========_______________________________ START - "JF SYSTEM MESSAGE" ________________________________________=========== */
+	#system-message-container {
+		#system-message {
+			margin: 10px 20px 0 20px;
+			position: relative;
+			/* "CLOSE" button */
+				.close {
+					font-size: 24px;
+					position: absolute;
+					top: 10px;
+					right: 10px;
+					cursor: pointer;
+				}
+			/* "ALERT" default type */	
+				.alert {
+					color: #fff;
+					margin: 0;
+					.border-radius(3px);
+					padding: 15px;
+					border: 0;
+					text-shadow:none;
+				}
+			/* "HEADING" text */
+				.alert-heading {
+					margin-top: 0;
+				}
+			/* "MESSAGE/SUCCESS" message */
+				.message.message ul,
+				.alert-success {
+					background-color: #00CC49;
+					.close,
+					.alert-heading {
+						color: #FFF;
+					}
+				}
+			/* "ERROR/WARNING" message */
+				.error.message ul,
+				.warning.message ul,
+				.alert-warning,
+				.alert-error {
+					background-color: #C00;
+					.close,
+					.alert-heading {
+						color: #FFF;
+					}
+				}
+			/* "NOTICE" message */
+				.alert-notice,
+				.notice.message ul {
+					color: #555;
+					background-color: #FDFDA4;
+					.close,
+					.alert-heading {
+						color: #222;
+					}
+				}
+			.message dt.error,
+			.warning {
+				display: none;
+			}
+		}
+	}
+/* ===========_______________________________   END - "JF SYSTEM MESSAGE" ________________________________________=========== */
+
+/* ===========_______________________________ START - "JF-SLIDESHOW" POSITION ________________________________________=========== */
+	#jf_slideshow {
+		height: 100%;
+		width: 100%;
+		position: relative;
+		background-color: #333;
+		.box-sizing(border-box);
+	}
+/* ===========_______________________________   END - "JF-SLIDESHOW" POSITION ________________________________________=========== */
+
+/* ===========_______________________________ START - MODULE VARIATIONS ________________________________________=========== */
+	/* START Some core -------------------- */
+		.jf_mod_suffix {
+			position: absolute;
+			font-size: 9px;
+			top: 14px;
+			right: 10px;
+			font-family: Helvetica, Arial, Sans-Serif;
+			background: #333;
+			padding: 0 3px;
+			.border-radius(2px);
+			color: white;
+			.opacity(20);
+			.transition(all .2s ease-in);
+		}
+		.jf_mod_fog .jf_mod_suffix {
+			width: 78px;
+			text-align: center;
+			line-height: 16px;
+		}
+		.module-surround:hover .jf_mod_suffix {
+			.opacity(50);
+			.transition(all .2s ease-in);
+		}
+		.module-surround:hover .jf_mod_suffix:hover {
+			.opacity(100);
+		}
+	/* END Some core -------------------- */
+
+	/* START Full Colors - SUFFIX 1 ----------------- */
+		.jf_mod_blue, 
+		.jf_mod_red, 
+		.jf_mod_green, 
+		.jf_mod_black {
+			margin: 20px 20px;
+		}
+		.jf_mod_blue,
+		.rt-container .rt-block.jf_mod_blue {
+			background-color: @jf_baseColor !important;
+		}
+		.jf_mod_red,
+		.rt-container .rt-block.jf_mod_red {
+			background-color: #DE0000 !important;
+		}
+		.jf_mod_green,
+		.rt-container .rt-block.jf_mod_green {
+			background-color: #00B856 !important;
+		}
+		.jf_mod_black,
+		.rt-container .rt-block.jf_mod_black {
+			background-color: #444444 !important;
+		}
+		.jf_mod_blue, 
+		.jf_mod_red, 
+		.jf_mod_green, 
+		.jf_mod_black,
+		.rt-container .rt-block.jf_mod_blue, 
+		.rt-container .rt-block.jf_mod_red, 
+		.rt-container .rt-block.jf_mod_green, 
+		.rt-container .rt-block.jf_mod_black {
+			color: #fff;
+			padding: 10px !important;
+			.border-radius(2px);
+		}
+		.jf_mod_blue .title, 
+		.jf_mod_red .title, 
+		.jf_mod_green .title, 
+		.jf_mod_black .title,
+		.rt-container .rt-block.jf_mod_blue .title, 
+		.rt-container .rt-block.jf_mod_red .title, 
+		.rt-container .rt-block.jf_mod_green .title, 
+		.rt-container .rt-block.jf_mod_black .title {
+			color: white !important;
+			text-shadow: none !important;
+			padding-bottom: 0px !important;
+			margin-bottom: 0px !important;
+			border: none !important;
+			background: none !important;
+			padding: 0px !important;
+			margin: 0px !important;
+			line-height: 24px !important;
+			.box-shadow(none) !important;
+			padding-top: 10px !important;
+			margin-bottom: 15px !important;
+		}
+	/* END Full Colors - SUFFIX 1 ----------------- */
+
+	/* START SLEEK - SUFFIX 2 ----------------- */
+		.jf_mod_filled {
+			border: 2px solid #E5E5E5;
+			margin-bottom: 10px;
+			background: white;
+			padding: 0 10px !important;
+			margin: 20px 20px;
+			.module-title h2 {
+				padding: 8px 10px;
+				color: #555 !important;
+				background-repeat: no-repeat;
+				background-position: top center;
+				margin: 0 -10px 15px -10px;
+				text-shadow: 1px 1px 1px white !important;
+				letter-spacing: 1px;
+				border-bottom: 2px solid #E5E5E5 !important;
+				background-color: #F0F0F0;
+				text-transform: uppercase;
+			}
+		} 
+	/* END SLEEK - SUFFIX 2 ----------------- */
+
+	/* START GLASS - SUFFIX 3 ----------------- */
+		.jf_mod_glass {
+			border: 2px solid #DDD;
+			margin: 20px 20px;
+			.transition(all .2s ease-in);
+			&:hover {
+				background: #fff;
+			}
+		}
+	/* END GLASS - SUFFIX 3 ----------------- */
+
+	/* START FOG - SUFFIX 4 ----------------- */
+		.jf_mod_fog {
+			.box-shadow(0 0 4px rgba(0, 0, 0, 0.2) !important);
+			background: none !important;
+			margin: 20px 20px;
+			.transition(all .2s ease-in);
+			&:hover {
+				background: #fff !important;
+			}
+			.title {
+				background: none !important
+			}
+		}
+	/* END FOG - SUFFIX 4 ----------------- */
+/* ===========_______________________________   END - MODULE VARIATIONS ________________________________________=========== */
+
+/* ===========_______________________________ START - RESPONSIVE FEATURES ________________________________________=========== */
+	@media (max-width: 959px) {
+
+	}
+	@media (max-width: 767px) {
+		body select {
+			min-width: 100px;
+		}
+		/* start - SEARCH COMPONENT ----------------------------------------------------------------- */
+			body .component-content fieldset.only label, 
+			body .component-content fieldset.phrases label {
+				margin: 0 10px 10px 0;
+			}
+		/*   END - SEARCH COMPONENT ----------------------------------------------------------------- */
+	}
+	@media (max-width: 736px) {
+		
+	}
+/* ===========_______________________________   END - RESPONSIVE FEATURES________________________________________=========== */
+
+/* ===========_______________________________ START - RESPONSIVE HEADER FEATURES ________________________________________=========== */
+	@media (max-width: 736px) {
+		#rt-header .rt-grid-2 {
+			width: 49%;
+			display: inline-block;
+		}
+	}
+/* ===========_______________________________   END - RESPONSIVE HEADER FEATURES ________________________________________=========== */
+
+/* ===========_______________________________ START - SOME BULLSHIT FIXES ________________________________________=========== */
+	body iframe[src='about:blank'] {
+		display: none;
+	}
+	.btn.jmodedit:before {
+		font-family: FontAwesome;
+		content: "\f044";
+	}
+/* ===========_______________________________   END - SOME BULLSHIT FIXES ________________________________________=========== */
+
+/* ===========_______________________________ START - SOME SMALL ADDONS ________________________________________=========== */
+	body.jf_hide_rt_main #rt-main {
+		display: none;
+	}
+/* ===========_______________________________   END - SOME SMALL ADDONS ________________________________________=========== */
+
+/* ===========_______________________________ START - JF UNDERHEADER ________________________________________=========== */
+	#jf_undermenu {
+		position: absolute;
+		top: 2px;
+		right: 0;
+		.transition(all 0.3s ease);
+	}
+	#rt-header.sticky.active {
+		#jf_undermenu {
+			top: -10px;
+		}
+	}
+	@media only screen and (max-width: 767px) {
+		#jf_undermenu {
+			top: 0;
+			right: 0;
+			height: 48px;
+			width: auto;
+			.rt-block {
+				padding: 0;
+				margin: 0;
+			}
+		}
+	}
+	@media (max-width: 736px) {
+		#jf_undermenu {
+			top: 8px;
+		}
+	}
+	/* ===========_______________________________ START - JF LOGIN ________________________________________=========== */
+		#jf_undermenu .rt-block {
+			margin: 11px 10px;
+			#jf_login {
+				.jf_modal_trigger,
+				.jf_register_btn_new {
+					display: inline-block;
+					line-height: 30px;
+					font-size: 12px;
+					display: inline-block;
+					line-height: 34px;
+					font-size: 12px;
+					background: 0;
+					border: 0;
+					color: #FFF;
+					font-weight: 700;
+					margin: 2px 0;
+					padding: 0 10px;
+					outline: 0;
+					.transition(all 0.3s ease);
+					.box-shadow(none);
+					border: 0;
+					width: auto;
+					height: auto;
+					&:hover {
+						background-color: rgba(255, 255, 255, 0.1);
+					}
+				}
+				.jf_register_btn_new,
+				.jf_modal_trigger.new {
+					border: 2px solid #fff;
+					.border-radius(2px);
+					margin: 0 0 0 10px;
+					line-height: 36px;
+					&:hover {
+						.opacity(70);
+						background-color: transparent;
+					}
+				}
+				.jf_modal_overlay {
+					background: #fff;
+				}
+				.jf_modal_content {
+					.box-sizing(border-box);
+				}
+				.jf_authoriz_btn {
+					font-weight: 700;
+					text-transform: capitalize;
+					letter-spacing: 0;
+					outline: 0;
+					box-shadow: none;
+					background: #F2F2F2;
+					color: #777;
+					font-size: 16px;
+					line-height: 34px;
+				}
+				h3 {
+					font-weight: 700;
+					font-size: 20px;
+					padding: .2em 30px;
+					background: 0;
+					color: #555;
+				}
+				#form-login-remember label {
+					font-weight: 700;
+					font-size: 14px;
+				}
+				form fieldset input[type=password],
+				form fieldset input[type=text] {
+					font-weight: 700;
+					font-size: 14px;
+					letter-spacing: 0;
+					padding: 14px 48px;
+					outline: 0;
+				}
+				.jf_input_icon {
+					top: 26px;
+					font-size: 18px;
+				}
+				.jf_forgot {
+					top: 24px;
+					font-size: 22px;
+				}
+				.jf_modal_close {
+					height: 23px;
+				}
+				/* start - LOGGED ----------------------------------------------------------------- */
+					.jf_greeting {
+						font-size: 14px;
+						font-weight: 600;
+						color: #555;
+					}
+					.jf_profile_links {
+						font-size: 14px;
+						font-weight: 600;
+					}
+				/* end   - LOGGED ----------------------------------------------------------------- */
+			}
+		}
+	/* ===========_______________________________ END   - JF LOGIN ________________________________________=========== */
+/* ===========_______________________________ END   - JF UNDERHEADER ________________________________________=========== */
+
+/* ===========_______________________________ START - JF MOBILEMENU ________________________________________=========== */
+	body #jf_mm_menu {
+		z-index: 199990;
+	}
+	body .jf_mm_trigger {
+		z-index: 199981;
+		top: 22px;
+		.transition(all 0.3s ease);
+	}
+	body.jf_sticky_body_pos_top .jf_mm_trigger {
+		background-color: rgba(0, 0, 0, 0) !important;
+	}
+	body .jf_mm_backout {
+		z-index: 19980;
+	}
+	.jf_sticky_header.active .jf_mm_trigger {
+		top: 8px;
+	}
+	@media (max-width: 667px) {
+		body .jf_mm_trigger {
+			
+		}
+		body.jf_sticky_header.active .jf_mm_trigger {
+			
+		}
+	}
+/* ===========_______________________________ END   - JF MOBILEMENU ________________________________________=========== */
+
+/* ===========_______________________________ START - SECTIONS ________________________________________=========== */
+	.jf_section {
+		overflow: hidden;
+	}
+	/* start - JF WELCOME ----------------------------------------------------------------- */
+		#jf_welcome {
+			text-align: center;
+			h2 {
+				margin: 70px auto;
+				line-height: 48px;
+				font-weight: 700;
+				color: #444;
+				width: 80%;
+			}
+			.features {
+				i {
+					display: block;
+					margin: 20px auto;
+					font-size: 56px;
+					color: @jf_baseColor;
+					&.fa-mobile {
+						font-size: 62px;
+						margin-bottom: 10px;
+					}
+				}
+				img {
+					margin: 14px auto -2px auto;
+				}
+				h5 {
+					font-weight: 600;
+				}
+				h6 {
+					line-height: 26px;
+					color: #888;
+					margin: 20px 0;
+				}
+			}
+			.jf_col {
+				margin-bottom: 30px;
+			}
+		}
+	/* end   - JF WELCOME ----------------------------------------------------------------- */
+
+	/* start - DOWNLOAD ----------------------------------------------------------------- */
+		#jf_download {
+			background: #F7F7F7;
+			text-align: center;
+			h1 {
+				color: #555;
+				font-weight: 700;
+				margin: 80px auto 30px;
+				letter-spacing: 1px;
+			}
+			.jf_typo_button {
+				width: 25%;
+				margin-bottom: 80px;
+			}
+		}
+		@media (max-width: 667px) {
+			#jf_download .jf_typo_button {
+				width: auto;
+			}
+		}
+	/* end   - DOWNLOAD ----------------------------------------------------------------- */
+
+	/* start - FLAT DESIGN ----------------------------------------------------------------- */
+		#jf_flat {
+			text-align: center;
+			.title {
+				font-weight: 700;
+				border-bottom: 1px solid #EEE;
+				padding-bottom: 30px;
+				display: inline-block;
+				margin: 60px auto 30px;
+			}
+			.rt-block {
+				padding: 0 10px;
+				margin: 0 10px;
+				line-height: 0;
+			}
+		}
+		@media (max-width: 667px) {
+			#jf_flat img {
+				width: 100%;
+				height: auto;
+			}
+		}
+	/* end   - FLAT DESIGN ----------------------------------------------------------------- */
+	
+	/* start - OUR SERVICES ----------------------------------------------------------------- */
+		#jf_services {
+			background-attachment: fixed;
+			background-repeat: no-repeat;
+			background-position: center center;
+			-webkit-background-size: cover;
+			-moz-background-size: cover;
+			-o-background-size: cover;
+			background-size: cover;
+			text-align: center;
+			color: #fff;
+			position: relative;
+			&:before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				// background: rgba(0, 0, 0, 0.3);
+			}
+			h2 {
+				font-weight: 700;
+				color: #555;
+				position: relative;
+				font-size: 56px;
+				padding: 80px 0 20px 0;
+			}
+			.descr {
+				color: #555;
+				font-weight: 600;
+				line-height: 30px;
+				margin: 0 10%;
+			}
+			.rt-container {
+				margin: 20px auto 50px;
+			}
+		}
+	/* end   - OUR SERVICES ----------------------------------------------------------------- */
+
+	/* start - FACTS ----------------------------------------------------------------- */
+		#jf_facts {
+			text-align: center;
+			color: #fff;
+			padding-bottom: 40px;
+			display: block;
+			width: 100%;
+			position: relative;
+			background-attachment: fixed;
+			background-repeat: no-repeat;
+			background-position: center center;
+			-webkit-background-size: cover;
+			-moz-background-size: cover;
+			-o-background-size: cover;
+			background-size: cover;
+			&:before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(0, 0, 0, 0.79);
+			}
+			.title {
+				font-weight: 700;
+				color: #fff;
+				position: relative;
+				padding: 60px 0 20px 0;
+			}
+			.count_number {
+				color: #fff;
+				font-weight: 700;
+				line-height: 30px;
+				font-size: 56px;
+				margin: 30px 0;
+			}
+			.count_icon {
+				position: relative;
+				display: inline-block;
+				&:before,
+				&:after {
+					content: " ";
+					width: 72px;
+					height: 2px;
+					display: block;
+					position: absolute;
+					top: 50%;
+					background: #fff;
+				}
+				&:before {
+					left: -82px;
+				}
+				&:after {
+					right: -82px;
+				}
+				i {
+					font-size: 18px;
+					vertical-align: middle;
+				}
+			}
+			.count_title {
+				color: #fff;
+				font-size: 13px;
+				font-weight: 700;
+				font-style: italic;
+				letter-spacing: 1px;
+			}
+		}
+	/* end   - FACTS ----------------------------------------------------------------- */
+
+	/* start - PORTFOLIO ----------------------------------------------------------------- */
+		#jf_portfolio {
+			text-align: center;
+			.mainicon {
+				margin: 60px 0 0 0;
+			}
+			.title {
+				font-weight: 700;
+				margin: 70px 0 30px 0;
+				color: #555;
+			}
+			.sub_title {
+				margin: -10px 30% 60px 30%;
+				color: #777;
+			}
+			.jf_typo_button {
+				margin: 40px 0;
+			}
+		}
+	/* end   - PORTFOLIO ----------------------------------------------------------------- */
+/* ===========_______________________________ END   - SECTIONS ________________________________________=========== */
+
+/* ===========_______________________________ START - FIX v1.2 ________________________________________=========== */
+	.component-content .contact label, 
+	.component-content .contact input, 
+	.component-content .contact select, 
+	.component-content .contact textarea {
+		max-width: 100%;
+	}
+	ul {
+		&.square {
+			padding: 0 0 0 15px;
+			list-style-type: square;
+		}
+		&.circle {
+			padding: 0 0 0 15px;
+			list-style-type: circle;
+		}
+		&.upper-roman {
+			padding: 0 0 0 15px;
+			list-style-type: upper-roman;
+		}
+		&.lower-alpha {
+			padding: 0 0 0 15px;
+			list-style-type: lower-alpha;
+		}
+	}
+/* ===========_______________________________ END   - FIX v1.2 ________________________________________=========== */

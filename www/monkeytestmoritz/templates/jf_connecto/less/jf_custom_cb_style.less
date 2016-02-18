@@ -1,0 +1,78 @@
+/**
+* @version		JF_CB_DTP_080
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+// @jf_cb_UC_MainColor:				#37AFCD;	// '.$jf_cb_UC_MainColor.'
+// @jf_cb_UC_MenubarColor:			#37AFCD;	// '.$jf_cb_UC_MenubarColor.'
+// @jf_cb_UC_TemplateBody:			#ffffff;	// '.$jf_cb_UC_TemplateBody.'
+
+
+/* ===========_______________________________ START - [CB 2.0] - JF CB CORE THEME ________________________________________=========== */
+	/* start - [CB 2.0] - Main Color ----------------------------------------------------------------- */
+		/* start [CB 2.0] - [border-color: #37AFCD;] ----------------------------------------------------------------- */
+			.cb_template .loader-2.light:before {
+				border-color: @jf_cb_UC_MainColor;
+			}
+		/* end   [CB 2.0] - [border-color: #37AFCD;] ----------------------------------------------------------------- */
+
+		/* start [CB 2.0] - [background-color: #37AFCD;] ----------------------------------------------------------------- */
+			.cb_template .loader-2.light:after,
+			.cb_template .loader-3.loader-black {
+				background-color: @jf_cb_UC_MainColor;
+			}
+		/* end   [CB 2.0] - [background-color: #37AFCD;] ----------------------------------------------------------------- */
+
+		/* start [CB 2.0] - [color: #37AFCD;] ----------------------------------------------------------------- */
+			.cb_template a {
+				color: @jf_cb_UC_MainColor;
+			}
+		/* end   [CB 2.0] - [color: #37AFCD;] ----------------------------------------------------------------- */
+
+		/* start [CB 2.0] - [GRADIENT: #37AFCD;] ----------------------------------------------------------------- */
+			.cb_template .btn-primary,
+			.cb_template .btn-primary.active,
+			.cb_template .btn-primary:active,
+			.cb_template .btn-primary:hover,
+			.cb_template input[type=radio]:checked+.btn-primary {
+				background-color:@jf_cb_UC_MainColor;
+				background-image:-moz-linear-gradient(top,@jf_cb_UC_MainColor,@jf_cb_UC_MainColor);
+				background-image:-webkit-gradient(linear,0 0,0 100%,from(@jf_cb_UC_MainColor),to(@jf_cb_UC_MainColor));
+				background-image:-webkit-linear-gradient(top,@jf_cb_UC_MainColor,@jf_cb_UC_MainColor);
+				background-image:-o-linear-gradient(top,@jf_cb_UC_MainColor,@jf_cb_UC_MainColor);
+				background-image:linear-gradient(to bottom,@jf_cb_UC_MainColor,@jf_cb_UC_MainColor);
+				filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff@jf_cb_UC_MainColor', endColorstr='#ff@jf_cb_UC_MainColor', GradientType=0);
+			}
+		/* end   [CB 2.0] - [GRADIENT: #37AFCD;] ----------------------------------------------------------------- */
+	/* end   - [CB 2.0] - Main Color ----------------------------------------------------------------- */
+
+	/* start - [CB 2.0] - Toolbar Color ----------------------------------------------------------------- */
+		/* start [CB 2.0] - [background: #37AFCD;] ----------------------------------------------------------------- */
+			.cb_template .cbMenuNavBar {
+				background: @jf_cb_UC_MenubarColor;
+			}
+		/* end   [CB 2.0] - [background: #37AFCD;] ----------------------------------------------------------------- */
+
+		/* start [CB 2.0] - [GRADIENT: #37afcd;] ----------------------------------------------------------------- */
+			.cb_template .dropdown-menu>li>a:focus,
+			.cb_template .dropdown-menu>li>a:hover,
+			.cb_template .cbMenuNavBar .dropdown-menu>li>a {
+				background-color:@jf_cb_UC_MenubarColor;
+				background-image:-moz-linear-gradient(top,@jf_cb_UC_MenubarColor,@jf_cb_UC_MenubarColor);
+				background-image:-webkit-gradient(linear,0 0,0 100%,from(@jf_cb_UC_MenubarColor),to(@jf_cb_UC_MenubarColor));
+				background-image:-webkit-linear-gradient(top,@jf_cb_UC_MenubarColor,@jf_cb_UC_MenubarColor);
+				background-image:-o-linear-gradient(top,@jf_cb_UC_MenubarColor,@jf_cb_UC_MenubarColor);
+				background-image:linear-gradient(to bottom,@jf_cb_UC_MenubarColor,@jf_cb_UC_MenubarColor);
+				filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff@jf_cb_UC_MenubarColor', endColorstr='#ff@jf_cb_UC_MenubarColor', GradientType=0);
+			}
+		/* end   [CB 2.0] - [GRADIENT: #072530;] ----------------------------------------------------------------- */
+	/* end   - [CB 2.0] - Toolbar Color ----------------------------------------------------------------- */
+	
+	/* start - [CB 2.0] - Template Body ----------------------------------------------------------------- */
+		.cb_template {
+			background: @jf_cb_UC_TemplateBody;
+		}
+	/* end   - [CB 2.0] - Template Body ----------------------------------------------------------------- */
+/* ===========_______________________________ END   - [CB 2.0] - JF JS CORE THEME ________________________________________=========== */

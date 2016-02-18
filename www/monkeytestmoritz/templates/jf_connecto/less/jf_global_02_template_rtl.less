@@ -1,0 +1,176 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+/* ===========_______________________________ START - RTL ________________________________________=========== */
+	body.rtl {
+		direction: rtl;
+		min-width: inherit;
+		/* ===========_______________________________ START - GANTRY MENU ________________________________________=========== */
+			.menu-block {
+				float: left;
+			}
+			.gf-menu.l1 > li.active:after {
+				margin: 1px 5px 0 0;
+			}
+		/* ===========_______________________________   END - GANTRY MENU ________________________________________=========== */
+
+		/* ===========_______________________________ START - RIGHT MENU ________________________________________=========== */
+			#rt-main ul.menu li a, 
+			#rt-main ul.menu li .item, 
+			#rt-main ul.menu li .separator {
+				padding: 0 10px 0 0;
+			}
+		/* ===========_______________________________   END - RIGHT MENU ________________________________________=========== */
+
+		/* ===========_______________________________ START - SIDEBAR: SEARCH MODULE ________________________________________=========== */
+			.module-content .search .button {
+				margin: -1px 5px 0 0;
+				right: auto;
+				left: 10px;
+			}
+		/* ===========_______________________________   END - SIDEBAR: SEARCH MODULE ________________________________________=========== */
+
+		/* ===========_______________________________ START - MODULE: BREADCRUMB ________________________________________=========== */
+			#rt-breadcrumbs .breadcrumb li, 
+			#rt-breadcrumbs [class^="breadcrumb"] li {
+				float: right;
+			}
+			#rt-breadcrumbs .breadcrumb a, 
+			#rt-breadcrumbs .breadcrumb span, 
+			#rt-breadcrumbs [class^="breadcrumb"] a, 
+			#rt-breadcrumbs [class^="breadcrumb"] span {
+				float: right;
+			}
+			#rt-breadcrumbs .divider {
+				
+			}
+		/* ===========_______________________________   END - MODULE: BREADCRUMB ________________________________________=========== */
+
+		/* ===========_______________________________ START - JOOMLA: CATEGORY LIST ________________________________________=========== */
+			.component-content table.category th {
+				text-align: right;
+			}
+		/* ===========_______________________________   END - JOOMLA: CATEGORY LIST ________________________________________=========== */
+
+		/* ===========_______________________________ START - JOOMLA: SEARCH ________________________________________=========== */
+			.component-content .phrases-box {
+				float: right;
+			}
+			.component-content .ordering-box {
+				float: left;
+			}
+			.component-content .search .pull-left {
+				float: right;
+			}
+			.component-content .word {
+				padding: 10px 0 10px 10px;
+			}
+		/* ===========_______________________________   END - JOOMLA: SEARCH ________________________________________=========== */
+
+		/* ===========_______________________________ START - JOOMLA: LOGIN FORM ________________________________________=========== */
+			.component-content #password-lbl, 
+			.component-content #username-lbl {
+				float: right;
+			}
+		/* ===========_______________________________   END - JOOMLA: LOGIN FORM ________________________________________=========== */
+
+		/* ===========_______________________________ START - JOOMLA: USER PROFILE ________________________________________=========== */
+			.component-content #users-profile-core dt, 
+			.component-content #users-profile-custom dt {
+				float: right;
+				margin-right: 0;
+				margin-left: 10px;
+			}
+		/* ===========_______________________________   END - JOOMLA: USER PROFILE ________________________________________=========== */
+
+		/* ===========_______________________________ START - JF LOGO ________________________________________=========== */
+			&.logo-type-gantry .jf_stickyHeader_light #rt-header.headroom--not-top #rt-logo {
+				background-position: 113% bottom;
+			}
+			@media only screen and (min-width: 568px) {
+				&.logo-type-gantry #rt-logo {
+					background-position: 113% top;
+				}
+			}
+			@media only screen and (max-width: 767px) {
+				&.logo-type-gantry #rt-logo{
+					background-position: 25px top;
+				}
+				&.logo-type-gantry .jf_stickyHeader_light #rt-header.headroom--not-top #rt-logo {
+					background-position: 25px bottom;
+				}
+			}
+		/* ===========_______________________________ END   - JF LOGO ________________________________________=========== */
+
+		/* ===========_______________________________ START - JF UNDERMENU ________________________________________=========== */
+			#jf_undermenu {
+				left: 0;
+				right: auto;
+			}
+			#jf_undermenu .rt-block #jf_login .jf_register_btn_new,
+			#jf_undermenu .rt-block #jf_login .jf_modal_trigger.new {
+				margin: 0 10px 0 0;
+			}
+			@media only screen and (max-width: 568px) {
+				#jf_undermenu {
+					left: 20px;
+					right: auto;
+					margin: 10px;
+					height: 51px;
+				}
+			}
+		/* ===========_______________________________ END   - JF UNDERMENU ________________________________________=========== */
+
+		/* ===========_______________________________ START - ARTICLE CONTENT ________________________________________=========== */
+			.component-content ul.actions {
+				left: 0;
+				right: auto;
+			}
+			.item-page .tags {
+				background-position: 100% 12px;
+				padding: 6px 26px 6px 4px;
+			}
+			.component-content .article-info dd {
+				margin: 0 0 0 10px;
+			}
+		/* ===========_______________________________ END   - ARTICLE CONTENT ________________________________________=========== */
+
+		/* ===========_______________________________ START - INPUTS/LABELS ________________________________________=========== */
+			input[type="radio"],
+			input[type="checkbox"] {
+				margin-left: 5px;
+				margin-right: 0;
+			}
+			.component-content fieldset.only label, 
+			.component-content fieldset.phrases label {
+				margin: 0 0 0 10px;
+			}
+		/* ===========_______________________________ END   - INPUTS/LABELS ________________________________________=========== */
+
+		/* ===========_______________________________ START - SUFFIXES ________________________________________=========== */
+			.jf_mod_suffix {
+				right: auto;
+				left: 10px;
+			}
+		/* ===========_______________________________ END   - SUFFIXES ________________________________________=========== */
+
+		/* ===========_______________________________ START - TAG COMPONENT ________________________________________=========== */
+			.component-content .tag-category table.category tr td:after {
+				left: auto;
+				right: 0;
+			}
+		/* ===========_______________________________ END   - TAG COMPONENT ________________________________________=========== */
+
+		/* ===========_______________________________ START - NEW FIX ________________________________________=========== */
+			@media (max-width: 995px) {
+				[class*="rt-grid"] {
+					overflow: hidden;
+				}
+			}
+		/* ===========_______________________________ END   - NEW FIX ________________________________________=========== */
+	}
+/* ===========_______________________________   END - RTL ________________________________________=========== */

@@ -1,0 +1,15 @@
+{
+	"name"		: "JF Connecto",
+	"element"	: "jf_connecto_es",
+	"desc"		: "",
+	"author"	: "JoomForest.com",
+	"email"		: "support@joomforest.com",
+	"website"	: "http://www.joomforest.com",
+	"created"	: "14th May 2015",
+	"version"	: "1.2 - (ES v1.3.28)",
+	"servers"	: 
+	{
+		"update"	: "http://www.joomforest.com/",
+		"version"	: "http://www.joomforest.com"
+	}
+}

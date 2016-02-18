@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension type="file" version="3.0" method="upgrade">
+	<name>jf_connecto_es_13</name>
+	<author>JoomForest.com</author>
+	<creationDate>14.05.15</creationDate>
+	<copyright>Copyright (C) 2011-2015 JoomForest. All rights reserved.</copyright>
+	<authorEmail>support@joomforest.com</authorEmail>
+	<authorUrl>http://www.joomforest.com/</authorUrl>
+	<description></description>
+	<version>1.2</version>
+	<scriptfile>jf_connecto_es_13.php</scriptfile>
+	<fileset>
+		<files folder="copy" target="/">
+			<folder>administrator</folder>
+			<folder>components</folder>
+		</files>
+	</fileset>
+</extension>

@@ -1,0 +1,233 @@
+/**
+* @version		JF_DTF_078
+* @author		JoomForest http://www.joomforest.com
+* @copyright	Copyright (C) 2011-2015 JoomForest.com
+* @license		http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
+*/
+
+@import "jf_global_00_mixins.less";
+@import "jf_global_00_variables.less";
+
+/* ===========_______________________________ START - CORE ________________________________________=========== */
+	/* ===========_______________________________ START - HEADINGS ________________________________________=========== */
+		h1, h2, h3, h4, h5, h6 {
+		  margin: 15px 0;
+		  font-family: inherit;
+		  font-weight: normal;
+		  line-height: 20px;
+		  color: inherit;
+		  text-rendering: optimizelegibility;
+		  color: #333;
+		}
+		h1,
+		h2,
+		h3 {
+		  line-height: 40px;
+		}
+		h1 {
+		  font-size: 32px;
+		}
+		h2 {
+		  font-size: 28px;
+		}
+		h3 {
+		  font-size: 24px;
+		}
+		h4 {
+		  font-size: 22px;
+		}
+		h5 {
+		  font-size: 18px;
+		}
+		h6 {
+		  font-size: 14px;
+		}
+	/* ===========_______________________________   END - HEADINGS ________________________________________=========== */
+
+	/* ===========_______________________________ START - COLUMNS ________________________________________=========== */
+		.jf_col.grid_1 {width:6.5%}
+		.jf_col.grid_2 {width:15%}
+		.jf_col.grid_3 {width:23.5%}
+		.jf_col.grid_4 {width:32%}
+		.jf_col.grid_5 {width:40.5%}
+		.jf_col.grid_6 {width:49%}
+		.jf_col.grid_7 {width:57.5%}
+		.jf_col.grid_8 {width:66%}
+		.jf_col.grid_9 {width:74.5%}
+		.jf_col.grid_10 {width:83%}
+		.jf_col.grid_11 {width:91.5%}
+		.jf_col.grid_12 {width:100%;}
+		.jf_col.grid_1, .jf_col.grid_2, .jf_col.grid_3, .jf_col.grid_4, .jf_col.grid_5, .jf_col.grid_6, 
+		.jf_col.grid_7, .jf_col.grid_8, .jf_col.grid_9, .jf_col.grid_10, .jf_col.grid_11, .jf_col.grid_12 {
+			display: inline;
+			float: left;
+			position: relative;
+			margin-right: 2%;
+		}
+		.jf_col.last-column {
+			margin-right: 0px;
+		}
+		@media only screen and (max-width: 767px) {
+			.jf_col.grid_1, .jf_col.grid_2, .jf_col.grid_3, .jf_col.grid_4, .jf_col.grid_5, .jf_col.grid_6, 
+			.jf_col.grid_7, .jf_col.grid_8, .jf_col.grid_9, .jf_col.grid_10, .jf_col.grid_11, .jf_col.grid_12 {
+				width: 100%;
+				margin: 0;
+			}
+		}			
+	/* ===========_______________________________   END - COLUMNS ________________________________________=========== */
+
+	/* ===========_______________________________ START - TEXT HIGHLIGTS ________________________________________=========== */
+		.jf_typo_highlight_blue, .jf_typo_highlight_red, .jf_typo_highlight_green, .jf_typo_highlight_black {
+			color: #fff;
+			font-weight: normal;
+			padding: 4px 6px;
+			.border-radius(2px);
+		}
+		.jf_typo_highlight_blue {
+			background: @jf_baseColor;
+		}
+		.jf_typo_highlight_red {
+			background: #DE0000;
+		}
+		.jf_typo_highlight_green {
+			background: #00B856;
+		}
+		.jf_typo_highlight_black {
+			background: #444;
+		}
+	/* ===========_______________________________   END - TEXT HIGHLIGTS ________________________________________=========== */
+
+	/* ===========_______________________________ START - DROPCAPS ________________________________________=========== */
+		.jf_typo_dropcap {
+			font-size: 40px;
+			display: block;
+			width: 38px;
+			height: 38px;
+			float: left;
+			margin: 1px 20px 13px 1px;
+			text-align: center;
+			line-height: 38px;
+			padding: 10px;
+			.border-radius(5px);
+		}
+		.jf_typo_dropcap.style1 {
+			background: none;
+			color: #6E6E6E;
+		} 
+		.jf_typo_dropcap.style2 {
+			background: #EEE;
+			color: #6E6E6E;
+		}
+		.jf_typo_dropcap.style3 {
+			background: @jf_baseColor;
+			color: #fff;
+		}
+		.jf_typo_dropcap.style4 {
+			background: #DE0000;
+			color: #fff;
+		}
+	/* ===========_______________________________   END - DROPCAPS ________________________________________=========== */
+
+	/* ===========_______________________________ START - BLOCKQUOTES ________________________________________=========== */
+		blockquote {
+			font: italic 18px Georgia, Serif;
+			padding: 8px 0 8px 55px;
+			margin: 0 15px 10px 0;
+			margin-top: 5px;
+			color: #AEAEAE;
+			background: url(../images/jf/jf_typo/jf_quote.png) no-repeat 15px 8px;
+		}
+		blockquote.jf_typo_qoute_left {
+			float: left;
+			width: 33%;
+			padding: 5px 0 0 55px;
+			margin:0 15px 5px 0;
+		}
+		blockquote.jf_typo_qoute_right {
+			float: right;
+			width: 33%;
+			margin: 0 0 5px 15px;
+			border-left: none;
+			padding: 5px 0 0 55px;
+		}
+	/* ===========_______________________________   END - BLOCKQUOTES ________________________________________=========== */
+
+	/* ===========_______________________________ START - BUTTONS ________________________________________=========== */
+		.jf_typo_button {
+			padding: 6px 40px;
+			display: inline-block;
+			cursor: pointer;
+			.border-radius(2px);
+			border: 2px solid #ccc;
+			color: #555;
+			font-weight: 700;
+			.box-sizing(border-box);
+			&:hover {
+				.opacity(70) !important;
+			}
+			// SIZES
+			&.size1 {font-size:12px;line-height:28px}
+			&.size2 {font-size:18px;line-height:36px}
+			&.size3 {font-size:24px;line-height:42px}
+			&.size4 {font-size:28px;line-height:48px}
+			&.size5 {font-size:38px;line-height:56px}
+			// COLORS
+				&.light 	{border-color: #fff;color: #fff;}
+				&.blue 		{border-color: @jf_baseColor;color: @jf_baseColor;}
+				&.red 		{border-color: #DE0000;color: #DE0000;}
+				&.green 	{border-color: #00B856;color: #00B856;}
+				&.black 	{border-color: #444444;color: #444444;}
+			// FILLED COLORS
+			&.filled {
+				background: #EEE;
+				border-color: #eee;
+				&.light 	{background: #fff;color: #333;border-color: #eee;}
+				&.blue 		{background: @jf_baseColor;color: #fff; border-color: @jf_baseColor;}
+				&.red 		{background: #DE0000;color: #fff;border-color: #DE0000;}
+				&.green 	{background: #00B856;color: #fff;border-color: #00B856;}
+				&.black 	{background: #444444;color: #fff;border-color: #444444;}
+			}
+		}
+		
+		/* Colors ------ */
+			
+	/* ===========_______________________________   END - BUTTONS ________________________________________=========== */
+
+	/* ===========_______________________________ START - LISTS ________________________________________=========== */
+		
+	/* ===========_______________________________   END - LISTS ________________________________________=========== */
+/* ===========_______________________________   END - CORE ________________________________________=========== */
+
+/* ===========_______________________________ START - CORE RTL ________________________________________=========== */
+	body.rtl {
+		/* ===========_______________________________ START - BLOCKQUOTES ________________________________________=========== */
+			blockquote {
+				background-position: 100% -6px;
+				padding: 8px 55px 8px 0;
+				margin: 0 0 10px 15px;
+			}
+			blockquote.jf_typo_qoute_left {
+				float: right;
+				padding: 5px 55px 0 0;
+				margin: 0 0 5px 15px;
+				background-position: 99% -6px;
+			}
+			blockquote.jf_typo_qoute_right {
+				float: left;
+				margin: 0 15px 5px 0;
+				padding: 5px 55px 0 0;
+				background-position: 99% -6px;
+			}
+		/* ===========_______________________________   END - BLOCKQUOTES ________________________________________=========== */
+
+		/* ===========_______________________________ START - LISTS ________________________________________=========== */
+			ul.jf_typo_lists li .icon {
+				left:auto;
+				right: 4px;
+			}
+			ul.jf_typo_lists li {
+				padding-right: 25px;
+			}
+		/* ===========_______________________________   END - LISTS ________________________________________=========== */
+	}
+/* ===========_______________________________   END - CORE RTL ________________________________________=========== */

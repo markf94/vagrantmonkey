@@ -1,0 +1,1010 @@
+[
+    {
+        "title": "JF Tools - Fonts",
+        "fields": [
+            {
+                "label": "Google Web Font Library",
+                "tooltip": "Enable of not 'Google Font Library' on your website",
+                "name": "jf_es_GoogleWebFont",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "Type Google Font Stylesheet",
+                "tooltip": "Type Google Font Stylesheet (Default is - '//fonts.googleapis.com/css?family=Open+Sans:400,600,700'). For other fonts visit - http://www.google.com/webfonts (NOTE! - Leave it Empty if you already use or dont want to add Google font StyleSheet)",
+                "name": "jf_es_GoogleFontSheet",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Type Google Font Tags",
+                "tooltip": "Type tags classes which you want to apply google font. Separate tags with commas, for example like this '.firstclass,.secondclass,#tagid'",
+                "name": "jf_es_GoogleFontTags",
+                "type": "textarea",
+                "default": "body div#fd.es,body div#fd.es.es-main .es-toolbar .fd-navbar-search .search-query,.jf_es_noty_dialog,.jf_es_noty_dialog h1,.jf_es_noty_dialog h2,.jf_es_noty_dialog h3,.jf_es_noty_dialog h4,.jf_es_noty_dialog h5,.jf_es_noty_dialog h6,.cd-headline,body div#fd.es .es-profile-header-title,body div#fd h1,body div#fd h2,body div#fd h3,body div#fd h4,body div#fd h5,body div#fd h6,body div#fd .h1,body div#fd .h2,body div#fd .h3,body div#fd .h4,body div#fd .h5,body div#fd .h6"
+            },
+            {
+                "label": "Type Google Font Face",
+                "tooltip": "Type Google Font Face (Default is - Open Sans). For other fonts visit - http://www.google.com/webfonts",
+                "name": "jf_es_GoogleFontFace",
+                "type": "text",
+                "default": ""
+            }
+        ]
+    },
+    {
+        "title": "JF Tools - Colors",
+        "fields": [
+            {
+                "label": "'Unlimited Colors' Feature",
+                "tooltip": "Enable of not 'Unlimited Colors' feature on your website (NOTE! - If you use our Joomla Template, than dont enable it here, and use it in Joomla Template Manager. Also make sure if you have enabled 'EasySocial Theme Color Override' There)",
+                "name": "jf_es_UnlimColors",
+                "type": "boolean",
+                "default": false
+            },
+            {
+                "label": "Color - Main Color",
+                "tooltip": "(Default is - '#37AFCD')",
+                "name": "jf_es_UC_MainColor",
+                "type": "text",
+                "default": "#37AFCD"
+            },
+            {
+                "label": "Color - Toolbar Top Gradient",
+                "tooltip": "(Default is - '#37AFCD')",
+                "name": "jf_es_UC_ToolbarTopGR",
+                "type": "text",
+                "default": "#37AFCD"
+            },
+            {
+                "label": "Color - Toolbar Bottom Gradient",
+                "tooltip": "(Default is - '#37AFCD')",
+                "name": "jf_es_UC_ToolbarBottomGR",
+                "type": "text",
+                "default": "#37AFCD"
+            },
+            {
+                "label": "Color - Red Buttons",
+                "tooltip": "(Default is - '#dd0000')",
+                "name": "jf_es_UC_ButtonRed",
+                "type": "text",
+                "default": "#dd0000"
+            },
+            {
+                "label": "Color - Green Buttons",
+                "tooltip": "(Default is - '#00B856')",
+                "name": "jf_es_UC_ButtonGreen",
+                "type": "text",
+                "default": "#00B856"
+            }
+        ]
+    },
+    {
+        "title": "JF Tools - Noty Popup",
+        "fields": [
+            {
+                "label": "Toolbar Notification Popup",
+                "tooltip": "Enable of not 'Toolbar Notification Popup' on your website",
+                "name": "jf_es_Noty",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "Notification Sample Text",
+                "tooltip": "Type a simple text which you want to show in popup",
+                "name": "jf_es_NotyText_p",
+                "type": "textarea",
+                "default": ""
+            },
+            {
+                "label": "Notification H5 Text",
+                "tooltip": "Type a text which you want to show in popup in H5 tag",
+                "name": "jf_es_NotyText_h5",
+                "type": "textarea",
+                "default": ""
+            },
+            {
+                "label": "Notification H2 Text",
+                "tooltip": "Type a text which you want to show in popup in H2 Tag",
+                "name": "jf_es_NotyText_h2",
+                "type": "textarea",
+                "default": ""
+            },
+            {
+                "label": "Social Buttons",
+                "tooltip": "Enable of not 'Social Buttons' in Notification Popup",
+                "name": "jf_es_NotySocial",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "Google+ Page ID",
+                "tooltip": "Type Google+ Page ID (Default is - '+JoomForest').",
+                "name": "jf_es_NotySocial_Google",
+                "type": "text",
+                "default": "+JoomForest"
+            },
+            {
+                "label": "Facebook Page ID",
+                "tooltip": "Type Facebook Page ID (Default is - 'JoomForest').",
+                "name": "jf_es_NotySocial_FB",
+                "type": "text",
+                "default": "JoomForest"
+            },
+            {
+                "label": "Twitter Username",
+                "tooltip": "Type your twitter username (Default is - 'JoomForest').",
+                "name": "jf_es_NotySocial_Tw",
+                "type": "text",
+                "default": "JoomForest"
+            }
+        ]
+    },
+    {
+        "title": "JF Tools - Animated Text",
+        "fields": [
+            {
+                "label": "Toolbar Text Animation",
+                "tooltip": "Enable of not 'Toolbar Text Animation' on your website",
+                "name": "jf_es_Animtxt",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "Animation Effect",
+                "name": "jf_es_Animtxt_effect",
+                "tooltip": "Choose Animation Effect",
+                "type": "select",
+                "options": [
+                    {
+                        "title": "Rotate",
+                        "value": "rotate-1"
+                    },
+                    {
+                        "title": "Letters Type",
+                        "value": "letters type"
+                    },
+                    {
+                        "title": "Loading Bar",
+                        "value": "loading-bar"
+                    },
+                    {
+                        "title": "Slide",
+                        "value": "slide"
+                    },
+                    {
+                        "title": "Clip",
+                        "value": "clip"
+                    },
+                    {
+                        "title": "Zoom",
+                        "value": "zoom"
+                    },
+                    {
+                        "title": "Push",
+                        "value": "push"
+                    }
+                ],
+                "default": "elapsed"
+            },
+            {
+                "label": "Animation Delay",
+                "tooltip": "Type numbers in milleseconds (Default is 5000)",
+                "name": "jf_es_Animtxt_delay",
+                "type": "text",
+                "default": "5000"
+            },
+            {
+                "label": "Text 1",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_1",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 2",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_2",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 3",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_3",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 4",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_4",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 5",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_5",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 6",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_6",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 7",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_7",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 8",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_8",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 9",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_9",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Text 10",
+                "tooltip": "Type a simple text which you want to show",
+                "name": "jf_es_Animtxt_10",
+                "type": "text",
+                "default": ""
+            }
+        ]
+    },
+    {
+        "title": "JF Tools - Front Slider",
+        "fields": [
+            {
+                "label": "Front Guest Slideshow",
+                "tooltip": "Enable of not 'Front Guest Slideshow' on your website",
+                "name": "jf_es_Slider",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "Slider prependTo Tag",
+                "tooltip": "Type tag selector where you want to move slideshow (Default is - '#rt-mainbody-surround > .rt-container')",
+                "name": "jf_es_Slider_prepend",
+                "type": "text",
+                "default": "#rt-mainbody-surround > .rt-container"
+            },
+            {
+                "label": "Slider height",
+                "tooltip": "Type slideshow height in pixels (Default is - 500px)",
+                "name": "jf_es_Slider_h",
+                "type": "text",
+                "default": "500px"
+            },
+            {
+                "label": "Slider Speed",
+                "tooltip": "Type Speed of the transition, in milliseconds (Default is - 1000)",
+                "name": "jf_es_Slider_speed",
+                "type": "text",
+                "default": "1000"
+            },
+            {
+                "label": "Slider Delay",
+                "tooltip": "Type Delay of the slides, in milliseconds (Default is - 7000)",
+                "name": "jf_es_Slider_delay",
+                "type": "text",
+                "default": "7000"
+            },
+            {
+                "label": "H1 Text in Slider",
+                "tooltip": "Type H1 Tag text which will be middle of slider",
+                "name": "jf_es_Slider_html_h1",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "H3 Text in Slider",
+                "tooltip": "Type H3 Tag text which will be middle of slider",
+                "name": "jf_es_Slider_html_h3",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 1",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_1",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 2",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_2",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 3",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_3",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 4",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_4",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 5",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_5",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 6",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_6",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 7",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_7",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image - 8",
+                "tooltip": "Type image URL without Domain Name (for example - images/stories/image1.jpg) - Leave it Empty if you dont want to use",
+                "name": "jf_es_Slider_img_8",
+                "type": "text",
+                "default": ""
+            },
+            {
+                "label": "Image Mask - color",
+                "tooltip": "(Default is - '#000')",
+                "name": "jf_es_Slider_maskColor",
+                "type": "text",
+                "default": "#000"
+            },
+            {
+                "label": "Image Mask - Opacity",
+                "tooltip": "Type mask opacity, numbers from 1 to 10 (Default is - 2)",
+                "name": "jf_es_Slider_maskOpacy",
+                "type": "text",
+                "default": "1"
+            }
+        ]
+    },
+    {
+        "title": "JF Tools - Custom Styles",
+        "fields": [
+            {
+                "label": "Custom CSS",
+                "tooltip": "Type your Custom CSS Styles",
+                "name": "jf_es_CustomCSS",
+                "type": "textarea",
+                "default": ""
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_SECTION_STREAM",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_STREAM_USE_ICONS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_STREAM_USE_ICONS_DESC",
+                "name": "stream_icon",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DATE_DISPLAY_STYLE",
+                "name": "stream_datestyle",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_THE_DATE_DISPLAY_STYLE_IN_FRONTEND_TOOLTIP",
+                "type": "select",
+                "options": [
+                    {
+                        "title": "Time elapsed style",
+                        "value": "elapsed"
+                    },
+                    {
+                        "title": "Normal datetime style",
+                        "value": "datetime"
+                    }
+                ],
+                "default": "elapsed"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DATETIME_FORMAT",
+                "name": "stream_dateformat_format",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_THE_FORMAT_OF_DATETIME_WHEN_NORMAL_DATETIME_STYLE_SELECTED__TOOLTIP",
+                "type": "text",
+                "default": "Y-m-d H:i"
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_SECTION_DASHBOARD",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_LOGIN_FOR_GUESTS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_LOGIN_FOR_GUESTS_DESC",
+                "name": "dashboard_login_guests",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_EVERYONE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_EVERYONE_DESC",
+                "name": "dashboard_feeds_everyone",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_FRIEND_LISTS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_FRIEND_LISTS_DESC",
+                "name": "dashboard_feeds_friendlists",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_GROUPS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_GROUPS_DESC",
+                "name": "dashboard_feeds_groups",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_GROUPS_LIMIT",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_GROUPS_LIMIT_DESC",
+                "name": "dashboard_groups_total",
+                "type": "limit",
+                "default": 0
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_EVENTS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_EVENTS_DESC",
+                "name": "dashboard_feeds_events",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_EVENTS_LIMIT",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_EVENTS_LIMIT_DESC",
+                "name": "dashboard_events_total",
+                "type": "limit",
+                "default": 0
+            },
+             {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_APPS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_APPS_DESC",
+                "name": "dashboard_show_apps",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_APP_FILTERS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_APP_FILTERS_DESC",
+                "name": "dashboard_feeds_apps",
+                "type": "boolean",
+                "default": true
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_REGISTRATION",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_HEADERS_IN_SELECTING_PROFILE_PAGE",
+                "name": "registration_profile_headers",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_HEADING_THAT_APPEARS_BELOW_THE_TOOLBAR_SHOULD_BE_ENABLED__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_PROFILE_AVATAR",
+                "name": "registration_profile_avatar",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_PROFILE_AVATAR_SHOULD_BE_VISIBLE_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_PROFILE_DESCRIPTION",
+                "name": "registration_profile_desc",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_PROFILE_DESCRIPTION_SHOULD_BE_VISIBLE_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_PROFILE_REGISTRATION_TYPE",
+                "name": "registration_profile_type",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_PROFILE_TYPE_SHOULD_BE_VISIBLE_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_USERS_REGISTERED_IN_PROFILE",
+                "name": "registration_profile_users",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_USERS_THAT_ARE_REGISTERED_IN_THAT_PROFILE_SHOULD_BE_VISIBLE_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_PROGRESS_BAR_DURING_REGISTRATION",
+                "name": "registration_progress",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_USERS_SHOULD_BE_ABLE_TO_SEE_THE_REGISTRATION_PROGRESS_BAR__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_SELECTED_PROFILE_DURING_REGISTRATION",
+                "name": "registration_profile_selected",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_THIS_OPTION_IS_ENABLED__USERS_WOULD_BE_ABLE_TO_SEE_THE_PROFILE_THAT_THEY_HAVE_SELECTED_INITIALLY__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_TOOLBAR",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_TOOLBAR",
+                "name": "toolbar",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_TOOLBAR_SHOULD_BE_ENABLED__TOOLTIP",
+                "type": "boolean",
+                "default": "true"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_TOOLBAR_FOR_GUEST",
+                "name": "toolbar_guests",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_TOOLBAR_SHOULD_BE_VISIBLE_BY_GUEST_USERS__TOOLTIP",
+                "type": "boolean",
+                "default": "true"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_DASHBOARD",
+                "name": "toolbar_dashboard",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_HOME_ICON_SHOULD_BE_VISIBLE_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": "true"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_SEARCH",
+                "name": "toolbar_search",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_SEARCH_BOX_SHOULD_BE_ENABLED_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": "true"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_LOGIN",
+                "name": "toolbar_login",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_LOGIN_ICON_SHOULD_BE_VISIBLE_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": "true"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SHOW_ACCOUNT_DROPDOWN",
+                "name": "toolbar_account",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_IF_THE_YOUR_PROFILE_SUBMENU_ITEM_SHOULD_BE_VISIBLE_OR_NOT__TOOLTIP",
+                "type": "boolean",
+                "default": "true"
+            },
+            {
+                "label": "COM_EASYSOCIAL_TOOLBAR_SHOW_BROWSE_USERS",
+                "tooltip": "COM_EASYSOCIAL_TOOLBAR_SHOW_BROWSE_USERS_DESC",
+                "name": "show_browse_users",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label"     : "COM_EASYSOCIAL_TOOLBAR_SHOW_ADVANCED_SEARCH",
+                "tooltip"   : "COM_EASYSOCIAL_TOOLBAR_SHOW_ADVANCED_SEARCH_DESC",
+                "name"      : "show_advanced_search",
+                "type"      : "boolean",
+                "default"   : true
+            }             
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_CONVERSATIONS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_CONVERSATIONS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_CONVERSATIONS_TO_DISPLAY_PER_PAGE_IN_THE_CONVERSATION_LISTINGS_TOOLTIP",
+                "name": "conversation_limit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "20"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_CONVERSATION_SORTING",
+                "name": "conversation_sorting",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_THE_SORTING_SEQUENCE_FOR_CONVERSATIONS_THAT_ARE_LISTED_ON_THE_CONVERSATIONS_PAGE__TOOLTIP",
+                "type": "select",
+                "default": "created",
+                "options": [
+                    {
+                        "title": "Creation Date",
+                        "value": "created"
+                    },
+                    {
+                        "title": "Last Replied Date",
+                        "value": "lastreplied"
+                    }
+                ]
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_CONVERSATION_ORDERING",
+                "name": "conversation_ordering",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DETERMINES_THE_ORDERING_FOR_CONVERSATIONS_THAT_ARE_LISTED_ON_THE_CONVERSATIONS_PAGE__TOOLTIP",
+                "type": "select",
+                "default": "desc",
+                "options": [
+                    {
+                        "title": "Descending (Higher to Lower)",
+                        "value": "desc"
+                    },
+                    {
+                        "title": "Ascending (Lower to Higher)",
+                        "value": "asc"
+                    }
+                ]
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_MESSAGES_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_MESSAGES_TO_DISPLAY_PER_PAGE_WHEN_READING_A_CONVERSATION_TOOLTIP",
+                "name": "messages_limit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "20"
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_PROFILE",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_PROFILE_COVER",
+                "name": "profile_cover",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USERS_PROFILE_COVER_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_POINTS",
+                "name": "profile_points",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USERS_POINTS_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DISPLAY_PROFILE_TITLE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DISPLAY_PROFILE_DESC",
+                "name": "profile_type",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_BADGES",
+                "name": "profile_badges",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USERS_BADGES_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_AGE",
+                "name": "profile_age",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USERS_AGE_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_GENDER",
+                "name": "profile_gender",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USERS_GENDER_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_ADDRESS",
+                "name": "profile_address",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USERS_ADDRESS_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_WEBSITE",
+                "name": "profile_website",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USERS_WEBSITE_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_REPORT_USER",
+                "name": "profile_report",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__REPORT_LINK_WILL_BE_DISPLAYED_IN_THE_USERS_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_LASTLOGIN",
+                "name": "profile_lastlogin",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED_USERS_LASTLOGIN_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_JOINDATE",
+                "name": "profile_joindate",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED_USERS_JOINDATE_WILL_BE_DISPLAYED_IN_THEIR_PROFILE__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_PROFILE_SHOW_APP_FILTERS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_PROFILE_SHOW_APP_FILTERS_DESC",
+                "name": "profile_feeds_apps",
+                "type": "boolean",
+                "default": true
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_APPS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_SORTING_ITEMS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED__USER_CAN_SORT_APPS_WHEN_THEY_ARE_VIEWING_THE_APPS__TOOLTIP",
+                "name": "apps_sorting",
+                "type": "boolean",
+                "default": true
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_USERS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_USERS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_USERS_TO_DISPLAY_PER_PAGE_IN_THE_USERS_LISTINGS_TOOLTIP",
+                "name": "userslimit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "10"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_LASTLOGIN",
+                "name": "users_lastlogin",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED_USERS_LASTLOGIN_WILL_BE_DISPLAYED_IN_USER_LISTING__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_DISPLAY_JOINDATE",
+                "name": "users_joindate",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_IF_ENABLED_USERS_JOINDATE_WILL_BE_DISPLAYED_IN_USER_LISTING__TOOLTIP",
+                "type": "boolean",
+                "default": true
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_FRIENDS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_USERS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_USERS_TO_DISPLAY_PER_PAGE_IN_THE_FRIENDS_LISTINGS_TOOLTIP",
+                "name": "friendslimit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "20"
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_SECTION_FOLLOWERS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_SECTION_FOLLOWERS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_SECTION_FOLLOWERS_PER_PAGE_DESC",
+                "name": "followersLimit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "20"
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_BADGES",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_BADGES_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_BADGES_TO_DISPLAY_PER_PAGE_IN_THE_BADGE_LISTINGS_TOOLTIP",
+                "name": "badgeslimit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "10"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_ACHIEVERS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_ACHIEVERS_TO_DISPLAY_PER_PAGE_IN_THE_BADGE_PAGE_TOOLTIP",
+                "name": "achieverslimit",
+                "type": "pagination",
+                "start": "10",
+                "increment": "10",
+                "max": "100",
+                "default": "50"
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_POINTS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_POINTS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_POINTS_TO_DISPLAY_PER_PAGE_IN_THE_POINTS_LISTINGS_TOOLTIP",
+                "name": "pointslimit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "10"
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_SECTION_GROUPS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_GROUPS_RESULTS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_GROUPS_RESULTS_PER_PAGE_DESC",
+                "name": "groups_limit",
+                "type": "pagination",
+                "start": 5,
+                "increment": 5,
+                "max": 100,
+                "default": 20
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_GROUPS_CATEGORY_HEADERS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_GROUPS_CATEGORY_HEADERS_DESC",
+                "name": "groups_category_header",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_GROUPS_DESCRIPTION",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_GROUPS_DESCRIPTION_DESC",
+                "name": "groups_description",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_APP_FILTERS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_DASHBOARD_SHOW_APP_FILTERS_DESC",
+                "name": "groups_feeds_apps",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_APP_FILTERS_LIMIT",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_APP_FILTERS_LIMIT_DESC",
+                "name": "groups_feeds_apps_total",
+                "type": "limit",
+                "default": 0
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_SECTION_EVENTS",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_RESULTS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_RESULTS_PER_PAGE_DESC",
+                "name": "events_limit",
+                "type": "pagination",
+                "start": 5,
+                "increment": 5,
+                "max": 100,
+                "default": 20
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_CATEGORY_HEADERS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_CATEGORY_HEADERS_DESC",
+                "name": "events_category_header",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_DESCRIPTION",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_DESCRIPTION_DESC",
+                "name": "events_description",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_SHOW_APP_FILTERS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_SHOW_APP_FILTERS_DESC",
+                "name": "events_feeds_apps",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_APP_FILTERS_LIMIT",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_APP_FILTERS_LIMIT_DESC",
+                "name": "events_feeds_apps_total",
+                "type": "limit",
+                "default": 0
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_SHOW_ADDRESS",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_SHOW_ADDRESS_DESC",
+                "name": "events_seatsleft",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_SHOW_SEATS_LEFT",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_EVENTS_SHOW_SEATS_LEFT_DESC",
+                "name": "events_seatsleft",
+                "type": "boolean",
+                "default": true
+            }
+        ]
+    },
+    {
+        "title": "COM_EASYSOCIAL_THEMES_WIREFRAME_SEARCH",
+        "fields": [
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_RESULTS_IN_TOOLBAR",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_SEARCH_RESULTS_TO_DISPLAY_IN_TOOLBAR_SEARCH_TOOLTIP",
+                "name": "search_toolbarlimit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "5"
+            },
+            {
+                "label": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_RESULTS_PER_PAGE",
+                "tooltip": "COM_EASYSOCIAL_THEMES_WIREFRAME_FIELD_SPECIFY_THE_NUMBER_OF_SEARCH_RESULTS_TO_DISPLAY_PER_PAGE_IN_SEARCH_PAGE_TOOLTIP",
+                "name": "search_limit",
+                "type": "pagination",
+                "start": "5",
+                "increment": "5",
+                "max": "100",
+                "default": "10"
+            }
+        ]
+    }
+]
