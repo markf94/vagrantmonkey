@@ -13,7 +13,7 @@ Vagrant.configure(2) do |config|
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
   config.vm.box = "joomlatools/box"
-  config.vm.provision :shell, path: "bootstrap.sh"
+  # config.vm.provision :shell, path: "bootstrap.sh"
   config.vm.network :forwarded_port, guest: 80, host: 4567
 
   # Disable automatic box update checking. If you disable this, then
