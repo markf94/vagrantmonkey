@@ -1,0 +1,49 @@
+<?php if (!$messages) return;?>
+<?php if (!$isValid): ?>
+<script>
+var errorMsgPane = $$('#PrerequisitesPage .message-box.error')[0];
+if (errorMsgPane) {
+	errorMsgPane.removeClass('hidden');
+	errorMsgPane.set('text', _t('Your system does not qualify to deploy the package'));
+}
+</script>
+<div style="padding-bottom: 10px;"><button name="Refresh" onclick="refreshPrerequisites()">Refresh</button> Click <a href="<?php echo $this->basePath() ?>/Extensions/phpExtensions" target="_blank">here</a> to open Zend Server in a new window or tab</div> 
+<?php endif ?>
+<div>
+<?php echo $this->AppPrerequisites($messages); ?>
+</div>
+<script>	
+<?php if ($isValid): ?>
+	var prerequisitesValid = true;
+
+	var errorMsgPane = $$('#PrerequisitesPage .message-box.error')[0];
+	if (errorMsgPane) {
+		errorMsgPane.addClass('hidden');
+	}
+<?php else : ?>
+	var prerequisitesValid = false;
+	errorMsgPane.removeClass('hidden');
+<?php endif ?>
+
+
+function refreshPrerequisites() {
+	<?php $prerequisitesUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Prerequisites')); ?>
+	var myRequest = new Request({
+		data: dataObj,
+		url: '<?php echo $prerequisitesUrl; ?>?wizardId=<?php echo $wizardId; ?>',
+		async: false,
+		evalScripts: true,
+		onComplete: function(response){
+			$('prerequisitesContent').set('html', response);
+			if (! prerequisitesValid) {
+				$('wizard-control-forward').set('disabled', true);
+			} else {
+				$('wizard-control-forward').set('disabled', false);
+			}
+		}
+	}).send();
+
+	return valid;
+}
+
+</script>

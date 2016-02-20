@@ -1,0 +1,8 @@
+"responseData":{"settings":
+<?php 
+	$list = array();
+	foreach ($settings as $key => $value) { 
+		$list[] = array("name" => $key, "value" => $value); 
+	}
+	echo json_encode($list);	
+?> }

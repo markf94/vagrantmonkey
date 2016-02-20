@@ -1,0 +1,15 @@
+"responseData": {
+        "requestEnvironment": {
+            "requestId": "<?php echo $requestId ?>",
+<?php $lastType = end(array_keys($superglobals)) ?>
+<?php 		foreach ($superglobals as $type => $superglobalHistory):?>
+			"<?php echo $type ?>": <?php echo $this->superglobalStructure19Json($superglobalHistory) ?><?php echo $lastType != $type ? ',' : '' ?>
+<?php 		endforeach ?>,
+            "rawHeaders": <?php echo json_encode($request->getRequestHeaders()); ?>,
+            "rawPostData": <?php echo json_encode(base64_encode($request->getHttpRawPostData())); ?>
+        },
+        "responseEnvironment": {
+            "rawHeaders": <?php echo json_encode($request->getResponseHeaders()); ?>,
+            "rawOutput": <?php echo json_encode(base64_encode($request->getRawOutput())); ?>
+        }
+    }

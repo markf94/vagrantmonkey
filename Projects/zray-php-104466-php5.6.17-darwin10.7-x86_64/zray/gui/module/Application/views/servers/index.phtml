@@ -1,0 +1,1110 @@
+<?php
+$this->headLink()->appendStylesheet("{$this->basePath()}/css/servers.css");
+$this->headscript()->appendFile("{$this->basePath()}/js/zgridPolling.js");
+$this->headscript()->appendFile("{$this->basePath()}/js/FragmentManager.js");
+$joinCluster = $joinCluster ?: new Zend\Form\Form();
+$isRestartAllowed = $isRestartAllowed;
+$form = $joinCluster;
+$form->prepare();
+$form->setAttribute('method', 'post');
+?>
+<script type="text/javascript">
+
+		var serversDataPolling = new zGridPolling();
+
+		var serversCount = 0;
+		
+		var editTipShow = [];
+
+        var restartAllowed = <?php echo $isRestartAllowed ? 'true' : 'false' ?>;
+
+        var isDevbar = <?php echo $isDevbar == '1' ? 'true' : 'false' ?>;
+
+        var fragmentManager = new FragmentManager();
+       	window.addEvent("domready", function() {
+        	if (fragmentManager.getFragmentValue('Join') != null) {
+        		fragmentManager.removeUriFragment('Join')
+        		openJoinClusterModal();
+        	}
+        });        
+        
+		function tasksMessages(serverId, task) {
+			var serverData = zgrid2.getRowData(serverId);
+			var message = '';
+							
+			switch (task) {
+				case 'remove':
+				case 'force_remove':
+					message = _t('Server {serverId} was successfully removed', {serverId: serverId});
+					break;
+				case 'revert_changes':
+					message = _t('Server {name} configurations were successfully reverted', serverData);
+					break;
+				case 'apply_changes':
+					message = _t('Server {name} configurations were successfully applied', serverData);
+					break;
+				case 'disable':
+					message = _t('Server {name} was successfully disabled', serverData);
+					break;
+				case 'enable':
+					message = _t('Server {name} was successfully enabled', serverData);
+					break;
+				case 'restart':
+					/// restart message is handled by the notification center
+					break;
+			}
+
+			return message;
+		}
+
+		function closeServerName(id) {
+			editTip.hide($(id));
+			zgrid2.deactivateRow(id.substring(5));
+		}
+		
+		function changeServerName(id){
+			//call to the api function to change name
+			var url = '<?php echo $this->basepath('/Api/changeServerNameById'); ?>';
+
+			//the correct id of the element that holds the server's id
+			var inputId = id + '_txtinput';
+
+			//close the tooltip
+			editTip.hide($(id));
+			zgrid2.deactivateRow(id.substring(5));
+
+			if (zgrid2.getRowData(id.replace('edit_', '')).name == $(inputId).value) {
+				return;
+			}
+
+			var differentNames = Object.every(zgrid2.getRowsData(), function(value, key){
+			    return value.name != $(inputId).value;
+			});
+
+			if (! differentNames) {
+				document.fireEvent('toastAlert', {'message': 'Server name already exists in the cluster'});
+				return;
+			}
+
+			//make the request
+			var request = new Request.WebAPI({
+				method: 'post',
+				url: url,
+				version: '1.3',
+				data: {"serverName" : $(inputId).value , "serverId" : id.substring(5)}, 
+				onSuccess: function(response) {
+					zgrid2.updateData(response.responseData.serversList);
+					document.fireEvent('toastNotification', {'message': '<?php echo _t("Server name changed") ?>'});
+				},
+				onFailure: function(response) {
+					var decoded = this.decodeResponse(response);
+					document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+				}
+			}).send();
+		}
+		
+		var zgrid2;
+		var editTip;
+		var rowsChecked = 0;
+		
+		var initData = {<?php echo $this->partial('servers/web-api/1x3/cluster-get-server-status.pjson.phtml', array('servers' => $servers));?>};
+		var initTasks = <?php echo $this->json(new ArrayObject($currentTasks)) ?>;
+
+		var tasksReference = {
+				'0': 'restart',
+				'1': 'remove',
+				'3': 'join',
+				'6': 'disable',
+				'7': 'enable',
+				'13': 'force_remove'
+			};
+
+		var initTasksTranslated = {};
+		Object.each(initTasks, function(servers, task){
+			if (tasksReference[task]) {
+				var newTask = tasksReference[task];
+				initTasksTranslated[newTask] = servers;
+			}
+		});
+		
+		var tasksPolling = new tasksPolling(initTasksTranslated);
+		
+		var addTips = function() {
+			editTip = new FloatingTips('.edit', {
+				// Content can also be a function of the target element!
+				content: function(e) {
+					var rowNum = e.get('id').substring(5);
+					
+					//zgrid2.activateRow(rowNum);
+					var rowId = e.get('id') + '_txtinput'; 
+					return '<input name="' + rowId + '" id="' 
+					+ rowId + '" type="text" class="rename-field" value="'+zgrid2.getRowData(rowNum).name
+					+'" placeholder="'+zgrid2.getRowData(rowNum).name+'" ><br/><button onclick="changeServerName(\'' 
+					+ e.get('id') + '\');" style="margin-top:5px;">Save</button><button onclick="closeServerName(\'' 
+					+ e.get('id') + '\');" style="margin-left: 5px; margin-top:5px;">Cancel</button>'; 
+				},
+				html: true,
+				position: 'bottom', // Bottom positioned
+				center: true, // Place the tip aligned with target
+				arrowSize: 8, // A bigger arrow!
+				showOn: 'click',
+				hideOn: 'null',
+			});
+			
+			editTip.addEvent('show', function(tip, element) {
+				editTipShow.push(element.get('id').replace('edit_', ''));
+			});
+
+			editTip.addEvent('hide', function(tip, element) {
+				delete editTipShow[element.get('id').replace('edit_', '')];
+			});
+
+			zgrid2.addEvent('rowLeave', function(params) {
+				//check if tooltip is open
+				if (editTipShow.contains(params.rowId)) {
+					zgrid2.activateRow(params.rowId);
+				}
+			});	
+
+		}
+		
+		function joinToCluster(initialCount) {
+			$$('.simple-modal-body').pick().spin();
+			var url = '<?php echo $this->basePath('/Api/serverAddToCluster') ?>';
+			serversDataPolling.stop();
+			var request = new Request.WebAPI({
+				method: 'post',
+				url: url,
+				version: '1.3',
+				data: $$('.simple-modal-body #join-cluster-form')[0].toObj(),
+				onSuccess: function(response) {
+					var newCreds = response.responseData.newCredentials;
+					if (newCreds.new) {
+						alert("Zend Server has detected that you are the first server in this cluster. The user credentials required for accessing the cluster database have been created, and can be retrieved from: ZendServer/etc/zend_database.ini");
+					}
+					tasksPolling.setTask(response.responseData.serversInfo.id, 'join');
+					tasksPolling.start();
+				},
+				onFailure: function(response) {
+					$$('.simple-modal-body').pick().unspin();
+					var decoded = this.decodeResponse(response);
+					document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+				},
+				onComplete: function() {
+					serversDataPolling.start();
+				}
+			}).send();
+		} 
+
+		<?php if (\Application\Module::isSingleServer() && $this->isAllowed('route:ServersWebAPI', 'serverAddToCluster')) : ?>
+		function openJoinClusterModal() {
+			simpleModal = new SimpleModal({width: 673, closeButton: false, hideHeader: true, hideFooter: true, draggable: false, draggableContainer: 'wizard-title', overlayClick: false,
+				template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+					<div class=\"simple-modal-toast\"></div>\
+					<div class=\"simple-modal-body contents\">{_CONTENTS_}</div>\
+					<div class=\"simple-modal-footer\"></div></div>"});
+
+			simpleModal.addButton("<?php echo _t("Cancel") ?>", "btn define-cancel");
+			simpleModal.addButton("<?php echo _t("Join Cluster") ?>", "btn primary define-save", joinToCluster.bind(simpleModal));
+
+			simpleModal.show({
+				"model":	"modal",
+				"title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('joining_a_cluster'); ?>"></a>', 
+				"contents": $('join-cluster-modal').get('html')
+			});
+		}
+		<?php elseif (! \Application\Module::isSingleServer() && $this->isAllowed('route:ServersWebAPI', 'serverAddToCluster')) : ?>
+		function openJoinClusterModal() {
+			document.fireEvent('toastNotification', {'message': '<?php echo _t("You are already a part of a cluster"); ?>'});
+		}
+		<?php else : ?>
+		function openJoinClusterModal() {
+			document.fireEvent('toastAlert', {'message': '<?php echo _t("You do not have the correct permissions for join cluster"); ?>'});
+		}
+		<?php endif; ?>
+		
+		window.addEvent("load", function(){
+
+			tasksPolling.addEvent('poll', function(polling) {
+				if (Object.getLength(tasksPolling.getTasks()) == 0) {
+					tasksPolling.stop();
+					return ;
+				}
+
+				var url = '<?php echo $this->basepath('/Api/tasksComplete') ?>';
+				var request = new Request.WebAPI({
+					url:url,
+				});
+
+				request.addEvent('success', function(response) {
+					
+					Object.each(response.responseData.tasksPerServer, function(complete, serverId){
+						if (complete) {
+							var message = tasksMessages(serverId, tasksPolling.getTask(serverId));
+							if (message) {
+								document.fireEvent('toastNotification', {'message': message});
+							}
+							if (['join', 'remove'].contains(tasksPolling.getTask(serverId))) {
+								document.fireEvent('platformChange', {'serverId': serverId, 'connect': tasksPolling.getTask(serverId) == 'join'});
+							}
+							tasksPolling.removeTask(serverId);
+						}
+					});
+
+					if (response.responseData.tasksComplete) {
+						tasksPolling.resetTasks();
+						tasksPolling.stop();
+					}
+
+					if (Object.getLength(tasksPolling.getTasks()) > 0) {
+						tasksPolling.next();
+					} else {
+						tasksPolling.stop();
+					}
+				});
+
+				request.get({'servers': Object.keys(tasksPolling.getTasks())})
+			}.bind(tasksPolling));
+
+			/// if we have any tasks, start polling immediately
+			if (Object.getLength(tasksPolling.getTasks())) {
+				tasksPolling.start();
+			}
+			
+			document.addEvent('beginRestart', function(event){
+				Object.keys(zgrid2.getRowsData()).each(function(server){
+					tasksPolling.setTask(server, 'restart');
+				});
+				tasksPolling.start();
+			});
+
+			serversDataPolling.addEvent('poll', function(polling){
+				if (zgrid2 && zgrid2.loadRequest) {
+					zgrid2.loadRequest.get();
+				}
+			}.bind(serversDataPolling));
+
+			document.addEvent('platformChange', function(event){
+				if (event.reload || (event.serverId == <?php echo $nodeId; ?>)) {
+					Function.from(function(force){
+						location.reload(force);
+					}).delay(1000, null, true);
+				}
+			});
+			
+			persistantHeaders.addHeader('grid-action-bar');
+			persistantHeaders.addHeader('mytable_tableHead');
+			
+			createUnsupportedTooltip();
+			
+			serverDetails = <?php echo $this->zGridServerDetails($this->basepath('/Api/clusterGetServerStatus')); ?>
+
+				//////////////GRID CALLBACKS //////////////
+				var serverStatus = function(value, data) {
+					if (value != 'notResponding' && (rowEligible(value) || tasksPolling.getTask(data.id))) {
+						return "<img src='<?php echo $this->basePath('/images/preload-16.gif')?>' style='margin-top: 7px;' />";
+					}
+					
+					var divClass = '';
+					switch (value) {
+						case 'OK':
+							divClass = 'main-servers-list-ok';
+							break;
+						case 'disabled':
+							divClass = 'main-servers-list-disabled';
+							break;
+						case 'pendingRestart':
+							divClass = 'main-servers-list-restart';
+							break;
+						case 'restarting':
+						case 'disconnecting':
+						case 'reloadingConfigurations':
+						case 'unknown':
+						case 'notResponding':
+						case 'Warning':
+						case 'Error':
+						default:
+							divClass = 'main-servers-list-warning';
+							break;
+					}
+					var msg = serverMessage(data.messageList, data);
+					
+					return '<div class="' + divClass + '" title="' + msg + '"></div>';
+				}
+
+				var serverMessage = function(value, data) {
+					switch (data.status) {
+						case 'OK':
+							return '<?php echo _t('Server is online') ?>';
+							break;
+						case 'disabled':
+							return '<?php echo _t('Server is disabled') ?>';
+							break;
+						case 'pendingRestart':
+							return '<?php echo _t('Server is pending restart') ?>';
+							break;
+						case 'restarting':
+							return '<?php echo _t('Server restarting') ?>';
+							break;
+						case 'disconnecting':
+							return '<?php echo _t('Server disconnecting') ?>';
+							break;
+						case 'disabling':
+							return '<?php echo _t('Server is being disabled') ?>';
+							break;
+						case 'reloadingConfigurations':
+							return '<?php echo _t('Server is reloading configurations') ?>';
+							break;
+						case 'notResponding':
+							return '<?php echo _t('Server status is not up to date. Verify that the Zend Server daemon is running on this server.') ?>'; 
+							break;
+						case 'redeploying':
+							return '<?php echo _t('Server is redeploying applications') ?>';
+							break;
+						case 'pendingRemoval':
+							return '<?php echo _t('Server in Removal queue') ?>';
+							break;
+						case 'pendingDisable':
+							return '<?php echo _t('Server in Disable queue') ?>';
+							break;
+						case 'Warning':
+							var status = '<?php echo _t('Server is in Warning state') ?>';
+							if (value.length == 1) {
+								if (value[0].Error) {
+									status = value[0].Error;
+								} else if (value[0].Warning) {
+									status = value[0].Warning;
+								}
+							}
+							return status;
+						case 'Error':
+							var status = '<?php echo _t('Server is in Error state') ?>';
+							if (value.length == 1) {
+								if (value[0].Error) {
+									status = value[0].Error;
+								} else if (value[0].Warning) {
+									status = value[0].Warning;
+								}
+							}
+							return status;
+					}
+
+					if (value.length > 1) {
+						return _t('Server has encountered {errorsCount} errors', {'errorsCount': value.length});
+					} else if (value.length == 1) {
+						return value[0][Object.keys(value[0])[0]];
+					}					
+					return '';
+				}
+				
+				var cmu2 = [
+							{
+								'title': '!',
+								'tooltip' : _t('Status'),
+								'dataIndex': 'status',
+								'parser': serverStatus,
+								'width': '3%',
+								'sortable': true,
+								'sortBy': 'status_code',
+								'ellipsis': false
+							},
+							{
+								'title': 'Name',
+								'dataIndex': 'name',
+								'parser': function(val, rec) {
+									if (rec.status == 'disabled') {
+										return '<span class="main-servers-list-disabled-server">' + zGrid2.prototype.string(val, rec) + '</span>';
+									} else {
+										return zGrid2.prototype.string(val, rec);
+									}
+								},
+								'sortable': true,
+								'sortBy': 'node_name',
+								'width': '20%'
+							},
+							{
+								'title': 'IP Address',
+								'dataIndex': 'address',
+								'parser': zGrid2.prototype.string,
+								'sortable': true,
+								'sortBy': 'node_ip',
+								'width': '12%'
+							},
+							{
+								'title': 'Message',
+								'dataIndex': 'messageList',
+								'parser': serverMessage,
+								'width': '65%',
+								'sortable': false
+							},
+							{
+								'title': 'Debug Mode',
+								'dataIndex': 'debugModeEnabled',
+								'parser': function(value, data) {
+									if (value == '1') {
+										return '<div class="zgrid-icon-ok" title="<?php echo _t('Debug Mode Enabled');?>"></div>';
+									}
+									
+									return '';
+								},
+								'sortable': false,
+								'width': '100px'
+							},
+							{
+								'title': 'Enable/Disable server',
+								'dataIndex': 'toggle_status',
+								'parser': zGrid2.prototype.button
+							},							
+							{
+								'title': _t('Remove server from the cluster'),
+								'dataIndex': 'remove',
+								'parser': zGrid2.prototype.button
+							},
+							{
+								'title': _t('Force remove'),
+								'dataIndex': 'force_remove',
+								'parser': zGrid2.prototype.button
+							},
+							{
+								'title': _t('Edit server'),
+								'dataIndex': 'edit',
+								'parser': zGrid2.prototype.button
+							},
+							{
+								'title': _t('Revert changes'),
+								'dataIndex': 'revert_changes',
+								'parser': zGrid2.prototype.button
+							},
+							{
+								'title': _t('Apply changes'),
+								'dataIndex': 'apply_changes',
+								'parser': zGrid2.prototype.button
+							}
+						];
+
+				<?php 
+					$options = array(
+						'multiSelect'		=> true,
+						'idColumn'			=> 'id',
+					);
+
+					if (\Application\Module::isCluster()) {
+						$options['totalContainer'] = 'grid-action-bar';
+					}
+				?>
+				zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $options); ?>
+
+				////////////// GRID EVENTS //////////////
+				zgrid2.addEvent('buttonClick', function(params) {
+					switch (params.type) {
+						case 'edit':
+							editButton(params.rowId, params.data);
+							break;
+						case 'remove':
+							if (confirm(_t('Are you sure you would like to remove this server?'))) {
+								tasksPolling.setTask(params.rowId, 'remove');
+								removeServers([params.rowId]);
+							}
+							break;
+						case 'force_remove':
+							if (confirm(_t('Are you sure you would like to remove this server?'))) {
+								tasksPolling.setTask(params.rowId, 'force_remove');
+								forceRemoveServers([params.rowId]);
+							}
+							break;
+						case 'revert_changes':
+							if (confirm(_t('Are you sure you would like to revert latest changes for this server?'))) {
+								revertChanges(params.rowId);
+							}
+							break;
+						case 'apply_changes':
+							if (confirm(_t('Are you sure you would like to apply current changes for all servers?'))) {
+								applyChanges(params.rowId);
+							}
+							break;
+						case 'disable':
+							if (confirm(_t('Are you sure you would like to disable this server?'))) {
+								tasksPolling.setTask(params.rowId, 'disable');
+								var url = '<?php echo $this->basepath('/Api/clusterDisableServer') ?>';
+								var request = new Request.WebAPI({
+									method: 'post',
+									url:url,
+									version: '1.3',
+									data: { serverId : params.data.id },
+									onSuccess: function(response) {
+										document.fireEvent('toastNotification', {'message': '<?php echo _t("Disabling server..."); ?>'});
+										zgrid2.updateData(response.responseData.serversInfo, 'top');
+									},
+									onFailure: function(response) {
+										tasksPolling.removeTask(params.rowId);										
+										var decoded = this.decodeResponse(response);
+										document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+									}
+								}).send();
+							}
+							break;
+						case 'toggle_status':
+							var el = $('toggle_status_' + params.data.id), url;
+							
+							if(el.hasClass('disable')) {
+								if (confirm(_t('Are you sure you would like to disable this server?'))) {
+									document.fireEvent('toastNotification', {'message': '<?php echo _t("Disabling server..."); ?>'});
+									url = '<?php echo $this->basepath('/Api/clusterDisableServer') ?>';
+									tasksPolling.setTask(params.rowId, 'disable');
+								}
+							} else {
+								if (confirm(_t('Are you sure you would like to enable this server?'))) {
+									// Enable server
+									document.fireEvent('toastNotification', {'message': '<?php echo _t("Enabling server..."); ?>'});
+									url = '<?php echo $this->basepath('/Api/clusterEnableServer') ?>';
+									tasksPolling.setTask(params.rowId, 'enable');
+								}
+							}
+
+							if (url) {
+								var request = new Request.WebAPI({
+									method: 'post',
+									url:url,
+									version: '1.3',
+									data: { serverId : params.data.id },
+									onFailure: function(response) {
+										tasksPolling.removeTask(params.rowId);										
+										var decoded = this.decodeResponse(response);
+										document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+									}
+								}).send();
+							}
+
+							break;
+					}
+					tasksPolling.start();
+				});
+
+				zgrid2.addEvent('rowUpdated', function(params) {
+					inProcess = ['restarting', 'disconnecting', 'reloadingConfigurations', 'notResponding'];
+
+					var el = $('toggle_status_' + params.id);
+					el.setStyle('display','');
+					if (inProcess.contains(params.data.status)) {
+						 el.setStyle('display','none');
+					} else if(params.data.status == 'disabled') {
+						el.removeClass('disable').addClass('enable');
+					} else {
+						el.removeClass('enable').addClass('disable');
+					}
+
+					if (! inProcess.contains(params.data.status)) {
+						$('remove_' + params.id).setStyle('display', 'block');
+						$('force_remove_' + params.id).setStyle('display', 'block');
+					}
+					
+					// show remove or force remove according to server status (must be before check id = 0)
+					if (params.data.status == 'notResponding') {
+						$('remove_' + params.id).setStyle('display', 'none');
+					} else {
+						$('force_remove_' + params.id).setStyle('display', 'none');
+					}
+
+					if (params.data.status == 'Warning') {
+						$('revert_changes_' + params.id).setStyle('display', 'block');
+						$('apply_changes_' + params.id).setStyle('display', 'block');
+					} else {
+						$('revert_changes_' + params.id).setStyle('display', 'none');
+						$('apply_changes_' + params.id).setStyle('display', 'none');
+					}
+
+					<?php if (\Application\Module::isSingleServer()) : ?>
+					$('toggle_status_' + params.id).setStyle('display', 'none');
+					<?php endif; ?>
+
+					if (serversCount <= 1) {
+						$('toggle_status_' + params.id).setStyle('display', 'none');
+					}
+					
+					if (params.id == 0) {
+						$('remove_0').setStyle('display', 'none');
+						$('force_remove_0').setStyle('display', 'none');
+					}
+
+					<?php if (! $this->isAllowedIdentity('route:ServersWebAPI')): ?>
+						$('edit_' + params.id).setStyle('display', 'none');
+		            <?php endif ?>
+
+		            <?php if (! $this->isAllowed('route:ServersWebAPI')): ?>
+		            el.setStyle('display','none');
+		            $('remove_' + params.id).setStyle('display', 'none');
+					$('force_remove_' + params.id).setStyle('display', 'none');
+		            <?php endif; ?>
+				});
+				
+				zgrid2.addEvent('rowChecked',function(params) {
+					if (params.checked && restartAllowed) {
+						if (rowsChecked == 0) {
+							$('restart-php-btn').set('disabled', false);
+							if ($('remove-servers-btn')) {
+								$('remove-servers-btn').set('disabled', false);
+							}
+						}
+						rowsChecked++;
+					} else {
+						rowsChecked--;
+						if (rowsChecked == 0) {
+							$('restart-php-btn').set('disabled', true);
+							if ($('remove-servers-btn')) {
+								$('remove-servers-btn').set('disabled', true);
+							}
+						}
+					}
+				});
+
+
+
+				zgrid2.addEvent('updateComplete', function(data) {
+
+					addTips();
+				});
+
+				function rowEligible(status) {
+					EligibleStates = ['OK', 'disabled', 'unknown', 'notExists', 'pendingRestart', 'notResponding', 'Error', 'Warning'];
+					return ! EligibleStates.contains(status);
+				}
+
+
+				var url = '<?php echo "{$this->basePath()}/Api/clusterGetServerStatus"; ?>';
+    	    	zgrid2.loadRequest = new Request.WebAPI({
+					method: 'get',
+					url:url,
+					link:'cancel',
+					version: '1.3',
+					onComplete: function(response) {
+						serversDataPolling.next();
+					}
+				});
+
+    	    	zgrid2.loadRequest.addEvent('success', function(response){
+					var serversChanged = false;
+					if (
+							(Object.keys(zgrid2.getRowsData()).pick() == 0) &&
+							(response.responseData.serversList.length > 0) && 
+							(response.responseData.serversList.pick().id != 0)) {
+
+						document.fireEvent('platformChange',{connect: true, reload: true});
+						return;
+					} else if ((Object.keys(zgrid2.getRowsData()).pick() != 0) &&
+							(response.responseData.serversList.length > 0) && 
+							(response.responseData.serversList.pick().id == 0)) {
+
+						document.fireEvent('platformChange',{connect: false, reload: true});
+						return;
+					} else if (Object.getLength(response.responseData.serversList) > 0
+							&& serversCount != Object.getLength(response.responseData.serversList)) {
+						serversChanged = true;
+						
+					} else if (Object.getLength(response.responseData.serversList) == 0) {
+						this.next();
+						return ;
+					} else if (! Object.keys(response.responseData.serversList).every(function(serverId){
+							this.some(function(serverKey){
+								return serverId == serverKey;
+							});
+						}.bind(Object.keys(zgrid2.getRowsData())))) {
+
+						/// every serverid in the list should show up once in the grid's data
+						serversChanged = true;
+					}
+					
+					if (serversChanged) {
+						document.fireEvent('serversChanged',{'servers': zgrid2.getRowsData(), 'updated': response.responseData.serversList});
+					}
+
+					serversCount = response.responseData.serversList.length;
+					zgrid2.overrideData(response.responseData.serversList, 'top', serversCount);
+				}.bind(serversDataPolling));
+
+    	    	zgrid2.loadRequest.addEvent('failure', function(response){
+					if (response.responseData) {
+						document.fireEvent('toastAlert', {'message': response.responseData.errorData.errorMessage})
+					}
+				}.bind(serversDataPolling));
+				
+				zgrid2.addEvent('loadData', function(params) {
+					if (params.sort) {
+						zgrid2.loadRequest.cancel();
+						zgrid2.loadRequest.setOptions({'data': params});
+						zgrid2.reset();
+					}
+				});
+						
+				zgrid2.addEvent('descriptionOpen',function(params) {
+					serverDetails.loadData(params);
+				});
+				
+				addServerModal = new SimpleModal({width: 500, closeButton: false, hideHeader: true, hideFooter: true, draggable: false, draggableContainer: 'wizard-title', overlayClick: false,
+					template: "<div id=\"add_remote_server_form\" class=\"contents\">{_CONTENTS_}</div>"});
+
+
+				// last line - load the grid data
+				serversCount = initData.responseData.serversList.length;
+				zgrid2.setData(initData.responseData.serversList, serversCount);
+
+				serversDataPolling.start();
+
+				if (isDevbar) {
+					$('devbar-cluster-message') && $('devbar-cluster-message').show();
+				} else {
+					$('devbar-cluster-message') && $('devbar-cluster-message').hide();
+				}
+		});
+
+		function addServerModalShow(){
+
+			<?php 
+			
+			$errorMessage = '';
+			$helpLink = $this->helpLink('add_server');
+			$noticeMessage = _t('Note that any applications, vhosts and libraries deployed on the server will be removed by this action');
+			$message = _t('Please enter the details of the server you wish to add to your cluster. This machine will be added to the current cluster.');
+			$addServerLabel = _t('Add Server');
+			$addServerTitle = _t('Add a server to the cluster');
+			
+			$theForm = <<<FORM
+<div class="wizard" style="width:500px;">
+	<div class="wizard-title" id="wizard-title">
+		{$addServerLabel}
+		<a class="wizard-help-icon" target="_blank" href="{$helpLink}"></a>
+	</div>
+	<div id="addserverform">
+		<dl class="zend_form">
+		<p style="padding:5px;">
+		{$message}
+		</p>
+		<div class="message-box error hidden"></div>
+		<table class="clear tableDescContent">
+				<tbody><tr>
+					<td>Server Name:</td>
+					<td>
+					{$this->formInput($addServer->get('serverName'))}
+					</td>
+				</tr>
+				<tr>
+					<td>Server IP:</td>
+					<td>
+					{$this->formInput($addServer->get('serverIp'))}
+					</td>
+				</tr>
+				<tr><td colspan="2" class="default-server-message-container">
+					<div class="default-server-message">{$noticeMessage}</div>
+				</td></tr>
+			</tbody>
+		</table>
+							
+		<div class="wizard-control-area">
+		<button class="wizard-button" onclick="addServerModal.hide(); return false;" style="float:left; margin-left:5px;">Cancel</button>
+		<button id="wizard-button-submit" class="wizard-button" onclick="AddServerToCluster.bind(this).attempt()" style="float:right; margin-right:5px;" title="{$addServerTitle}">{$addServerLabel}</button>
+		</div>
+	</div>
+</div>
+FORM;
+			?>
+			
+			addServerModal.show({
+			  "model":"modal",
+			  "contents": '<?php echo (string)str_replace(array("\r", "\r\n", "\n"), '', $theForm); ?>',
+			  "title": "HA!"
+			});
+
+<?php if ($isServersCountEqualLicense): ?>
+			var messageBox = $$('#addserverform .message-box');
+			messageBox.set('text', '<?php echo _t("Your license only permits {$license->getNumOfServers()} licensed server/s. " .
+				"You already have $registeredNumOfServers registered server/s") ?>');
+			messageBox.show();
+<?php endif ?>
+			
+			$('addserverform').getElements('input').addEvent('keyup', function(e) {
+				if (e.code == 13) {
+					AddServerToCluster.bind($('wizard-button-submit')).attempt();
+				}
+			});
+		}
+
+		function AddServerToCluster() {
+			this.spin();
+			var url = '<?php echo $this->basePath('/Api/clusterAddServer') ?>';
+			var messageBox = $$('#addserverform .message-box');
+			messageBox.set('text', '');
+			messageBox.hide();
+
+			serversDataPolling.stop();
+			var request = new Request.WebAPI({
+				method: 'post',
+				url: url,
+                version: '1.5',
+				data: $('addserverform').toObj(),
+				onSuccess: function(response) {
+	                    addServerModal.hide();
+	            },
+				onFailure: function(response) {
+					var decoded = request.decodeResponse(response);
+					var messageBox = $$('#addserverform .message-box');
+					messageBox.set('text', decoded.errorData.errorMessage);
+					messageBox.show();
+					this.unspin();
+				}.bind(this),
+				onComplete: function() {
+					serversDataPolling.start();
+				}
+			}).send();
+		}
+
+		function restartServers() {
+			if (! confirm(_t('Are you sure you wish to restart the selected servers ?'))) {
+				return;
+			}
+			
+			var serverIds = Object.keys(zgrid2.getSelectedRows());
+				
+			var url = '<?php echo $this->basePath() . '/Api/restartPhp'; ?>';
+			var request = new Request.WebAPI({
+				method: 'post',
+				url: url,
+				data:{servers: serverIds, force: true},
+				onComplete: function(response) {
+					document.fireEvent('toastNotification', {'message': '<?php echo _t("Restarting PHP...") ?>'});
+				}.bind(this)
+			}).send();
+
+		}
+
+			function removeServers(serverIds) {
+				if (! serverIds) {
+					var serverIds = Object.keys(zgrid2.getSelectedRows());
+					var thisString = '', serverString = 'server';
+					if(serverIds.length == 1) {
+						thisString = 'this';
+					} else {
+						thisString = 'those';
+						serverString += 's';
+					}
+					if (! confirm(_t('Are you sure you would like to remove ' + thisString + ' ' + serverString + '?'))) {
+						return;
+					}
+				}
+
+				if (serverIds.contains(<?php echo $nodeId; ?>) || serverIds.contains("<?php echo $nodeId; ?>")) {
+					//alert('The server you are currently using cannot be removed');
+					//return;
+				}
+
+				serverIds.each(function(serverId) {
+					tasksPolling.setTask(serverId, 'remove');
+					var deleteUrl = 'clusterRemoveServer';
+					if ($('force_remove_' + serverId) && $('force_remove_' + serverId).getStyle('display') == 'block') {
+						deleteUrl = 'clusterForceRemoveServer';
+					}
+
+					var url = '<?php echo $this->basePath('/Api/'); ?>' + deleteUrl;
+					var request = new Request.WebAPI({
+						method: 'post',
+						url: url,
+						version: '1.3',
+						data: {serverId: serverId},
+						onSuccess: function(response) {
+							document.fireEvent('toastNotification', {'message': '<?php echo _t("Removing selected servers...") ?>'});
+						},
+						onFailure: function(response) {
+							tasksPolling.removeTask(serverId);
+							var decoded = this.decodeResponse(response);
+							document.fireEvent('toastAlert', {'message': _t("Failed to remove server: {errorMessage}",decoded.errorData)});
+						}
+					}).send();
+				}.bind(this));
+				tasksPolling.start();
+			}
+
+			function revertChanges(serverId) {
+				var url = '<?php echo $this->basePath('/Api/configurationRevertChanges') ?>';
+				var request = new Request.WebAPI({
+					url: url,
+					data: {serverId: serverId},
+					'onSuccess': function(response) {
+						tasksPolling.setTask(serverId, 'revert_changes');
+						tasksPolling.start();
+					},
+					'onFailure': function(response) {
+						var errorData = this.decodeResponse(response).errorData;
+						document.fireEvent('toastAlert', {'message': _t("Configuration directives could not be applied, validation error: {errorMessage}", errorData) });
+					}
+				}).post();
+				tasksPolling.start();
+			}
+
+			function applyChanges(serverId) {
+				var url = '<?php echo $this->basePath('/Api/configurationApplyChanges') ?>';
+				var request = new Request.WebAPI({
+					url: url,
+					data: {serverId: serverId},
+					'onSuccess': function(response) {
+						tasksPolling.setTask(serverId, 'apply_changes');
+						tasksPolling.start();
+					},
+					'onFailure': function(response) {
+						var errorData = this.decodeResponse(response).errorData;
+						document.fireEvent('toastAlert', {'message': _t("Configuration directives could not be applied, validation error: {errorMessage}", errorData) });
+					}
+				}).post();
+			}
+			
+			function forceRemoveServers(serverIds) {
+				serverIds.each(function(serverId) {
+					var url = '<?php echo $this->basePath('/Api/clusterForceRemoveServer'); ?>';
+					var request = new Request.WebAPI({
+						method: 'post',
+						url: url,
+						version: '1.3',
+						data: {serverId: serverId},
+						onComplete: function(response) {
+							document.fireEvent('toastNotification', {'message': '<?php echo _t("The selected servers have been removed") ?>'});
+							zgrid2.deleteRow(serverId.toInt());
+						}
+					}).send();
+				});
+				tasksPolling.start();
+			}
+
+			function editButton(rowId, data) {
+				// do nothing
+			}
+
+function createUnsupportedTooltip() {
+	var tip = new FloatingTips('.unsupported-tip', {
+		html: true,
+		showDelay: 500,
+		hideDelay: 100,
+		content: 'title',
+		position: 'bottom',
+		center: false, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		distance: -20,
+		hideOn: 'null'
+	});
+
+	tip.addEvent('show', function() {
+		$$('.floating-tip-wrapper').each(function(item) {
+	    	item.addEvent('mouseleave', function() {
+	    		tip._animate(item, 'out');
+	        });
+		});
+	});
+}
+
+function changeLimitedMessageColor(count) {
+	if (count % 2 == 0) {
+		$$('.limitedMessage').removeClass('odd');
+	} else {
+		$$('.limitedMessage').addClass('odd');
+	}
+}
+</script>
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Servers')) ?>"><?php echo _t("Servers"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<?php if (!$this->isAllowedEdition('route:ServersWebAPI', 'serverAddToCluster') || !($this->isAllowedEdition('route:ServersWebAPI', 'serverAddToCluster'))) : ?>
+<div>
+<?php if ($isClusterSupport) : ?>
+<h2 class="limitedTopMessage"><?php echo _t('Want to build and manage multiple servers in a clustered environment? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-servers') . '">', '</a>'));?></h2>
+<?php endif; ?>
+</div>
+<?php endif; ?>
+<div id="join-cluster-modal" style="display: none">
+	<h2><?php echo _t('Join Cluster'); ?></h2>
+	<form method="post" name="join-cluster-form" onclick="return false;" id="join-cluster-form">
+	<div class="default-server-message"><?php echo _t('Joining a cluster will remove all applications, virtual hosts and libraries from this server') ?></div>
+	<table class="zend-form-table">
+		<tbody>
+			<tr>
+				<td class="required-field"><label>Server Name</label></td>
+				<td><?php echo $this->formInput($form->get('serverName'));?></td>
+				<td><?php echo $this->formElementErrors($form->get('serverName'));?></td>
+			</tr>
+			<tr>
+				<td class="required-field"><label>Node IP</label></td>
+				<td><?php echo $this->formInput($form->get('nodeIp'));?></td>
+				<td><?php echo $this->formElementErrors($form->get('nodeIp'));?></td>
+			</tr>
+			<tr>
+				<td class="required-field"><label>Database Host</label></td>
+				<td><?php echo $this->formInput($form->get('dbHost'));?></td>
+				<td><?php echo $this->formElementErrors($form->get('dbHost'));?></td>
+			</tr>	
+			<tr>
+				<td class="required-field"><label>Database Name</label></td>
+				<td><?php echo $this->formInput($form->get('dbName'));?></td>
+				<td><?php echo $this->formElementErrors($form->get('dbName'));?></td>
+			</tr>
+			<tr><td colspan="2">
+			<div class="default-server-message"><?php echo _t('If this is the first server in the cluster, the credentials you supply will be used to create the cluster database and a Zend user') ?></div>
+			</td></tr>
+			<tr>
+				<td class="required-field"><label>Database Username</label></td>
+				<td><?php echo $this->formInput($form->get('dbUsername'));?></td>
+				<td><?php echo $this->formElementErrors($form->get('dbUsername'));?></td>
+			</tr>				
+			<tr>
+				<td class="required-field"><label>Database Password</label></td>
+				<td><?php echo $this->formInput($form->get('dbPassword'));?></td>
+				<td><?php echo $this->formElementErrors($form->get('dbPassword'));?></td>
+			</tr>
+		</tbody>
+	</table>
+	</form>
+
+</div>
+<style>
+/* Override the hide for ajax (wizard) modal*/
+.simple-modal.hide-header .simple-modal-header {
+	display: block;
+}
+
+.simple-modal.hide-footer .simple-modal-footer {
+	display: block;
+}
+</style>
+
+<div id="main-events-list-wrapper">
+	<script type="text/javascript">
+	</script>
+
+	<div id="grid-action-bar" class="grid-action-bar">
+		<button id="restart-php-btn" onclick="restartServers()" disabled="disabled" title="<?php echo _t('Restart your selected servers'); ?>"><?php echo _t('Restart'); ?></button>
+	<?php if ($isServersCountOverLicense): ?>
+				<h2 style="padding:5px;"><?php echo _t(	"The license you are currently using allows %s registered server/s. You currently have %s registered server/s", array($license->getNumOfServers(), $registeredNumOfServers)) ?></h2>
+	<?php endif; ?>
+	
+	<?php if ($isClusterSupport): ?>
+		<?php if (\Application\Module::isSingleServer() && $this->isAllowed('route:ServersWebAPI', 'serverAddToCluster')) : ?>
+			<button class="float-right" style="margin-top: 5px;"
+				id="join-cluster-btn2" onclick="openJoinClusterModal()" title="<?php echo _t('Join a cluster'); ?>">
+			<?php echo _t('Join Cluster');?>
+			</button>
+		<?php elseif (! $this->isAllowedEdition('route:ServersWebAPI', 'serverAddToCluster')): ?>
+			<button class="float-right unsupported-tip disabled" onclick="return false" style="margin-top: 5px;" id="join-cluster-btn2" title="<?php echo _t('Multi-server configurations are not available in this edtion of Zend Server. <a href=\'' . $this->contactZend('server-6-upgrade-tooltip') . '\' target=\'_blank\' >Contact Zend</a> to upgrade.'); ?>">
+			<?php echo _t('Join Cluster');?>
+			</button>
+		<?php endif; ?>
+	<?php endif; ?>	
+	
+	<?php if (\Application\Module::isCluster() && $this->isAllowed('route:ServersWebAPI', 'clusterAddServer')) : ?>
+		<button id="remove-servers-btn" onclick="removeServers()" disabled="disabled" title="<?php echo _t('Remove the selected servers from the cluster'); ?>"><?php echo _t('Remove'); ?></button>
+		<button onclick="addServerModalShow();" id="add-server-btn" title="<?php echo _t('Add a server to the cluster'); ?>"><?php echo _t('Add Server'); ?></button>
+	<?php endif; ?>
+	
+	</div>
+
+	<div id="mytable"></div>
+
+	<div id="mytable2"></div>
+</div>

@@ -1,0 +1,65 @@
+<div class="tableDescContent" id="tableDescContent_<?php echo $queueData['id'] ?>">
+    <?php if ($queueData) { ?>
+    <?php $counter = 0;?>
+    <?php $itemsInColumn = (count($queueData) - 6) / 2; ?>
+	<div>
+		<table class="tableWithDesc queueInfoTable" style="display: inline-block;">
+			<tbody>
+			<?php foreach ($queueData as $fld => $val) { ?>
+                <?php if (!in_array($fld, $formFields)) continue; ?>
+			    <?php if ($counter++ >= $itemsInColumn) continue; ?>
+                <tr>
+                	<td><?php echo $queueForm->get($fld)->getOption('label'); ?></td>
+                	<td><?php 
+                	   if (strcasecmp($fld, 'priority') == 0) {
+                	       $val = $this->queuePriority($val);
+                	   }
+					   
+					   if (intval($val) == floatval($val)) {
+						   $val = intval($val);
+					   }
+                	
+                	   $suffix = $queueForm->get($fld)->getOption('suffix');
+                	   echo $val;
+                	   if (!empty($suffix)) { 
+                	       echo ' ', $suffix; 
+                	   } 
+                    ?></td>
+                </tr>
+			<?php } ?>
+			</tbody>
+		</table>
+		<table class="tableWithDesc queueInfoTable" style="display: inline-block;">
+			<tbody>
+			<?php $counter = 0; ?>
+			<?php foreach ($queueData as $fld => $val) { ?>
+                <?php if (!in_array($fld, $formFields)) continue; ?>
+			    <?php if ($counter++ < $itemsInColumn) continue; ?>
+                <tr>
+                	<td><?php echo $queueForm->get($fld)->getOption('label'); ?></td>
+                	<td><?php 
+                	   $suffix = $queueForm->get($fld)->getOption('suffix');
+					   
+					   if (intval($val) == floatval($val)) {
+						   $val = intval($val);
+					   }
+					   
+                   	   if (strcasecmp($fld, 'priority') == 0) {
+                	       $val = $this->queuePriority($val);
+                	   }
+
+                	   echo $val; 
+					   
+                	   if (!empty($suffix)) { 
+                	       echo ' ', $suffix; 
+                	   } 
+                    ?></td>
+                </tr>
+			<?php } ?>
+			</tbody>
+		</table>
+	</div>
+	<?php } ?>
+	<div class="clear"></div>
+</div>
+<?php die(); ?>

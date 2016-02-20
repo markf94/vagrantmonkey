@@ -1,0 +1,10 @@
+<?php if (! isset($vhosts) || is_null($vhosts)) $vhosts = array(); ?>
+<?php if (! isset($vhostsNodes) || is_null($vhostsNodes)) $vhostsNodes = array(); ?>
+<responseData>
+<vhostList>
+<?php foreach($vhosts as $vhost) : ?>
+<?php   echo $this->vhostInfoXml($vhost, $vhostsNodes);?>
+<?php endforeach ?>
+
+</vhostList>
+</responseData>

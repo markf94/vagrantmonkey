@@ -1,0 +1,7 @@
+	<responseData>
+		<rules>
+<?php foreach($rules as $rule) : /* @var $rule \MonitorRules\Rule */?>
+<?php echo $this->ruleXml($rule); ?>
+<?php endforeach; ?>
+        </rules>
+	</responseData>

@@ -1,0 +1,117 @@
+<?php $this->headLink()->appendStylesheet($this->basePath("/css/webApi.css")); ?>
+
+<script type="text/javascript">
+
+window.addEvent("domready", function(){
+	if ($('enable-button')) {
+		$('enable-button').addEvent('click', function(){
+			/******************** New Dialog for adding keys *********************/
+			confirmModal = new SimpleModal({closeButton: false,
+				hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+				template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+						   <div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+						   <div class=\"simple-modal-footer\"></div></div>"
+			});
+			
+			confirmModal.addButton(_t("Cancel"), "btn");
+			confirmModal.addButton(_t("OK"), "btn primary", function(btn){
+				var url = '<?php echo $this->basePath('/Api/apiKeysEnableStudioKey'); ?>';
+				var request = new Request.WebAPI({
+					method: 'post',
+					url:url,
+					data: {password : $$('#simple-modal-box #password')[0].value},
+					onSuccess: function(response) {
+						window.location.reload();
+					},
+					onFailure: function(response) {
+						var errorMessage;
+						try {
+							  errorMessage = JSON.parse(response.response).errorData.errorMessage;
+						} catch (e) {
+							  errorMessage = 'Error occured';
+						}
+						document.fireEvent('toastAlert', {'message': errorMessage});
+					}
+				}).send();
+			}.bind(this));
+	
+			confirmModal.show({
+			      "model":	"modal",
+			      "title": _t('Enter Credentials'), 
+			      "contents": $('confirm-modal').get('html')
+			});
+			/*********************************************************************/	
+		});
+	}		
+});
+
+function disableKey() {
+	var url = '<?php echo $this->basePath('/Api/apiKeysDisableStudioKey'); ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url:url,
+		onComplete: function(response) {
+			window.location.reload();
+		}
+	}).send();
+}
+
+
+</script>
+
+<div id="confirm-modal" style="display: none;">
+		<p><?php echo _t("Please enter your password"); ?></p>
+		<input type="password" name="password" id="password" />
+</div>
+
+
+<?php if ($this->isAllowed('data:showWebApiKeysMarketing')): ?>
+<div class="marketing-content">
+	<div class="marketing-wrapper">
+		<a href="<?php echo $this->contactZend('server-6-webapi-get-pricing-info'); ?>" target="_blank">
+			<img alt="" src="<?php echo $this->basePath('/images/marketing/WebAPI-Keys-ZS6-marketing-banner.png'); ?>" border="0"/>
+		</a>
+	</div>
+	<div class="marketing-links-box">
+		<span>Learn more about this feature:</span>
+		 <div><img alt="" src="<?php echo $this->basePath('/images/marketing/help-icon.png'); ?>" border="0"/><a href="<?php echo $this->helplink('code_tracing_concept') ?>" target="_blank">Working with WebAPI Keys</a></div>
+		 <div><img alt="" src="<?php echo $this->basePath('/images/marketing/video-icon.png'); ?>" border="0"/><a class="video-link" href="http://www.zend.com/server/redirect/integration-and-webaapi-in-zend-server-6" target="_blank">Watch video</a></div>
+	</div>
+</div>
+<?php endif; ?>
+
+<div class="content clear">
+	<fieldset>
+		<legend><?php echo _t('Key Management'); ?></legend>
+		<table>
+			<tbody>
+				<tr>
+					<td style="width: 70%;"><?php echo _t('The API Key grants access to your server, and is necessary for communicating with an IDE'); ?></td>
+					<?php if ($isAllowedToManageKeys) : ?>
+						<?php if ($key->getId() == 0) : ?>
+							<td style="text-align: right;"><a href="javascript:void(0)" id="enable-button"><?php echo _t('Enable Access'); ?></a></td>
+						<?php else : ?>
+							<td style="text-align: right;"><a href="javascript:void(0)" onClick="disableKey();"><?php echo _t('Disable Access'); ?></a></td>
+						<?php endif; ?>
+					<?php endif; ?>
+				</tr>
+			</tbody>
+		</table>
+		<?php if ($key->getId() != 0) : ?>
+		<table>
+			<thead>
+				<tr>
+					<th><?php echo _t('Key Name'); ?></th>
+					<th><?php echo _t('Hash'); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><?php echo $key->getName(); ?></td>
+					<td><?php echo $key->getHash(); ?></td>
+				</tr>
+			</tbody>
+		</table>
+		<?php endif; ?>
+	</fieldset>
+</div>

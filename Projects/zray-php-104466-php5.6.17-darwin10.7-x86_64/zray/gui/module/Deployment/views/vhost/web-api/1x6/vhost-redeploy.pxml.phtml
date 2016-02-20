@@ -1,0 +1,8 @@
+<?php if (! isset($vhosts) || is_null($vhosts)) $vhosts = array(); ?>
+<?php if (! isset($vhostsNodes) || is_null($vhostsNodes)) $vhostsNodes = array(); ?>
+<responseData>
+<vhostDetails>
+<?php $vhost = current($vhosts); ?>
+<?php   echo  $this->vhostFullInfoXml($vhost, $vhostsNodes);?>
+</vhostDetails>
+</responseData>

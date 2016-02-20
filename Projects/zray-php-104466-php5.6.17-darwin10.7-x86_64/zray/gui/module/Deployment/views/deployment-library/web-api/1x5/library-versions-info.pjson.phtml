@@ -1,0 +1,8 @@
+<?php $limitCount = count($libraryVersions); ?>
+"responseData":[
+<?php $counter = 0; ?>
+<?php foreach($libraryVersions as $libVersion) : ?>
+<?php   echo $this->json($this->libraryVersionInfoJson($libVersion)); ?>
+<?php   echo (++$counter < $limitCount ? ',' : ''); ?>
+<?php endforeach ?>
+]

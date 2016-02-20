@@ -1,0 +1,19 @@
+<?php
+$xmlData = $event->getExtraData();
+try {
+	$xml = new SimpleXMLElement($xmlData);
+} catch (\Exception $e) {
+	\ZendServer\Log\Log::err('Could not parse extra data: %s', array($e->getMessage()));
+}
+?>
+<ul class="jobqueue_event_properties">
+<?php if ((string)$xml->name != "") :?>
+	<li><strong><?php echo _t('Filename'); ?></strong><?php echo (string)$xml->name ?></li>
+<?php endif; ?>
+<?php if ((string)$xml->errno != "") :?>
+	<li><strong><?php echo _t('Error Number'); ?></strong><?php echo (string)$xml->errno ?></li>
+<?php endif; ?>
+<?php if ((string)$xml->error != "") :?>
+	<li><strong><?php echo _t('Error Message'); ?></strong><?php echo (string)$xml->error ?></li>
+<?php endif; ?>
+</ul>

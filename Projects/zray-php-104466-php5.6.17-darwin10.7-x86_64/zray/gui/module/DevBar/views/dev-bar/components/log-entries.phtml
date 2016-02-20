@@ -1,0 +1,665 @@
+<div class="zdb-toolbar-entry zdb-logs-details" data-name="logs">
+    <div class="zdb-toolbar-preview" title="Errors & Warnings">
+        <div class="zdb-toolbar-icon"></div>
+        <span class="zdb-toolbar-info">&nbsp;</span>
+    </div>
+    <div class="zdb-toolbar-detail zsb-log-entries-details-wrapper">
+    	<div class="zdb-row zdb-toolbar-detail-header">
+    		<div class="zdb-col-1-narrow">
+				<h1>Errors & Warnings</h1>
+			</div>
+			<div class="zdb-col-3-wide">
+				<div class="zdb-pull-left">
+					<?php echo $this->devBarPager(); ?>
+				</div>
+    			<div class="zdb-pull-right">
+    			
+    				<ul class="zdb-toolbar-items zdb-horizontal">
+    					<li>
+    						<span class="zdb-expand-all hidden" onclick="zendDevBar.expandTableRows(this, '.zsb-logs-panel')">Expand all</span>
+    					</li>
+    					<li class="zdb-toolbar-filter">
+    						<label for="zdb-toolbar-input-filter-text">Filter by</label>
+    						<select>
+    							<option value="">Parameter</option>
+    						</select>
+    						<input type="text" name="zdb-toolbar-input-filter-text" id="zdb-toolbar-input-filter-text" size="6" class="zdb-toolbar-input zdb-toolbar-input-filter-parameter" />
+    					</li> 
+    					<li class="zdb-toolbar-search">
+    						<?php echo $this->devBarSearch(); ?>
+    					</li>
+    					<li>
+							<div class="zdb-export-results-btn" title="Show Report"></div>
+						</li>
+    					<li class="zdb-toolbar-pin">
+    						<div class="zdb-popup-pin" onclick="zendDevBar.unpin()"></div>
+    					</li>
+    				</ul>
+    			
+    			</div>
+    		</div>
+    	</div>
+        <div class="zdb-row zdb-panel zsb-logs-panel">
+        	<!-- Summary table  -->
+    		<div class="zdb-col-1-narrow zdb-adaptive-height zdb-summary-table-wrapper"></div>
+        	<!-- Data table -->
+	        <div class="zdb-col-3-wide zdb-entries-table-wrapper zdb-adaptive-height zsb-log-entries-table-wrapper"></div>
+		</div>
+    </div>
+</div>
+<script type="text/javascript">
+(function() {
+	var backtraceEnabled = <?php echo $backtraceEnabled ? '1' : '0'; ?>;
+	var producerEnabled = <?php echo $producerEnabled ? '1' : '0'; ?>;
+	if (!producerEnabled) {
+		zendDevBar.devBar.find('.zdb-logs-details .zdb-toolbar-preview').attr('title', 'Errors & Warnings tracking is disabled. You can enable it from the Zend Server UI (Configurations | Components | Z-Ray)');
+	}
+	
+	///////////////////////////////////////////////////////////////////////////////
+	// tools
+	///////////////////////////////////////////////////////////////////////////////
+	
+	var tools = {	
+		// get the logs panel wrapper
+		getContainer: (function() {
+			var $container = null;
+			return function() {
+				return $container || ($container = $zendDevBar('.zdb-logs-details'));
+			}
+		})(),
+		convertExceptionToLogEntry: function(exception) {
+			return {
+				'id': exception.id,
+				'requestId': exception.requestId,
+				'created': exception.createdAt,
+				'createdTimestamp': exception.createdAtTimestamp,
+				'type': 'Exception',
+				'className': exception.className,
+				'message': exception.text,
+				'filename': exception.filename,
+				'line': exception.line,
+				'silenced': false,
+				'backtraceId': exception.backtraceId,
+				'sequenceId': exception.sequenceId,
+				'isException': true
+			};
+		},
+		// get readable string from the error code
+		getLogType: function(type) {
+			var translationMap = {
+				'E_PARSE': 'Parse Error', 'E_STRICT': 'Strict', 'E_ERROR': 'Error', 'E_WARNING': 'Warning', 'E_NOTICE': 'Notice', 'E_DEPRECATED': 'Deprecated', 
+				'E_CORE_ERROR': 'Core Error', 'E_CORE_WARNING': 'Core Warning',
+				'E_COMPILE_ERROR': 'Compile Error', 'E_COMPILE_WARNING': 'Compile Warning',
+				'E_USER_ERROR': 'User Error', 'E_USER_WARNING': 'User Warning', 'E_USER_NOTICE': 'User Notice',
+				'E_RECOVERABLE_ERROR': 'Uncaught Exception',
+				'E_USER_DEPRECATED': 'User Deprecated'
+			};
+			var retType = translationMap[type.trim()] || type.trim() 
+			return retType;
+		},
+
+		// @return 'critical', 'warning' or 'info'
+		getLogSeverity: function(logType) {
+			logType = logType.toLowerCase();
+			if (logType.indexOf('error') >= 0 || logType.indexOf('parse') >= 0 || logType.indexOf('fatal') >= 0) {
+				return 'critical';
+			} else if (logType.indexOf('warning') >= 0) {
+				return 'warning';
+			}
+			
+			return 'info';
+		},
+
+		// return jquery object of the `silenced` checkbox
+		getSilencedCheckbox: function() {
+			return tools.getContainer().find('#zdb-show-silenced-logs input[type="checkbox"]');
+		},
+
+		// check if the `silenced` is on
+		isSilencedOn: function() {
+			return tools.getSilencedCheckbox().prop('checked');
+		}
+	};
+
+	var showSilencedLogsByDefault = <?php echo $showSilencedLogs; ?>;
+	
+	// get the default filter values according to `error_reporting` of the server
+	var defaultErrorReporting = ["<?php echo implode('", "', $errorReporting);?>"];
+	defaultErrorReporting = $zendDevBar.map(defaultErrorReporting, function(val) {
+		return tools.getLogType(val);
+	});
+	
+	
+	var label = (function($) {
+		var getLabelContainer = (function() {
+			var $labelContainer = null;
+			return function() {
+				return $labelContainer || ($labelContainer = tools.getContainer().find('.zdb-toolbar-preview .zdb-toolbar-info'));
+			}
+		})();
+		
+		return {
+			get: function() {
+				return getLabelContainer().text();
+			},
+			set: function(newValue) {
+				getLabelContainer().text(producerEnabled?''+newValue:'N/A');
+			}
+		}; 
+	})($zendDevBar);
+
+	var types = {};
+	
+	// get total rows (ALL or by type)
+	function getTotalRows(type) {
+		var selectorSuffix = type ? '[type="'+type+'"]' : '[type]';
+		return getTableBody().find('tr' + selectorSuffix).length;
+	}
+
+	// change the bottom label color if one of the queries is not successful
+	var updateLabelColor = function(data) {
+		var highestSeverity = 'info';
+		data.every(function(logEntry) {
+			var logEntrySeverity = tools.getLogSeverity(logEntry.type);
+			if (logEntrySeverity == 'critical') {
+				highestSeverity = logEntrySeverity;
+				return false; 
+			}
+			
+			if (logEntrySeverity == 'warning') {
+				highestSeverity = logEntrySeverity; 
+			}
+			
+			return true;
+		});
+
+		var $toolbarPreview = tools.getContainer().find('.zdb-toolbar-preview')
+		$toolbarPreview.removeClass('zdb-toolbar-preview-critical')
+		$toolbarPreview.removeClass('zdb-toolbar-preview-warning');
+		if (highestSeverity == 'critical' || highestSeverity == 'warning') {
+			$toolbarPreview.addClass('zdb-toolbar-preview-' + highestSeverity);
+		}
+	};
+
+	var updateLabel = function(logs) {
+		var totalLogs = 0;
+		if (tools.isSilencedOn()) {
+			totalLogs = logs.length;
+		} else {
+			logs.forEach(function(logEntry) {
+				if (logEntry.isException || ( ! logEntry.silenced)) totalLogs++;
+			})
+		}
+
+		label.set(totalLogs);
+
+		// remove silenced logs (if needed)
+		if (!tools.isSilencedOn()) {
+			logs = logs.filter(function(elem) {
+				return !elem.silenced;
+			});
+		}
+		
+		updateLabelColor(logs);
+	};
+
+	// count types for the summary table
+	function countTypes(data) {
+		types = {};
+		var totalRows = 0;
+		data.forEach(function(logEntry) {
+			totalRows++;
+			var logType = tools.getLogType(logEntry.type);
+			if (typeof types[logType] == 'undefined') {
+				types[logType] = {'type': logType, 'count': 0};
+			}
+			types[logType]['count']++;
+		});
+
+		types = zendDevBar.sortByKeys(types);
+
+		var rows = [];
+		if (Object.keys(types).length > 0) {
+			rows.push({'type': 'All', 'count': totalRows});
+			var newRows = $zendDevBar.map(types, function(value, index) {
+			    return [value];
+			});
+			rows = rows.concat(newRows);
+		}
+		
+		return rows;
+	}
+
+	function showBacktrace(id, data) {
+		var overlay = zendDevBar.getModuleOverlay('logs');
+		var spinner = $zendDevBar('<div class="zdb-overlay-spinner" style="height: ' + (overlay.outerHeight() - 30) + 'px; line-height: ' + (overlay.outerHeight() - 30) + 'px"><div><div class="zdb-spinner-img"></div>Loading...</div></div>');
+		overlay.append(spinner);
+		
+		// load the data and store locally
+		var url = zendDevBar.baseUrl + '/Api/zrayGetBacktrace?id=' + id;
+		zendDevBar.loadJSON(url, function (response){
+			var shortFileName = data.filename.split('/').pop().split('\\').pop() + ':' + data.line;
+			spinner.remove();
+			overlay.append('\
+				<div class="zdb-row zdb-toolbar-detail-header">\
+					<div class="zdb-col-4">\
+						<h1><a href="javascript:void(0);" onclick="zendDevBar.removeModuleOverlay(\'logs\')">Errors & Warnings</a> <span style="font-size: 14px;color: #006F9D;">&raquo Backtracing (' + shortFileName + ')</span></h1>\
+						<div class="zdb-pull-right">\
+							<ul class="zdb-toolbar-items zdb-horizontal">\
+								<li><a class="zdb-backtrace-back" href="javascript:void(0);" onclick="zendDevBar.removeModuleOverlay(\'logs\')">back</a></li>\
+								<li><div class="zdb-export-results-btn zdb-export-backtrace-btn" title="Export backtrace"></div></li>\
+							</ul>\
+						</div>\
+					</div>\
+				<div class="zdb-row zdb-panel zsb-logs-backtrace-panel">\
+					<div class="zdb-col-4 zdb-entries-table-wrapper zdb-adaptive-height zsb-overlay-backtrace-table-wrapper-logs"></div>\
+					<div class="hidden zdb-logs-backtrace-full-data"></div>\
+				</div>\
+			');
+			var backtrace = response.responseData.backtrace;
+			var backtraceTable = createBacktrace(backtrace);
+
+			overlay.find('.zdb-export-backtrace-btn').on('click', function() {
+				var fullBacktraceTable = createBacktrace(backtrace, 'with full data');
+				fullBacktraceTable.exportResults('Error/Warning Backtrace.<br><small style="font-size:14px; color: #888;">Backtracing (' + shortFileName + ')</small>'); 
+			});
+			overlay.find('.zdb-adaptive-height').css('height', zendDevBar.cookieParams.height - 50);
+		});
+	}
+
+	function createBacktrace(backtrace, displayFullData) {
+		var counter = 1;
+		backtrace.reverse();
+		$zendDevBar.each(backtrace, function(key, value) {
+			value.id = counter;
+			counter++;
+		});
+
+		var storageName = 'logs-backtrace' + (displayFullData ? '-fulldata' : '');
+		var storage = zendDevBar.createStorage(storageName);
+		storage.reset();
+		storage.setLimit(-1);
+		storage.addData(backtrace);
+		
+		// define the main table
+		var tableContainer = displayFullData ? $zendDevBar('.zdb-logs-backtrace-full-data') : $zendDevBar('.zsb-overlay-backtrace-table-wrapper-logs');  
+			
+		var mainTable = zendDevBar.createTable(zendDevBar.getStorage(storageName), tableContainer);
+		var columns = [{
+			label: '#',
+			propertyName: 'id',
+			width: '3%',
+			defaultSort: 'desc',
+			sortable: true
+		}, {
+			label: 'Name',
+			propertyName: 'name',
+			width: '30%',
+			sortable: true,
+			attributes: {'class': 'zdb-monospace zdb-ellipsis'},
+			getHtml: function(val, rec) {
+				var args = '';
+				if (rec.args.length > 0) {
+
+					if (displayFullData) {
+						args = $zendDevBar('<span class="zdb-backtrace-args">'+zendDevBar.formatters.phpFunctionParameters(rec.args)+'</span>');
+					} else {
+						args = $zendDevBar('<span class="zdb-backtrace-args">[...]</span>');
+	
+						args.qtip({ // Grab some elements to apply the tooltip to
+							style: {
+						        classes: 'zendDevBarQtip'
+						    },
+					        content: {
+					        	text: function(event, api) {
+					        		return '<div style="padding: 3px; 5px;">( ' + zendDevBar.formatters.phpFunctionParameters(rec.args) + ' )</div>';
+					            }
+					        },
+					        show: {
+					            event: 'click'
+					        },
+					        hide: {
+					        	event: 'click unfocus'
+				            },
+					        position: {
+					            my: 'center left',
+					            at: 'top center',
+								effect: false
+					        }
+					    });
+					}
+				}
+
+				var resp = $zendDevBar('<span></span>');
+				
+				if (val == '{main}') {
+					return val;
+				} else if (rec.scope.trim() == '') {
+					resp.append(val + '(');
+					resp.append(args);
+					resp.append(')');
+					return resp;
+				}
+				resp.append(rec.scope + '::' + val + '(');
+				resp.append(args);
+				resp.append(')');
+				return resp;
+			}
+		}, {
+			label: 'File',
+			propertyName: 'file',
+			width: '57%',
+			sortable: true,
+			getHtml: function(val, rec) {
+				var cline = parseInt(rec.cline);
+				if (cline > 0) {
+					return val + ':' + cline;
+				}
+				return zendDevBar.formatters.htmlEntities(val);
+			}
+		}];
+
+		<?php if (!$azure && !$zrayStandalone) : ?>
+		columns.push({
+			label: 'Show in IDE',
+			propertyName: 'file',
+			width: '10%',
+			sortable: false,
+			getHtml: function(val, rec) {
+			    
+				if (val == '<builtin>') {
+					return '';
+				}
+
+				if (!zendDevBar.zendDebuggerEnabled) {
+					return '<span style="border-bottom: 1px dashed #555;" title="Show in IDE is not available because Zend Debugger is disabled">n/a</span>';
+				}
+				
+				var filePath = zendDevBar.addSlashes(val);
+				var line = rec.cline;
+				var fullUrl = zendDevBar.addSlashes(document.referrer);
+				
+				return '<a class="zdb-show-in-ide" title="Show in IDE" onclick="zendDevBar.spinner.show(this); zendDevBar.showInIde(this,\''+filePath+'\', \''+line+'\', \''+fullUrl+'\');"></a>';
+			}
+		});
+		<?php endif; ?>
+
+		mainTable.setColumns(columns);
+		
+		return mainTable;
+	}
+	
+	///////////////////////////////////////////////////////////////////////////////
+	// tables definition
+	///////////////////////////////////////////////////////////////////////////////
+	
+	$zendDevBar(function() {
+		// define the main table
+		var mainTable = zendDevBar.createTable(zendDevBar.getStorage('logs'), $zendDevBar('.zsb-log-entries-table-wrapper'));
+		// add specificly to this table resize trigger;
+		mainTable.update = function(dataManager) {
+			$zendDevBar.devbarTable.prototype.update.call(this, dataManager);
+			$zendDevBar(window).trigger('resize', 'immediately');
+		}
+		mainTable.setColumns([{
+			label: '#',
+			tooltip: 'Query serial number',
+			propertyName: 'sequenceId',
+			sortable: true,
+			defaultSort: 'asc',
+			attributes: {'class': 'zdb-numerical'},
+			width: '3%'
+		}, {
+			label: 'Type',
+			tooltip: 'Entry type',
+			propertyName: 'type',
+			width: '15%',
+			sortable: true,
+			getHtml: function(val, rec) {
+
+				if (rec.isException) {
+					return val;
+				}
+				
+				var logType = tools.getLogType(val);
+				var logTypeWithSign = rec.silenced ? '<span class="zdb-log-silenced" title="Log event of type &quot;'+logType+'&quot; occurred under silence operator \'@\'">'+logType + '</span>' : logType;
+
+				var logTypeLowercase = logType.toLowerCase();
+				if (logTypeLowercase.indexOf('warning') > -1) {
+					var columnText = (logType == 'Exception') ? rec.className : logTypeWithSign;
+					logType = '<span class="zdb-severity-indication zdb-badge-warning"></span>' + columnText;
+				} else if (logTypeLowercase.indexOf('parsing') > -1 || 
+						   logTypeLowercase.indexOf('fatal') > -1 ||
+						   logTypeLowercase.indexOf('error') > -1) {
+					logType = '<span class="zdb-severity-indication zdb-badge-critical"></span>' + logTypeWithSign;
+				} else {
+					logType = '<span class="zdb-severity-indication zdb-badge-info"></span>' + logTypeWithSign;
+				}; 
+				return logType;
+			}
+		}, {
+			label: 'Message',
+			tooltip: 'Entry message',
+			width: '45%',
+			propertyName: 'message',
+			sortable: true,
+			getHtml: function(val) {
+
+				var expandor = zendDevBar.expendedText(val);
+				if (typeof expandor != 'string') {
+					$zendDevBar(expandor).on('expandingTextChanged', function(event){
+						var searchTerm = zendDevBar.getStorage('logs').searchTerm;
+						$zendDevBar(event.target).highlight(searchTerm);
+					});
+				}
+				
+				return expandor;
+			}
+		}, {
+			label: 'Filename',
+			tooltip: 'Entry filename',
+			width: '20%',
+			sortable: true,
+			propertyName: 'filename',
+			getHtml: function(val, rec) {
+				var shortFileName = val.split('/').pop().split('\\').pop() + ':' + rec.line;
+				var titleText = val + ':' + rec.line;
+
+				var fullUrl = zendDevBar.requests && zendDevBar.requests[rec.requestId] && zendDevBar.requests[rec.requestId].RequestInfo ? 
+						 zendDevBar.requests[rec.requestId].RequestInfo.url : false;
+
+			    <?php if ($azure || $zrayStandalone) : ?>
+			    var showInIDEParams = false;
+				<?php else : ?>
+				var showInIDEParams = fullUrl ? {filePath: val, line: rec.line, fullUrl: fullUrl} : false;
+				<?php endif; ?>
+				
+				return zendDevBar.getFileActions(shortFileName, val, titleText, showInIDEParams);
+			}
+		}, {
+			label: 'Created',
+			tooltip: 'Entry creation time',
+			propertyName: 'createdTimestamp',
+			width: '15%',
+			defaultSort: 'asc',
+			sortable: true,
+			getHtml: function(val) {
+				return new Date(val * 1000).toLocaleTimeString();
+			}
+		}, {
+			label: 'Actions',
+			propertyName: 'backtraceId',
+			width: '5%',
+			sortable: true,
+			getHtml: function(val, rec) {
+				var elem = $zendDevBar('<div class="zdb-table-action zdb-ta-backtrace'+(backtraceEnabled&&val!==-1?'':' zdb-ta-backtrace-disabled')+'" title="Show backtrace"></div>');
+				if (!backtraceEnabled) {
+					elem.attr('title', 'Backtrace is disabled. You can enable it from the Zend Server UI (Configurations | Components | Z-Ray).');
+				}
+				if (backtraceEnabled && val !== -1) { 
+					elem.click(function() {
+						 showBacktrace(val, rec);
+					});
+				}
+				return elem;
+			}
+		}]);
+
+		// bind search
+		new $zendDevBar.zdbSearch(zendDevBar.getStorage('logs'), $zendDevBar('.zsb-log-entries-details-wrapper .zdb-toolbar-input-search').first(), mainTable);
+		
+		// define the summary table
+		zendDevBar.getStorage('logs').setFilter('type', function(rowValue, value) {
+			return tools.getLogType(rowValue) == value;
+		});
+		
+		var table = zendDevBar.createSummaryTable(zendDevBar.getStorage('logs'), $zendDevBar('.zsb-log-entries-details-wrapper .zdb-summary-table-wrapper'));
+		table.setFilterColumn('type');
+
+		// add Exception to the default filtering
+		defaultErrorReporting.push('Exception');
+		table.setFilterValues(defaultErrorReporting);
+		
+		table.setUpdateCallback(countTypes);
+
+		// take stored value for "silent" state - the default is don't show (0)
+		var storedStateForSilencedLogs = (zendDevBar.cookieParams && typeof (zendDevBar.cookieParams.displaySilencedLogs) != 'undefined') ? 
+				zendDevBar.cookieParams.displaySilencedLogs : showSilencedLogsByDefault;
+		// `hideSilencedLogs` is just for convenience
+		var hideSilencedLogs = (storedStateForSilencedLogs == 0);
+		  
+		table.setTableHeaderHtml('<th colspan="100%"><span id="zdb-show-silenced-logs" title="Display entries for expressions silenced by the \'@\' operator">' +
+				'<input type="checkbox" name="zdb-show-silenced-logs"> @Silenced <span id="zdb-total-silenced-logs"></span>'+
+				'</span>Show</th>');
+		table.setColumns([{
+			label: 'Types',
+			propertyName: 'type',
+			width: '10%',
+			getHtml: function(val, rec) { return table.createCheckboxColumn(val, rec); }
+		}, {
+			label: 'Type',
+			propertyName: 'type',
+			width: '70%'
+		}, {
+			label: 'Count',
+			propertyName: 'count',
+			attributes: {'class': 'zdb-numerical'},
+			width: '20%'
+		}]);
+
+		// bind to save button
+		$zendDevBar('.zsb-log-entries-details-wrapper .zdb-export-results-btn').click(function() { 
+			mainTable.exportResults('Errors & Warnings', table); 
+		});
+
+		// mark as checked the "silenced" checkbox
+		tools.getSilencedCheckbox().prop('checked', storedStateForSilencedLogs);
+		
+		// bind "silenced" checkbox click
+		$zendDevBar(document).on('click', '#zdb-show-silenced-logs', function(event) {
+			
+			// avoid double event on checkbox click
+			var $chkbx = $zendDevBar(':checkbox', this);
+			if (event.target.type && event.target.type.toLowerCase() == 'checkbox') {
+				$chkbx.prop('checked', !$chkbx.prop('checked'));
+			}
+			$chkbx.prop('checked', !$chkbx.prop('checked'));
+
+			// rename for convenience
+			var newStateForSilencedParameter = $chkbx.prop('checked');
+			var hideSilencedLogs = !newStateForSilencedParameter;
+
+			// remove / add silenced logs to the data
+			if (hideSilencedLogs) {
+				var silencedLogItems = zendDevBar.getStorage('logs').detachData({silenced:'1'});
+				zendDevBar.getStorage('silenced-logs').addData(silencedLogItems);
+			} else {
+				var silencedLogItems = zendDevBar.getStorage('silenced-logs').detachData();
+				zendDevBar.getStorage('logs').addData(silencedLogItems);
+			}
+			
+			// store the state
+			if (zendDevBar.cookieParams) {
+				zendDevBar.cookieParams.displaySilencedLogs = newStateForSilencedParameter;
+				zendDevBar.updateCookieParams();
+			}
+
+			// update bottom label and color
+			updateLabel(zendDevBar.getStorage('logs').getData());
+		});
+
+	});
+	
+	///////////////////////////////////////////////////////////////////////////////
+	// callbacks
+	///////////////////////////////////////////////////////////////////////////////
+
+	var totalSilencedLogs = 0;
+	
+	zendDevBar.registerOnUpdateLabel('logs', function($, requests) {
+		// check parameter
+		if (!requests) return;
+		if (!(requests instanceof Array)) requests = [requests];
+
+
+		var allData = [];
+		$.each(requests, function(key, request) {
+			allData = allData.concat(request.LogEntries);
+			allData = allData.concat($zendDevBar.map(request.exceptions,tools.convertExceptionToLogEntry));
+		});
+		
+		updateLabel(allData);
+	});
+	
+	zendDevBar.registerResetHandler('logs', function($, data) {
+		zendDevBar.getStorage('silenced-logs').reset();
+		zendDevBar.getStorage('logs').reset();
+
+		totalSilencedLogs = 0;
+		
+		label.set(0);
+
+		zendDevBar.removeModuleOverlay('logs');
+
+		updateLabelColor([]);
+	});
+	
+	zendDevBar.registerHandler('logs', function($, data) {
+		if (!data) {
+			zendDevBar.finishLoading('logs');
+			return;
+		}
+
+		var allData = [];
+		$.each(data, function(key, request) {
+			
+			// enumerate the entries
+			// TODO: CHANGE THIS ONCE THE ENGINE SUPPLIED THE RIGHT 'ENUMERATOR'
+			$.each(request.exceptions, function(k, exception) {
+				exception.type = 'Exception';
+			});
+			
+			allData = allData.concat(request.LogEntries);
+			allData = allData.concat($zendDevBar.map(request.exceptions,tools.convertExceptionToLogEntry));
+		});
+		
+		
+		// add data to the storage
+		zendDevBar.getStorage('logs').addData(allData);
+
+		// calculate total silenced logs
+		totalSilencedLogs+= zendDevBar.getStorage('logs').getData({'silenced': 1}).length;
+		$zendDevBar('#zdb-total-silenced-logs').text('('+totalSilencedLogs+')');
+		
+		if ( ! tools.isSilencedOn()) {
+			var silencedLogItems = zendDevBar.getStorage('logs').detachData({silenced:'1'});
+			zendDevBar.getStorage('silenced-logs').addData(silencedLogItems);
+		}
+
+		zendDevBar.finishLoading('logs');
+	});
+	
+})();
+	
+new $zendDevBar.zdbPager(zendDevBar.getStorage('logs'), $zendDevBar('.zsb-log-entries-details-wrapper .zdb-pager').first());
+</script>

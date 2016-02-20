@@ -1,0 +1,18 @@
+<responseData>
+	<notifications>
+		<?php foreach ($notifications as $notification) : /* @var $notification \Notifications\NotificationContainer */ ?>
+		<notification>
+			<id><?php echo $notification->getId(); ?></id>
+			<severity><?php echo $notification->getSeverity(); ?></severity>
+			<creationTime><?php echo $notification->getCreationTime(); ?></creationTime>
+			<type><?php echo $notification->getType(); ?></type>
+			<name><?php echo $notification->getName(); ?></name>
+			<repeats><?php echo $notification->getRepeats(); ?></repeats>
+			<title><![CDATA[<?php echo $notification->getTitle(); ?>]]></title>
+			<description><![CDATA[<?php echo $this->notificationDescription($notification); ?>]]></description>
+			<url><![CDATA[<?php echo $notification->getUrl(); ?>]]></url>
+		</notification>
+		<?php endforeach; ?>
+	</notifications>
+	<Hash><?php echo $hash; ?></Hash>
+</responseData>

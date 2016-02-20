@@ -1,0 +1,193 @@
+body {
+	background-color: #2774a0;
+	color: #FFFFFF;
+}
+
+.helpLink {
+	color: #8296A4;
+	line-height: 32px;
+	vertical-align: top;
+}
+
+#login-top .logo-placeholder {
+	top: 0;
+}
+
+#login-top .edition {
+	height: inherit;
+}
+
+#frame-top {
+	position: absolute;
+	top: 30px;
+	left: 0;
+	width: 100%;
+	text-align: center;
+}
+
+.system_details {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	font-size: 11px;
+	padding: 0 10px;
+}
+
+.system_details li {
+	line-height: 16px;
+	display: inline-block;
+}
+
+.system_details li:after {
+	content: '|';
+	margin: 0 5px;
+}
+
+.system_details li:last-child:after {
+	content: '';
+}
+
+#login-form-container {
+    margin: 0 auto;
+    padding: 52px 0 0 0;
+    width: 400px;
+	
+	position: relative;
+}
+
+#login-form-container h1 {
+	color: #5F6062;
+	margin: 0;
+	font-size: 24px;
+	font-weight: normal;
+}
+
+#login-form-container #login-content {
+	background: #FFF;
+	display: block;
+	width: 340px;
+	padding: 40px 30px;
+	margin-top: 30px;
+}
+
+#login-form-container #login-content form select,
+#login-form-container #login-content form input[type="text"],
+#login-form-container #login-content form input[type="password"] {
+	margin: 0;
+	box-sizing: border-box;
+  	-moz-box-sizing: border-box;
+  	-webkit-box-sizing: border-box;
+}
+
+#login-form-container #login-top {
+    height: 64px;
+}
+
+#login-form-container #login-bottom {
+    background: url("../images/frame-bottom.gif") repeat scroll 0 0 transparent;
+    height: 14px;
+}
+
+#login-form-container .login-copyright {
+    color: #8296A4;
+    font-size: 9px;
+    padding: 8px 0 0 24px;
+    text-transform: uppercase;
+}
+
+.zend_form input {
+	clear: both;
+	margin: 5px 0;
+}
+
+.zend_form .errors {
+	float: left;
+	margin: 5px 0;
+}
+
+.login-meta {
+	width: 400px;
+	margin: 30px auto 0 auto;
+	color: #D3D4D4;
+	font-size: 10px;
+}
+
+.login-meta ul {
+	padding-left: 0px;
+}
+
+.login-copyright {
+	line-height: 30px;
+}
+
+#error {
+	color: #ff3f00;
+	font-size: 12px;
+	width: 250px;
+	margin: 10px 0;	
+}
+
+.notice{
+	color: #FF5400;
+	font-size: 12px;
+	width: 250px;
+	margin: 10px 0;	
+}
+
+.helpLink {
+	color: #2774a0;
+	font-size: 12px;
+	margin-left: 5px;
+}
+
+.zend_form input[type="submit"] {
+	width: 78px;
+	height: 30px;
+	line-height: 30px;
+	background: #52aac2;
+	border: 0px;
+	float: right;
+	color: #fff;
+	padding-right: 0px;
+}
+
+input.invalid {
+	border: 2px solid red;
+}
+
+.zend_form dd.login-field {
+	margin: 10px 0;
+	padding: 0;
+	border: 1px solid #808080;
+	border-left: 2px solid #52AAC2;
+	width: 100%;
+	height: 32px;	
+}
+
+.zend_form dd.login-field select,
+.zend_form dd.login-field input {
+	border: 0;
+	width: 90%;
+	font-size: 16px;
+	font-weight: normal;
+	height: 32px;
+	color: #808080;
+	float: right;
+}
+
+.zend_form dd.login-field input {
+	padding-left: 8px;
+}
+
+.zend_form input:-webkit-autofill {
+    -webkit-box-shadow:0 0 0 50px white inset; /* Change the color to your own background color */
+    -webkit-text-fill-color: #333;
+}
+
+.zend_form dd.glyphicons.user i:before,
+.zend_form dd.glyphicons.lock i:before {
+	font-size: 18px;
+	top: 7px;
+	left: 8px;
+	color: #CCC;	
+}

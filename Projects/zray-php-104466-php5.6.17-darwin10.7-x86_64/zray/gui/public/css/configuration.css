@@ -1,0 +1,152 @@
+@CHARSET "ISO-8859-1";
+
+.zgrid .extensionsTable {
+	padding: 9px;
+}
+
+.zgrid .extensionsTable .directivesTableColumns {
+	width: 535px; 
+	float: left;
+}
+
+.zgrid .extensionsTable .directivesTableColumns:first-child {
+	margin-right: 13%;
+}
+
+.zgrid .extensionsTable td {
+	/* width: 50%; */
+}
+
+.zgrid .directivesTableContent {
+	width: 545px;
+}
+
+.zgrid .directivesTableContent h1 {
+	margin-bottom: 5px;
+}
+
+.zgrid .directivesTableContent label {
+	font-size: 11px;
+}
+
+.zgrid .directivesTableContent td {
+    color: #122833;
+	padding-bottom: 15px;
+	vertical-align: middle;
+}
+
+.zgrid .directivesTableContent tr td {
+	padding: 0 10px 18px 10px;
+}
+
+.zgrid .directivesTableContent tr td:first-child {
+	width: 100%;
+	line-height: 10px;
+	padding-right: 40px;
+}
+
+.zgrid .directivesTableContent tr td:last-child {
+	min-width: 133px;
+}
+
+.on-button,
+.off-button {
+	width: 65px;
+	height: 22px;
+	display: block;
+	cursor: pointer;
+}
+
+.on-button {
+	background: url("../images/on-button-all.png") 0 0 no-repeat;
+}
+
+.off-button {
+	background: url("../images/off-button-all.png") 0 0 no-repeat;
+}
+
+.on-button:hover,
+.off-button:hover {
+	background-position: -135px 0;
+}
+
+.on-button:active,
+.off-button:active {
+	background-position: -67px 0;
+}
+
+.zgrid .emptyContent tr td {
+    font-size: 12px;
+    font-weight: bold;
+    overflow: hidden;
+    padding-right: 10px;
+	padding-left: 10px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+h3.import-export-configurations {
+	background-image: url(../images/settings/export-import.png);
+}
+
+h3.reset-configurations {
+	background-image: url(../images/settings/sync-restar-icon.png);
+}
+
+input{
+    border: 1px solid #C7C7C7;
+    /* padding-right: 20px; */
+	color: #000;
+    -webkit-transition: padding 0.3s;
+	
+    background-position: right;
+	
+	-moz-border-radius: 2px;
+	-webkit-border-radius: 2px;
+	-khtml-border-radius: 2px;
+	border-radius: 2px;
+}
+input[type="number"] {
+	padding-right:0; /* decrease/increase arrows displayed incorrectly when using padding */
+}
+input[type="file"] {
+	border: 0;
+}
+input.validating {
+    background-image: url(/ZendServer/images/preload-16.gif);
+	background-repeat:no-repeat;
+	background-position: right;
+    padding-right: 20px;
+}
+
+input.highlight-valid {
+	border: solid 3px green;
+	background-color: #CCFFCC;
+}
+
+input.invalid, div.invalid {
+	border: 2px solid red;
+}
+
+.grid-action-bar #clear {
+	float: right;
+	margin-top: 5px;
+	color: red;
+	font-size: 10px;
+}
+
+.tooltip {
+	padding: 4px;
+	background-color: white;
+	border: 1px solid black;
+}
+.directive_field_boolean_facade {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	-o-user-select: none;
+	user-select: none;
+}
+.input-error {
+	background: yellow;
+}

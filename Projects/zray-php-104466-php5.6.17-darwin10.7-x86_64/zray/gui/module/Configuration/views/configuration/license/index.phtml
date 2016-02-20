@@ -1,0 +1,420 @@
+<?php use Configuration\License\License;
+$this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css");
+$this->headLink()->appendStylesheet("{$this->basePath()}/css/license.css");
+$this->headscript()->appendFile($this->basePath('js/zendcom.js'));
+$this->headscript()->appendFile($this->basePath('js/zsLicenseValidation.js'));
+?>
+<?php $license = isset($license) ? $license : new License(array()) ?>
+
+<script type="text/javascript">
+function ping() {
+	zendIntegration.ping();
+}
+
+registeredEdition = "<?php echo ucfirst(strtolower($license->getEdition())) ?>";
+changesMatrix = <?php echo $this->json($licenseChangeEffects) ?>;
+capabilitiesMap = <?php echo $this->json($capabilitiesMap) ?>;
+negativeCapabilitiesLabels = <?php echo $this->json($this->capabilitiesLabels()->getNegativeLabels()) ?>;
+positiveCapabilitiesLabels = <?php echo $this->json($this->capabilitiesLabels()->getPositiveLabels()) ?>;
+
+zendIntegration = new ZendLicenseRetriever('<?php echo \Application\Module::config('package', 'version'); ?>', '<?php echo $extraParams; ?>');
+
+zendIntegration.addEvent('licenseReceived', function(license) {
+	saveLicense(license.user, license.serial);
+});
+
+var simpleModal;
+var licenseChange = '';
+
+function saveLicense(username, license) {
+	var actionUrl = baseUrl() + "/Api/serverStoreLicense";
+	var restartUrl = baseUrl() + "/Api/restartPhp";
+	var licenseUpdatedUrl = baseUrl() + "/Api/licenseUpdated";
+
+    $('simple-modal-box').spin();
+	var request = new Request.WebAPI({url: actionUrl, method: 'post',
+	data: {licenseName: username, licenseValue: license},
+	onSuccess: function(response) {
+		$('simple-modal-box').spin({'message': '<?php echo _t('License stored. Restarting Zend Server...')?>', 'class': 'spinner-large'});
+		licenseChange = response.responseData.licenseChange;
+		if ($('license_element-username')) {
+			$('license_element-username').store('licenseChange', response.responseData.licenseChange);
+		}
+		/// call restart
+		var restartRequest = new Request.WebAPI({url: restartUrl, data: {force: 'TRUE'},
+			onSuccess: function(response) {
+
+				// send license updated
+				var licenseUpdatedRequest = new Request.WebAPI({url: licenseUpdatedUrl, method: 'post',
+					onSuccess: function(response) {
+				
+						/// wait for notification center to tell us restart is complete
+						notificationCenter.addEvent('restartComplete', function(){
+							if ($('license_element-username')) {
+								licenseChange = $('license_element-username').retrieve('licenseChange');
+							}
+
+							$('simple-modal-box').unspin();
+							$('simple-modal-box').empty();
+							if ($('license_complete_message')) {
+								$('simple-modal-box').adopt($('license_complete_message').removeClass('hidden'));
+								if (licenseChange.newLicense.edition == 'Free') {
+									$('license_complete_message').getChildren('h2')
+										.set('text', _t('Your new license has been saved and applied')); 
+								} else {
+									var licenseName = licenseChange.newLicense.edition.toUpperCase() == 'BASIC' ? '<?php echo _t('Small Business') ?>' : licenseChange.newLicense.edition;
+									var opening = '<?php echo _t('Congratulations!') ?>';
+									if (licenseChange.currentLicense.edition.toUpperCase() == 'FREE') {
+										opening = '<?php echo _t('Thank you!') ?>';
+									}
+									$('license_complete_message').getChildren('h2').set('text', opening);
+									$('license_complete_message').adopt(new Element('div', {'html': _t('You have successfully registered the Zend Server {editionName} edition.', {'editionName': licenseName}), 'style': 'margin: 20px 0'}));
+								}
+							}
+				
+							$('license_complete_message').adopt(new Element('a', 
+									{'href': 'javascript:void(0)', 'text': '<?php echo _t('Continue using Zend Server...') ?>',
+									'events': {'click': function (){document.location.reload(true)}}
+								}));
+
+							window.fireEvent('resize');
+					});
+				},
+				onFailure: function(response) {
+					response = JSON.decode(response.responseText);
+					document.fireEvent('displayMessage', {'message': _t("Could not save license: {errorCode} - {errorMessage}", response.errorData)});
+					$('simple-modal-box').unspin();
+				}});
+
+				licenseUpdatedRequest.post();
+			},
+			onFailure: function(response) {
+				response = JSON.decode(response.responseText);
+				document.fireEvent('displayMessage', {'message': _t("Could not save license: {errorCode} - {errorMessage}", response.errorData)});
+				$('simple-modal-box').unspin();
+			}}).post();
+
+		new Request.WebAPI({url: baseUrl()+ '/Api/restartDaemon'}).post({'daemon': 'zdd'});
+		new Request.WebAPI({url: baseUrl()+ '/Api/restartDaemon'}).post({'daemon': 'scd'});
+
+	}.bind(this),
+	onFailure: function(response) {
+        $('simple-modal-box').unspin();
+		if ($('license_form_message')) {
+			response = JSON.decode(response.responseText);
+			document.fireEvent('displayMessage', {'message': _t("Could not save license: {errorCode} - {errorMessage}", response.errorData)});
+		} else if (zendIntegration) {
+			response = JSON.decode(response.responseText);
+			zendIntegration.modalBox.hide();
+			document.fireEvent('toastAlert', {'message': _t("Could not save license: {errorCode} - {errorMessage}", response.errorData)});
+		}
+	}});
+	
+	request.post();
+}
+
+function produceLostCapabilities(currentEdition, newEdition) {
+	/// retrieve all false capabilities
+	var lostCapabilities = Object.filter(changesMatrix[currentEdition][newEdition], function(item){return (!item)});
+	
+	/// if any items in the change matrix are false -> i.e lost capabilities
+	var warning = new Element('ul', {'class': 'capabilities-list negative-capabilities-list'});
+	warning.appendText(_t("Applying your new license will impact the following product features:"));
+	Object.each(lostCapabilities, function(item, key){
+		if (negativeCapabilitiesLabels[key]) {
+			warning.adopt(new Element('li', {'text': negativeCapabilitiesLabels[key]}));
+		}
+	});
+	return warning;
+}
+
+window.addEvent('load', function(){
+
+	$('license_details_dialogue').store('dialogContent', 
+		$('license_details_dialogue').getChildren().pick().dispose().show().outerHTML
+	);
+
+	if ($('open_license_free_btn')) {
+		$('open_license_free_btn').addEvent('click', function() {
+			zendIntegration.openZendPortalWithCapabilities(registeredEdition.toUpperCase(), 'FREE',
+										produceLostCapabilities(registeredEdition.toUpperCase(), 'FREE'));
+		});
+	}
+	
+	$('open_license_dialogue_btn').addEvent('click', function(){
+		simpleModal = new SimpleModal({width: 673, closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+				<div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+				<div class=\"simple-modal-footer\"></div></div>"});
+		
+		simpleModal.addButton("<?php echo _t("Cancel") ?>", "btn");
+		simpleModal.addButton("<?php echo _t("Save License") ?>", "btn primary", function(){
+			saveLicense($('license_element-username').value, $('license_element-license').value);
+		});
+		
+		simpleModal.show({
+		      "model":	"modal",
+		      "title": '<?php echo $license->getSerialNumber() ? _t('Update Zend Server License') : _t('Enter a Zend Server License')?>' + '<div style="float: right; display:inline-block; cursor: pointer; margin-right: 5px;" onclick="zendIntegration.modalBox.hide()">x</div>',
+		      "contents": $('license_details_dialogue').retrieve('dialogContent')
+		});
+		
+	    $$('.simple-modal-footer .btn.primary').set('disabled', true);
+
+	    $('license_details_dialogue-form').addEvent('validate', function(event){
+	    	$$('.simple-modal-footer .btn.primary').set('disabled', (! event.validateResult));
+		});
+
+	    licenseValidator = new LicenseValidator({baseUrl: '<?php echo $this->basePath()?>'},
+	    	    										$('license_element-username'), $('license_element-license'));
+	    
+	    licenseValidator.addEvent('valid', function(event) {
+			$('license_details_dialogue-form').fireEvent('validate', {validateResult: true});
+			var currentEdition = event.licenseChange.currentLicense.edition.toUpperCase();
+			var newEdition = event.licenseChange.newLicense.edition.toUpperCase();
+
+			var currentEvaluation = event.licenseChange.currentLicense.evaluation == 'true';
+			var newEvaluation = event.licenseChange.newLicense.evaluation == 'true';
+
+			document.fireEvent('displayMessage', {'message': "<?php echo _t('Your new license has been verified and will be applied after Zend Server has been restarted') ?>.<br/><br/>\
+				<?php echo _t('%sClick here%s to see what features are included in your edition.', array('<a href=\'' . $this->helplink('zend_server_editions') . '\' target=\'_blank\'>', '</a>')); ?>", 'type': 'notification'});
+
+			if (currentEdition != newEdition && ['<?php echo Configuration\License\License::EDITION_DEVELOPER; ?>', '<?php echo Configuration\License\License::EDITION_DEVELOPER_ENTERPRISE; ?>'].contains(newEdition)) {
+				$$('.simple-modal-footer .btn.primary').set('disabled', true);
+				$('license_developer_license').removeClass('hidden');
+
+				$('license_developer_approve').addEvent('click', function() {
+					if (this.checked) {
+						$$('.simple-modal-footer .btn.primary').set('disabled', false);
+				    } else {
+				    	$$('.simple-modal-footer .btn.primary').set('disabled', true);
+				    }
+				});
+			} else {
+				$('license_developer_license').addClass('hidden');
+			}
+		});
+		
+	    licenseValidator.addEvent('invalid', function(event) {
+		    if (event.errorData.errorCode == '<?php echo \WebAPI\Mvc\View\Http\ExceptionStrategy::ERRORCODE_CLUSTER_NOT_ALLOWED ?>') {
+				document.fireEvent('displayMessage', {'message': _t("Cluster not allowed: {errorMessage}", event.errorData)}); 
+		    } else {
+				document.fireEvent('displayMessage', {'message': _t("Invalid license: {errorMessage}", event.errorData)});
+		    }
+			$('license_details_dialogue-form').fireEvent('validate', {validateResult: false});
+		});
+		
+	    licenseValidator.addEvent('preValidate', function(event) {
+			document.fireEvent('hideMessage', {});
+			event.inputs.spin();
+		});
+		
+		licenseValidator.addEvent('postValidate', function(event) {
+			event.inputs.unspin();
+		});
+
+	});
+
+	document.addEvent('displayMessage', function(event){
+		if (typeof event.message == 'object') {
+			$('license_form_message').empty();
+			$('license_form_message').adopt(event.message);
+		} else {
+	    	$('license_form_message').set('html', event.message);
+		}
+    	if (event.type) {
+    		$('license_form_message').removeClass('error');
+    		$('license_form_message').removeClass('notification');
+    		$('license_form_message').removeClass('alert');
+    		$('license_form_message').addClass(event.type);
+    	} else {
+    		$('license_form_message').removeClass('error');
+    		$('license_form_message').removeClass('notification');
+    		$('license_form_message').removeClass('alert');
+    		$('license_form_message').addClass('error');
+    	}
+        	
+		$('license_form_message').removeClass('hidden');
+	});
+	document.addEvent('hideMessage', function() {
+		$('license_form_message').addClass('hidden');
+	});
+});
+</script>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration") ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div id="license_details_dialogue" class="license_properties hidden">
+		<form id="license_details_dialogue-form">
+			<ul>
+				<li class="license-details-form-desc">Enter your new Zend Server license details in the fields below:</li>
+				<li><label class="float-left" for="license_element-username"><?php echo _t('Order Number:') ?></label>
+					<input id="license_element-username" class="float-left" /></li>
+				<li><label class="float-left" for="license_element-license"><?php echo _t('License Key:') ?></label>
+					<input id="license_element-license" class="float-left" /></li>
+			</ul>
+			<div id="license_form_message" class="simple-modal-toast message-box toast error hidden"></div>
+			<div id="license_developer_license" class="hidden">
+				<h3><?php echo _t('The Zend Server license you entered, is a Developers edition and is meant for Development purposes only'); ?>.</h3>
+				<br/>
+				<label for="license_developer_approve">
+				    <input type="checkbox" id="license_developer_approve">
+				    I confirm that this license will be used for <span style="text-decoration: underline;">development purposes only</span>, and will not be used for production.
+				</label>
+			</div>
+		</form>
+</div>
+<div id="license_complete_message" class="hidden">
+	<h2><?php echo _t('Your new license was accepted and stored in Zend Server'); ?></h2>
+</div>
+
+<div class="settings-form-wrapper bordered-form" id="license-settings">
+	<section id="license_details_section">
+	<h3><?php echo _t('License Details')  ?></h3>
+	<p class="section_description">
+		<?php echo _t('Details of the Zend Server license you are currently using. If you would like to update these details, click the Update License button below.') ?>
+	</p>
+	<div class="form-row">
+	<table>
+		<tbody>
+			<tr>
+				<td>
+					<label><?php echo _t('Status:') ?></label>
+					<div id="license-status-box">
+					<?php if ((! $license->isServersUnlimited()) && $numberOfServers > $license->getNumOfServers()): ?>
+							<div id="license_message_display-error" class="toast alert">
+							<?php echo _t('Your cluster exceeds the allowed number of servers') ?>
+							<ul>
+								<li><?php echo _t('Your license allows for a cluster of %s servers.', array($license->getNumOfServers())) ?></li>
+								<li><?php echo _t('Your cluster now numbers %s servers.', array($numberOfServers)) ?></li>
+								<li><?php echo _t('Need more servers in your cluster? %sContact Zend%s Sales to upgrade your license.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-cluster-size-exceeded') . '">', '</a>')) ?></li>
+							</ul>
+							</div>
+					<?php elseif ($license->isLicenseOk()): ?>
+					<?php
+						if ($daysToExpired === 0) {
+							echo '<div id="license_message_display-ok" class="toast notice">';
+							echo _t("Your license expires today");
+							echo '</div>';
+						}
+						elseif ($daysToExpired !== false) {
+							echo '<div id="license_message_display-ok" class="toast notice">';
+							echo _t("Your license will expire in %s day(s)", array($daysToExpired));
+							echo '</div>';
+						} else {
+							echo '<div id="license_message_display-ok" class="toast notification">';
+							echo _t("Your license is valid");
+							echo '</div>';
+					}?>
+				<?php  elseif ($license->isLicenseExpired()): ?>
+							<div id="license_message_display-error" class="toast alert">
+							<?php echo _t('Your license has expired!') ?>
+							<ul>
+								<li><?php echo _t('%sAn expired license can be renewed%s', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade') . '">', '</a>')) ?></li>
+								<li><?php echo _t('Some components and premium functionality will not work') ?></li>
+								<li><?php echo _t('All old events, jobs or other data are kept')?></li>
+							</ul>
+							</div>
+				<?php 	elseif (! $license->getSerialNumber()): ?>
+							<div id="license_message_display-error" class="toast alert">
+							<?php echo _t('You have no license') ?>
+							<ul>
+								<li><?php echo _t('Some components and premium functionality will no longer be avilable') ?></li>
+								<li><?php echo _t('%sUpgrade to a premium license now to get all of the missing features%s', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade') . '">', '</a>')) ?></li>
+							</ul>
+							</div>
+				
+				<?php 	else: ?>
+							<div id="license_message_display-error" class="toast alert">
+							<?php echo _t('Your license is invalid!') ?>
+							<ul>
+								<li><?php echo _t('The current license is invalid and must be replaced') ?></li>
+								<li><?php echo _t('Some components and premium functionality will no longer be avilable') ?></li>
+								<li><?php echo _t('All old events, jobs or other data are kept') ?></li>
+							</ul>
+							</div>
+				<?php endif ?>
+				</div>
+				 </td>
+			</tr>
+			<tr>
+				<td>
+					<label><?php echo _t('Order Number:') ?></label>
+					<?php echo $license->getUserName() ? $this->escapeHtml($license->getUserName()) : _t('None specified') ?>
+				 </td>
+			</tr>
+			<tr>
+				<td>
+					<label><?php echo _t('Edition:') ?></label>
+					<?php echo $this->editionString($edition); ?><?php echo $license->isEvaluation() ? '&nbsp;' . _t('Trial') : '' ?>
+				 </td>
+			</tr>
+			<?php if ($osType == ZendServer\Configuration\Manager::OS_TYPE_IBMI && $license->getEdition() == Configuration\License\License::EDITION_FREE) : ?>
+			<tr>
+				<td>
+					<label><?php echo _t('Support:') ?></label>
+					<?php echo $license->isFirstLicense() ? 'Yes' : 'No'; ?>
+				 </td>
+			</tr>
+			<?php endif; ?>
+			<tr>
+				<td>
+					<label><?php echo _t('Expires:') ?></label>
+<?php if ($license->isNeverExpires()) :?>
+					<?php echo _t('This license will never expire') ?>
+<?php else: ?>
+					<?php echo $this->UiDate($license->getExpiration(), 'd/M/Y') ?>
+<?php endif ?>
+				 </td>
+			</tr>
+<?php if (\Application\Module::isCluster() && (! $license->isServersUnlimited())) : ?>
+			<tr>
+				<td>
+					<label><?php echo _t('Servers:') ?></label>
+					<?php echo _t('%s servers out of %s allowed', array($numberOfServers,$this->escapeHtml($license->getNumOfServers()))) ?>
+				 </td>
+			</tr>
+<?php elseif (\Application\Module::isCluster()): ?>
+			<tr>
+				<td>
+					<label><?php echo _t('Servers:') ?></label>
+					<?php echo _t('This license does not limit the number of servers allowed in the cluster') ?>
+				 </td>
+			</tr>
+<?php endif ?>
+			
+			<tr>
+				<td>
+					<input name="submit" type="submit" value="<?php echo $license->getSerialNumber() ? _t('Update License') : _t('Enter License') ?>" id="open_license_dialogue_btn" />
+					<?php if ($osType == ZendServer\Configuration\Manager::OS_TYPE_IBMI) : ?>
+						<?php if ($isEvaluation) : ?>
+							&nbsp;<input name="submit" type="submit" value="<?php echo _t('Use %s Edition', array($this->FreeEditionString())); ?>" class="purchase-btn" id="open_license_free_btn" />	
+						<?php elseif ($daysToExpired !== false && $daysToExpired < 45 && $license->getEdition() == Configuration\License\License::EDITION_FREE) : ?>
+								&nbsp;<input name="submit" type="submit" value="<?php echo _t('Continue With %s Edition', array($this->FreeEditionString())); ?>" class="purchase-btn" id="open_license_free_btn" />
+						<?php endif; ?>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<?php echo _t('Don\'t have a license?'); ?> <a href="javascript:void(0);" onclick="window.open('<?php echo $this->contactZend('server-6-ui-contact-zend-button'); ?>', '_blank');" target="_blank"><?php echo _t('Contact us'); ?>.</a>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<?php if ($this->isAllowedEdition('data:productionActivities')) { ?>
+					<?php echo _t('Developer? Learn about the'); ?> <a href="http://www.zend.com/server/redirect/developer-license" target="_blank"><?php echo _t('Zend Server Developer edition'); ?>!</a>
+					<?php } ?>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	</div>
+	</section>
+</div>

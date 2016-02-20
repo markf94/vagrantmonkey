@@ -1,0 +1,1670 @@
+<?php $this->headScript()->appendFile ( $this->basePath('/js/zgridPolling.js')); ?>
+<?php $this->headScript()->appendFile ( $this->basePath('/js/filter.js')); ?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/searchField.js' );?>
+<?php $this->headLink()->appendStylesheet($this->basePath('css/vhosts.css')) ?>
+<?php $this->headLink()->appendStylesheet($this->basePath('css/wizard.css')) ?>
+<?php $this->headLink()->appendStylesheet($this->basePath('css/filter.css')) ?>
+<?php $vhostForm = isset($vhostForm) ? $vhostForm : new \Vhost\Form\Vhost() ?>
+<style>
+.add-vhost-wizard-modal .spinner-img {
+  position: static;
+  margin-left: -30px;
+  margin-top: -30px;
+}
+</style>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <?php 	if ($this->isAllowed('route:VhostWebAPI', 'vhostAdd') && $this->isAllowed('route:VhostWebAPI', 'vhostRemove')): ?>
+         <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Zend Server allows you to easily manage all the virtual hosts existing on your Web server, giving you the elasticity you need when deploying your applications. All IP-based, or name-based virtual hosts, the port they listen on, and their configuration template, can be configured, and subsequently applied across a cluster. If necessary, you can also configure SSL support for a virtual vhost<br/>
+				            %sread more%s', array("<a href=\"{$this->helplink('working_with_virtual_hosts')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/vhost-management-embed?ecat=breadcrumbs&amp;eaction=Managing Virtual Hosts">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/vhost-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+        <?php endif; ?>
+
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Deployment')) ?>"><?php echo _t("Applications"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<?php if (isset($generalError)) : ?>
+<h2 class="warningTopMessage" style="display: block; height: auto;">
+	<?php echo $generalError; ?>
+</h2>
+<?php endif; ?>
+
+<div id="filter_details"></div>
+
+<div id="grid-action-bar" class="grid-action-bar">
+<?php if ($this->isAllowed('route:VhostWebAPI', 'vhostAdd')): ?>
+	<button id="add_vhost-wizard-btn" title="<?php echo _t('Add a new virtual host');  ?>"><?php echo _t('Add Virtual Host');  ?></button>
+<?php endif ?>
+</div>
+
+<script type="text/javascript">
+
+var initData = {<?php echo $this->partial('vhost/web-api/1x7/vhost-get-status.pjson.phtml', array('vhosts' => $vhosts, 'vhostsNodes' => $vhostsNodes, 'total' => $total))?>};
+var defaultTemplate = '<?php echo $this->escapeJs($defaultTemplate) ?>';
+var originalDefaultTemplate = defaultTemplate; 
+var defaultSslTemplate = '<?php echo $this->escapeJs($defaultSslTemplate) ?>';
+var defaultServerPort = <?php echo $defaultServerPort ?>;
+var textareaMask;
+var allowedToRemove = <?php echo $this->isAllowed('route:VhostWebAPI', 'vhostRemove') ? 'true' : 'false' ?>;
+var allowedToEdit = <?php echo $this->isAllowed('route:VhostWebAPI', 'vhostEdit') ? 'true' : 'false' ?>;
+var allowedToFix = <?php echo $this->isAllowed('route:VhostWebAPI', 'vhostRedeploy') ? 'true' : 'false' ?>;
+var allowedToEnable = <?php echo $this->isAllowed('route:VhostWebAPI', 'vhostEnableDeployment') ? 'true' : 'false' ?>;
+var allowedToDisable = <?php echo $this->isAllowed('route:VhostWebAPI', 'vhostDisableDeployment') ? 'true' : 'false' ?>;
+var reservedPorts = '<?php echo $this->json($reservedPorts) ?>';
+var filterWidget;
+var selectedFilters ={};
+
+var polling = new zGridPolling();
+
+polling.addEvent('poll', function(){
+	var params = zgrid2.getParams();
+	params.filterId = 'dummy';
+	params.filters = filterWidget.selectedFilters;
+	
+    zgrid2.loadRequest.get(params);
+    this.next();
+}.bind(polling));
+
+polling.addEvent('stop', function(){
+	zgrid2.loadRequest.cancel();
+});
+
+var FormValidatorAggregate = new Class({
+	'Implements': Events,
+	validators: {},
+	results: {},
+	Binds: ['add', 'get', 'validate', 'isValid'],
+	add: function(formValidator, name) {
+		formValidator.name = name;
+		formValidator.addEvent('formValidate', function(pass){
+			this.results[formValidator.name] = pass;
+		}.bind(this));
+		this.validators[name] = formValidator;
+	},
+	get: function (name) {
+		return this.validators[name];
+	},
+	validate: function(){
+		var results = this._validateAll();
+		var result = Object.every(results, function(result){return result});
+		this.fireEvent('validate', {pass: result, results: results});
+		return result;
+	},
+	start: function (validatorName) {
+		this.validators[validatorName].start();
+	},
+	stop: function (validatorName) {
+		if (validatorName == null) {
+			Object.each(this.validators, function(validator){
+				validator.stop();
+			});
+		} else {
+			this.validators[validatorName].stop();
+		}
+			
+	},
+	_validateAll: function() {
+		return Object.map(this.validators, function(formValidator){
+			return formValidator.validate();
+		});
+	}
+	
+		
+});
+
+function toggleAllowToContinue() {
+        if($('allowToContinue').get('checked')) {
+        	$('vhost-template-continue-btn').set('disabled', false);
+    	} else {
+    		$('vhost-template-continue-btn').set('disabled', true);
+    	}
+}
+
+
+function redeployVhost(vhost) {
+	if (confirm(_t("Are you sure you would like to redeploy this virtual host?"))) {
+		var url = '<?php echo $this->basePath('/Api/vhostRedeploy'); ?>';
+		var request = new Request.WebAPI({
+			url: url,
+			onSuccess: function(response) {
+				document.fireEvent('toastNotification', {'message': _t('Virtual host is being redeployed...')});
+			},
+			onFailure: function() {
+				document.fireEvent('toastAlert', {'message': _t('The virtual host could not be redeployed')});
+			}
+		}).post({'vhost' : vhost});
+	}	
+}
+
+function unmanageVhost(vhost) {
+	var url = '<?php echo $this->basepath('/Api/vhostDisableDeployment') ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'vhost' : vhost},
+		onSuccess: function(response) {
+			document.fireEvent('toastNotification', {'message': _t('Deployment to virtual host has been disabled')});						
+		}.bind(this),
+		onFailure: function(response) {
+			response = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': _t('Deployment to virtual host could not be disabled: {errorMessage}', response.errorData)});
+		}
+	}).send();
+}
+
+function openManageVhostDialog(vhost) {
+	var dialog = new SimpleModal({closeButton: false,
+		hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+		template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+				   <div id=\"enable-deployment-modal-body\" class=\"simple-modal-body\">{_CONTENTS_}</div>\
+				   <div class=\"simple-modal-footer\"></div></div>"
+	});
+	
+	dialog.addButton("<?php echo _t("Cancel") ?>", "btn define-cancel");
+	
+	dialog.addButton(_t("Done"), "btn primary", function(btn){
+
+		$('vhostManageContainer').spin({'message': _t('Activating deployment...')});
+
+		var url = '<?php echo $this->basepath('/Api/vhostEnableDeployment') ?>';
+		var request = new Request.WebAPI({
+			method: 'post',
+			url: url,
+			data: {'vhost' : vhost, 'applyImmediately': 'TRUE'},
+			onSuccess: function(response) {
+				document.fireEvent('toastNotification', {'message': _t('Deployment has been successfully enabled on the virtual host')});
+				dialog.hide();
+			}.bind(this),
+			onFailure: function(response) {
+				var response = this.decodeResponse(response);
+				document.fireEvent('toastAlert', {'message': _t('Could not enable deployment on the virtual host: {errorMessage}', response.errorData)}); 
+				$('vhostManageContainer').unspin();
+			}.bind(this)
+		}).send();
+		
+		
+	}.bind(this));
+
+	dialog.show({
+	      "model":	"modal",
+	      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('working_with_virtual_hosts'); ?>"></a>', 
+	      "contents": '<div id="vhostManageContainer"></div>'
+	});
+	
+	$('vhostManageContainer').spin({'message': _t('Creating configuration file...')});
+
+	var url = '<?php echo $this->basepath('/Api/vhostEnableDeployment') ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'vhost' : vhost, 'applyImmediately': 'FALSE'},
+		onSuccess: function(response) {
+			$('vhostManageContainer').set('html', $('manage-by-zend-modal-wrapper').retrieve('form'));
+			
+			$('vhostManageContainer').unspin();
+			
+			var manageForm = $('vhostManageContainer');
+			manageForm.getElement('#addLine').set('text', response.responseData.manageInfo.addLine);
+			manageForm.getElement('#toPath').set('text', response.responseData.manageInfo.toPath);
+			$('addLineInTemplate').set('text', response.responseData.manageInfo.addLine);
+			
+			window.fireEvent('resize');						
+		}.bind(this),
+		onFailure: function(response) {
+			response = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': _t('Deployment virtual host could not be enabled: {errorMessage}', response.errorData)});
+		}
+	}).send();
+}
+
+
+var AddVhostWizard = new Class({
+	Extends: FormWizard,
+	Implements: Events,
+	"options": {
+		'submitMaskMessage': '',
+	},
+	'modal': null,
+	'validators': null,
+	'sslForceCreate': false,
+	'templateForceCreate': false,
+	'changePage': function(targetPageIndex) {
+		this.hideErrorMessage();
+		return this.parent(targetPageIndex);
+	},
+	'nextPage': function(){
+		this.changePage(this.currentPageIndex+1);
+	},
+	'currentPage': function() {
+		return this.pages[this.currentPageIndex].domElement;
+	},
+	'initialize': function(form, options){
+		this.templateForceCreate = false;
+		this.sslForceCreate = false;
+		this.validators = new FormValidatorAggregate();
+		this.modal = new SimpleModal({width: 673, closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			extraClass: 'add-vhost-wizard-modal',
+			template: "<div id=\"simple-modal-box\">\
+				<div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+				<div class=\"simple-modal-body simple-modal-wizard-body\">{_CONTENTS_}</div></div>"});
+
+		this.modal.show({
+	      "model":	"modal",
+	      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('working_with_virtual_hosts'); ?>"></a>', 
+	      "contents": $('add_vhost_wizard-wrapper').retrieve('form')
+	    });
+
+	    $('legend_title').set("html", options.title);
+
+		var wizardPages = {
+			"vhostProperties": {
+				"onEnter": function(target, current) {
+					this.validators.stop();
+					this.validators.start('vhostProperties');
+					return true;
+				}.bind(this),
+				"onExit": function(target, current) {
+					if (target > current) { // if going to the next panel
+						var result = this.validators.validate();
+						if (result) {
+							this.validators.stop('vhostProperties');
+						}
+						return result;
+					}
+					return true;
+				}.bind(this)
+			},
+			"sslVhost": {
+				"onEnter": function(target, current) {
+					this.validators.stop();
+					this.validators.start('sslVhost');
+					return true;
+				}.bind(this),
+				"onExit": function(target, current) {
+					if (target > current) { // if going to the next panel
+						if (! this.isSslValidated()) {
+							this.validateSsl(this.nextPage.bind(this));
+							return false;
+						}
+						
+						var result = this.validators.validate();
+						if (result) {
+							this.validators.stop('sslVhost');
+						}
+						return result;
+					}
+					return true;
+				}.bind(this)
+			},
+			'templateEditor': {
+				"onEnter": function(target, current) {
+					this.validators.stop();
+					this.validators.start('templateEditor');
+					return true;
+				}.bind(this),
+				"onExit": function(target, current) {
+					if (target > current) { // if going to the next panel
+						if (! this.isTemplateValidated()) {
+							this.validateTemplate(this.nextPage.bind(this));
+							return false;
+						}
+					
+						var result = this.validators.validate();
+						if (result) {
+							this.validators.stop('templateEditor');
+						}
+						return result;
+					}
+
+					return true;
+				}.bind(this)
+			},
+			'summary': {
+				"onEnter": function(target, current) {
+					$('wizard-control-submit').show();
+					$('vhost-summary-action-address').set('text', _t('{vhost}:{port}', {'vhost': $('vhost-name').get('value'), 'port': $('vhost-port').get('value') ? $('vhost-port').get('value') : <?php echo ($useCertAppName) ? '10080' : '80'; ?>}));
+					if ($('ssl-enabled-on').get('checked')) {
+						$('vhost-summary-secure').show();
+
+						<?php if ($useCertAppName) : ?>
+						$('vhost-summary-ssl-app-name').getElement('.vhost-summary-ssl-filepath').set('text', $('ssl-app-name').get('value'));
+						$('vhost-summary-ssl-app-name').getElement('.vhost-summary-ssl-filepath').set('title', $('ssl-app-name').get('value'));
+						$('vhost-summary-ssl-file-key').addClass('hidden');
+						$('vhost-summary-ssl-file-cert').addClass('hidden');
+						$('vhost-summary-ssl-file-chain').addClass('hidden');
+						<?php else : ?>
+						$('vhost-summary-ssl-file-cert').getElement('.vhost-summary-ssl-filepath').set('text', $('ssl-certificate-path').get('value'));
+						$('vhost-summary-ssl-file-cert').getElement('.vhost-summary-ssl-filepath').set('title', $('ssl-certificate-path').get('value'));
+						$('vhost-summary-ssl-file-key').getElement('.vhost-summary-ssl-filepath').set('text', $('ssl-certificate-key-path').get('value'));
+						$('vhost-summary-ssl-file-key').getElement('.vhost-summary-ssl-filepath').set('title', $('ssl-certificate-key-path').get('value'));
+						
+						$('vhost-summary-ssl-file-chain').getElement('.vhost-summary-ssl-filepath').set('text', $('ssl-certificate-chain-path').get('value'));
+						$('vhost-summary-ssl-file-chain').getElement('.vhost-summary-ssl-filepath').set('title', $('ssl-certificate-chain-path').get('value'));
+						$('vhost-summary-ssl-app-name').addClass('hidden');
+						<?php endif; ?>
+					} else {
+						$('vhost-summary-secure').hide();
+					}
+					$('vhost-summary-notsecure').show();
+
+					return true;
+				}.bind(this),
+				"onExit": function(target, current) {
+					$('wizard-control-submit').hide();
+					return true;
+				}.bind(this)
+			}
+		};
+		
+		this.controls.submit.action = function(){
+			this.fireEvent('wizardSubmit', {'form': this.domElement});
+			return false;
+		}
+		
+		this.controls.cancel.action = function(){
+			this.fireEvent('wizardCancel', {'wizard': this});
+			this.modal.hide();
+			return false;
+		}
+
+		this.parent(form, options, wizardPages);
+
+		this._formValidator();
+
+		this.validators.stop();
+		this.validators.start('vhostProperties');
+		
+		this.domElement.addEvent('change:relay(input)', function(event) {
+			this.validators.validate();
+		}.bind(this));
+
+		$$('.ssl-enabled').addEvent('click', function(event) {
+			var resetTemplate = $('vhost-template-textarea').retrieve('resetTemplate');
+			if ((resetTemplate != $('vhost-template-textarea').get('value')) &&
+					(! window.confirm(_t('The configuration template was modified. All previously entered changes have been lost.')))) { 
+
+				event.stop();
+				return false;
+			}
+
+			/// disable/enable the notice icon
+			if (event.target.get('value') == 1) {
+				this.currentPage().getElement('.default-template-message').removeClass('disabled');
+			} else {
+				this.currentPage().getElement('.default-template-message').addClass('disabled');
+			}
+			
+			this._switchSsl($('ssl-enabled-on'), $('ssl-certificate-path').get('value').length > 0, true);
+		}.bind(this));
+
+		this._switchSsl($('ssl-enabled-on'));
+
+		this.initSslFiles();
+		this.initTemplateEditor();
+		
+		this.toggleEditTemplate(false);
+
+		$('template-field-help').addEvent('click', function(){
+			window.open('<?php echo $this->helpLink('virtual_host_template_legend') ?>');
+		});
+	},
+	isSslValidated: function () {
+		var sslValidator = this.validators.get('sslVhost').getValidator('validate-ssl');
+		if (((! sslValidator.options.executed) || (! sslValidator.options.isValid)) && ($('ssl-enabled-on').get('checked'))) {
+			return false;
+		}
+		return true;
+	},
+	isTemplateValidated: function(){
+		var templateValidator = this.validators.get('templateEditor').getValidator('validate-template');
+		if (((! templateValidator.options.executed) || (! templateValidator.options.isValid)) && (! $('vhost-template-textarea').get('disabled'))) {
+			return false;
+		}
+		return true;
+	},
+	initSslFiles: function(){
+		$('ssl-extra-fields').addEvent('input:relay(input)', function(event){
+			var fileValidator = this.validators.get('sslVhost').getValidator('validate-ssl');
+			fileValidator.options.isValid = true;
+			fileValidator.options.executed = false;
+			fileValidator.options.errorMsg = null;
+			fileValidator.options.filename = null;
+			this.clearSslValidationOverride();
+			$('vhost-ssl-errors-box').hide();
+		}.bind(this));
+	},
+	initTemplateEditor: function(){
+		this.domElement.getElement('textarea').addEvent('input', function(){
+			textareaMask.hide();
+			var templateValidator = this.validators.get('templateEditor');
+			templateValidator.resetField('vhost-template-textarea');
+			
+			var syntaxValidator = templateValidator.getValidator('validate-template');
+			syntaxValidator.options.isValid = true;
+			syntaxValidator.options.executed = false;
+			syntaxValidator.options.errorMsg = null;
+			
+			var canValidateValidator = templateValidator.getValidator('validate-possible');
+			canValidateValidator.options.isValid = true;
+		}.bind(this));
+
+		$('vhost-template-errors-btn').addEvent('click', function(){
+			textareaMask.hide();
+			this.validators.get('templateEditor').resetField('vhost-template-textarea');
+			this.templateForceCreate = false;
+			var templateValidator = this.validators.get('templateEditor').getValidator('validate-template');
+			templateValidator.options.isValid = true;
+			templateValidator.options.executed = false;
+			templateValidator.options.errorMsg = null;
+            this.validators.validate();
+			$('wizard-control-forward').set('disabled', false);
+			$('wizard-control-backward').set('disabled', false);
+		}.bind(this));
+
+		$('vhost-template-continue-btn').addEvent('click', function(){
+			this.templateForceCreate = true;
+			textareaMask.hide();
+			var templateValidator = this.validators.get('templateEditor').getValidator('validate-template');
+			templateValidator.options.isValid = true;
+			templateValidator.options.executed = true;
+			templateValidator.options.errorMsg = null;
+            if (this.validators.validate()) {
+                this.nextPage();
+            }
+			$('wizard-control-forward').set('disabled', false);
+			$('wizard-control-backward').set('disabled', false);
+		}.bind(this));
+
+		$('vhost-ssl-continue-checkbox').addEvent('click', function(event){
+			var checked = event.target.get('checked');
+			this.overrideSslValidation(checked);
+		}.bind(this));
+		
+		$('vhost-template-textarea').set('value', originalDefaultTemplate);
+		$('vhost-template-textarea').store('resetTemplate', $('vhost-template-textarea').get('value'));
+		
+		textareaMask = new Mask($('vhost-field-template-box'), {'maskMargins': false});
+		textareaMask.element.grab($('vhost-template-errors-box'));
+
+		$$('#vhost-template-radios.radio-list').addEvent('change:relay(input)', function(event){
+			this.toggleEditTemplate(event.target.value == 'edit-on');
+		}.bind(this));
+		
+		if($('edit-config-off').get('checked')){
+			this.toggleEditTemplate(false);
+		}
+	},
+	clearSslValidationOverride: function() {
+		$('vhost-ssl-continue-checkbox').set('checked', false);
+		this.overrideSslValidation(false, false);
+	},
+	overrideSslValidation: function(override, validate){
+		validate = validate == null ? true : validate;
+		
+		this.sslForceCreate = override;
+		
+		var sslValidator = this.validators.get('sslVhost').getValidator('validate-ssl');
+
+		sslValidator.options.isValid = override;
+		sslValidator.options.executed = override;
+
+		if (validate) {
+			this.validators.validate();
+		}
+	},
+	hide:function(){
+		this.modal.hide();
+	},
+	_formValidator: function() {
+
+		var vhostValidator = new Form.Validator.Inline($('vhostProperties'), {'errorPrefix': '', 'ignoreHidden': false});
+
+		vhostValidator.add('validate-not-contains', {
+			errorMsg: _t('This port is reserved by Zend Server'),
+			test: function(element, properties) {
+	    		return (! properties.hayStack.contains(element.get('value')));
+	    	},
+		});
+
+		vhostValidator.add('validate-between', {
+            errorMsg: _t('Must be between 1 and 65536'),
+            test: function(element, properties) {
+                if ('' == element.get('value')) {
+                    return true;
+                }
+                return element.get('value') > 0 && element.get('value') <= 65536;
+            }
+        });
+
+
+		vhostValidator.add('validate-lowercase-only', {
+			errorMsg: _t('For compatibility, any uppercase characters will be made lowercase.'), 
+			test: function(element) {
+                if (element.hasClass('validation-failed')) {
+                    return true;
+                }
+
+	    		return !element.get('value').test(/[A-Z]/);
+	    	}
+		});
+
+		vhostValidator.add('validate-listenport', {
+			errorMsg: _t('Port accepted. Make sure your Web server listens on this port.'), 
+			test: function(element) {
+                if (element.hasClass('validation-failed')) {
+                    return true;
+                }
+
+	    		return element.get('value') == '' || element.get('value') == defaultServerPort || isNaN(element.get('value')) || getPortsList().contains(Number.from(element.get('value')));
+	    	}
+		});
+
+		vhostValidator.add('validate-hostname', {
+			errorMsg: _t('Enter a valid hostname without protocol, port or path.'), 
+			test: function(element) {
+				if (element.get('value').length == 0) {
+					return true;
+				}
+	    		var valid = element.get('value').test(/^[a-z0-9A-Z][\.\-_a-z0-9A-Z]+$/);
+		    	return valid;
+	    	}
+		});
+		this.validators.add(vhostValidator, 'vhostProperties');
+
+		var sslValidator = new Form.Validator.Inline($('sslVhost'), {'errorPrefix': '', 'ignoreHidden': false})
+		sslValidator.add('validate-ssl', {
+			errorMsg: null,
+			test: function(element) {
+				if ((! this.isValid) && this.filename == element.get('value')) {
+		    		return this.isValid;
+				}
+				return true;
+	    	},
+	    	isValid: true,
+	    	executed: false,
+	    	filename: null
+		});
+		
+		this.validators.add(sslValidator, 'sslVhost');
+
+		var templateValidator = new Form.Validator.Inline($('templateEditor'), {'errorPrefix': '', 'ignoreHidden': false});
+		templateValidator.add('validate-template', {
+			errorMsg: null,
+			test: function() {
+	    		return this.isValid;
+	    	},
+	    	isValid: true,
+	    	executed: false,
+	    	filename: ''
+		});
+
+		templateValidator.add('validate-possible', {
+			errorMsg: _t('Template validation is not available on this system. Zend Server is unable to determine if there is any risk in using the configuration you provided.<br />Press \'Continue\' to submit the unvalidated template anyway'), 
+			test: function(element) {
+	    		return this.isValid;
+	    	},
+	    	isValid: true,
+		});
+		this.validators.add(templateValidator, 'templateEditor');
+		
+		this.validators.addEvent('formValidate', function(pass){
+			$('wizard-control-submit').set('disabled', ! pass);
+		}.bind(this));
+	},
+	getMaskMessage: function() {
+		return this.options.submitMaskMessage;
+	},
+	spin: function(message) {
+		$('wizard-control-submit').set('disabled', true);
+		$('wizard-control-forward').set('disabled', true);
+		$('wizard-control-backward').set('disabled', true);
+		$('simple-modal-box').spin({'message': message ? message : this.getMaskMessage()});
+		this.hideErrorMessage();
+	},
+	unspin: function() {
+		$('wizard-control-submit').set('disabled', false);
+		$('wizard-control-forward').set('disabled', false);
+		$('wizard-control-backward').set('disabled', false);
+		$('simple-modal-box').unspin();
+	},
+	hideErrorMessage: function() {
+		$$('fieldset.wizard-page').removeClass('display-error');
+		$$('.vhost-form-response-error').each(function(item){item.hide()});
+	},
+	displayErrorMessage: function(errorData) {
+		$$('.vhost-form-response-error').each(function(item){item.set('text', _t("Virtual host storage failed: {errorMessage}", errorData))});
+		$$('fieldset.wizard-page').addClass('display-error');
+		// strange, but we must delay the show method for a bit
+		$$('.vhost-form-response-error').each(function(item){item.show()});
+	},
+	getFormValues: function(){
+		$('force-create').set('value', this.templateForceCreate || this.sslForceCreate ? 'TRUE' : 'FALSE');
+		var params = $('add_vhost_wizard-form').toObj();
+		if ((typeof params.port != 'undefined') && (isNaN(params.port) || params.port == '')) {
+			params.port = <?php echo ($useCertAppName) ? '10080' : '80'; ?>;
+		} else {
+			params.port = $('vhost-port').get('value');
+		}
+		params.sslEnabled = $('ssl-enabled-on').get('checked');
+		
+		return params;
+	},
+	toggleEditTemplate: function(open) {
+		if (open) {
+			$('vhost-template-textarea').set('readonly', false);
+			$('vhost-template-textarea').set('disabled', false);
+			$('vhost-template-textarea').removeClass('disabled');
+			$('templateEditor').getElement('.default-template-message').removeClass('disabled');
+		} else {
+			$('vhost-template-textarea').set('readonly', true);
+			$('vhost-template-textarea').set('disabled', true);
+			$('vhost-template-textarea').addClass('disabled');
+			$('templateEditor').getElement('.default-template-message').addClass('disabled');
+			this.templateForceCreate = false;
+		}
+	},
+	validateSsl: function(postValidate) {
+		var sslValidateRequest = new Request.WebAPI({
+			url: "<?php echo $this->basePath('/Api/vhostValidateSsl'); ?>",
+			method: 'post'
+		});
+		$('vhost-ssl-errors-box').hide();
+		$('vhost-ssl-errors-message').set('text', '');
+		$('vhost-ssl-errors-message').hide();
+		this.clearSslValidationOverride();
+		
+		polling.stop();
+		sslValidateRequest.addEvent('success', function(response){
+			var sslValidator = this.validators.get('sslVhost').getValidator('validate-ssl');
+			var validation = response.responseData.validation;
+			if (validation.success == 'success') {
+				sslValidator.options.isValid = true;
+				sslValidator.options.errorMsg = '';
+				postValidate();
+			} else {
+				if (['no-validation', 'file-no-access'].contains(validation.success)) {
+					var sslValidator = this.validators.get('sslVhost').getValidator('validate-ssl');
+					// mark warning
+					sslValidator.options.isValid = false;
+					sslValidator.options.errorMsg = validation.message;
+					sslValidator.options.filename = validation.data;
+				} else if ('ssl-not-available' == validation.success) {
+					sslValidator.options.isValid = false;
+					sslValidator.options.filename = null;
+					
+					$('vhost-ssl-errors-message').set('text', validation.message);
+					$('vhost-ssl-errors-message').show();
+				} else { /// all other error codes
+					sslValidator.options.isValid = false;
+					if ('file-not-found' == validation.success && (! validation.data)) {
+						$('vhost-ssl-errors-message').set('text', validation.message);
+						$('vhost-ssl-errors-message').show();
+					} else {
+						sslValidator.options.errorMsg = validation.message;
+						sslValidator.options.filename = validation.data;
+					}
+				}
+				$('vhost-ssl-errors-box').show();
+				this.validators.validate();
+			}
+		}.bind(this));
+
+		sslValidateRequest.addEvent('failure', function(response){
+			var vhostError = Request.WebAPI.prototype.decodeResponse(response);
+			this.displayErrorMessage(vhostError.errorData);
+
+			var sslValidator = this.validators.get('sslVhost').getValidator('validate-ssl');
+			sslValidator.options.isValid = false;
+			sslValidator.options.errorMsg = '';
+			sslValidator.options.filename = null;
+			
+			this.validators.validate();
+		}.bind(this));
+
+		sslValidateRequest.addEvent('complete', function(response){
+			var sslValidator = this.validators.get('sslVhost').getValidator('validate-ssl');
+			sslValidator.options.executed = true;
+			this.unspin();
+			polling.start();
+		}.bind(this));
+
+		this.spin(_t('Validating ssl files...')); 
+
+		var params = this.getFormValues();
+		
+        sslValidateRequest.post(params);
+	},
+	validateTemplate: function(postValidate) {
+		var templateValidateRequest = new Request.WebAPI({
+			url: "<?php echo $this->basePath('/Api/vhostValidateTemplate'); ?>",
+			method: 'post'
+		});
+
+		this.templateForceCreate = false;
+		textareaMask.hide();
+		polling.stop();
+		templateValidateRequest.addEvent('success', function(response){
+			var templateValidator = this.validators.get('templateEditor').getValidator('validate-template');
+			if (response.responseData.validation.success == 'success') {
+				templateValidator.options.isValid = true;
+				templateValidator.options.errorMsg = '';
+				postValidate();
+				this.unspin();
+			} else if (['no-validation', 'file-no-access'].contains(response.responseData.validation.success)) {
+				var templateValidator = this.validators.get('templateEditor').getValidator('validate-possible');
+				// mark warning
+				templateValidator.options.isValid = false;
+				templateValidator.options.errorMsg = response.responseData.validation.message;
+				textareaMask.show();
+				this.unspin();
+				$('wizard-control-forward').set('disabled', true);
+				$('wizard-control-backward').set('disabled', true);
+			} else { /// all other error codes
+				templateValidator.options.isValid = false;
+				templateValidator.options.errorMsg = response.responseData.validation.message;
+				textareaMask.show();
+				this.unspin();
+				$('wizard-control-forward').set('disabled', true);
+				$('wizard-control-backward').set('disabled', true);
+			}
+			this.validators.validate();
+			
+		}.bind(this));
+
+		templateValidateRequest.addEvent('failure', function(response){
+			var vhostError = Request.WebAPI.prototype.decodeResponse(response);
+			this.displayErrorMessage(vhostError.errorData);
+			var templateValidator = this.validators.get('templateEditor').getValidator('validate-template');
+			templateValidator.options.executed = false;
+			this.unspin();
+			$('wizard-control-forward').set('disabled', true);
+			$('wizard-control-backward').set('disabled', true);
+		}.bind(this));
+
+		templateValidateRequest.addEvent('complete', function(response){
+			polling.start();
+			var templateValidator = this.validators.get('templateEditor').getValidator('validate-template');
+			templateValidator.options.executed = true;
+		}.bind(this));
+
+		this.spin(_t('Validating configuration...')); 
+
+		var params = this.getFormValues();
+		
+        templateValidateRequest.post(params);
+	},
+	_switchSsl: function(checkbox, validate, changetemplate){
+		if (validate == null) {
+			validate = false; /// do not validate immediately by default
+		}
+		if (changetemplate == null) {
+			changetemplate = false; /// do not change template immediately by default
+		}
+		var validator = this.validators.get('sslVhost');
+
+		if (changetemplate) {
+			$('vhost-template-textarea').set('value', checkbox.get('checked') ? defaultSslTemplate : defaultTemplate);
+		}
+		
+		if (checkbox.get('checked')) {
+			// load ssl template
+			$('ssl-certificate-path').set('disabled',false);
+			$('ssl-certificate-key-path').set('disabled',false);
+			$('ssl-certificate-chain-path').set('disabled',false);
+			$('ssl-app-name').set('disabled',false);
+			validator.enforceField('ssl-certificate-path');
+			validator.enforceField('ssl-certificate-key-path');
+			validator.enforceField('ssl-certificate-chain-path');
+			validator.enforceField('ssl-app-name');
+		} else {
+			validator.reset('ssl-certificate-path');
+			validator.reset('ssl-certificate-key-path');
+			validator.reset('ssl-certificate-chain-path');
+			validator.reset('ssl-app-name');
+			$('ssl-certificate-path').set('disabled',true);
+			$('ssl-certificate-key-path').set('disabled',true);
+			$('ssl-certificate-chain-path').set('disabled',true);
+			$('ssl-app-name').set('disabled',true);
+
+			$('vhost-ssl-errors-box').hide();
+			this.sslForceCreate = false;
+		}
+
+		$('vhost-template-textarea').store('resetTemplate', $('vhost-template-textarea').get('value'));
+
+		if (validate) {
+			if (! this.validators.validate()) {
+				$('vhost-ssl-errors-box').show();
+			} else {
+				$('vhost-ssl-errors-box').hide();
+			}
+		}
+		try{
+			window.fireEvent('resize');
+		}catch(e){}
+	}
+});
+
+var AddVhost = new Class({
+	'Implements': [Options, Events],
+	'wizard': null,
+	'addVhost': function(baseParams){
+
+		if (baseParams == undefined) {
+			baseParams = {};
+		}
+		
+		var params = Object.merge(baseParams, this.wizard.getFormValues());
+
+		var actionUrl = this._requestUrl(params.sslEnabled);
+		
+        polling.stop();
+		var request = new Request.WebAPI({url: actionUrl, method: 'post',
+
+			onSuccess: function(response) {
+				zgrid2.loadData();
+				document.fireEvent('toastNotification', {'message': '<?php echo _t("The virtual host was succesfully stored"); ?>'});
+				this.wizard.hide();
+				this._onComplete(params);
+			}.bind(this),
+			onFailure: function(response) {
+				var vhostError = Request.WebAPI.prototype.decodeResponse(response);
+
+				if (vhostError.errorData.errorCode == 'webserverConfigurationError') {
+					/// special handling for potentially large messages
+					this.wizard.displayErrorMessage(vhostError.errorData);
+				} else {
+					this.wizard.displayErrorMessage(vhostError.errorData);
+				}
+				
+				this.wizard.validators.validate();
+
+			}.bind(this),
+			onComplete: function() {
+				if(!filterOptions.intFilters.port.options[params.port]){
+					filterOptions.intFilters.port.options[params.port]=params.port;
+					loadFilterWidget(filterOptions);
+				}
+                polling.start();
+                this.wizard.unspin();
+
+			}.bind(this)
+		});
+
+		this.wizard.spin(); 
+
+		request.post(params);
+	},
+	'_requestUrl': function(ssl){
+		return ssl ? '<?php echo ($useCertAppName) ? $this->basepath('Api/vhostAddSecureIbmi') : $this->basepath('Api/vhostAddSecure'); ?>' : '<?php echo $this->basepath('Api/vhostAdd') ?>';
+	},
+	'_onComplete': function(params) {
+		// do nothing for add vhost
+	}
+});
+
+var EditVhost = new Class({
+	'Extends': AddVhost,
+	'_requestUrl': function() {
+		return "<?php echo $this->basePath('/Api/vhostEdit'); ?>";
+	},
+	'_onComplete': function(params) {
+    	vhostInfo.loadData(zgrid2.getDescriptionParams(params.vhostId));
+	}
+});
+
+var vhostInfo;
+var pager;
+var filterOptions = <?php
+    echo json_encode(array('intFilters'=>$internalFilters, 'extFilters'=>$externalFilters, 'exiFilters'=>$existingFilters)); 
+?>;
+filterOptions.element = 'filter_details';
+function loadFilterWidget(_filterOptions){
+	$(_filterOptions.element).set('html','');
+
+	filterWidget = new filter(_filterOptions.element,_filterOptions.intFilters,_filterOptions.extFilters,_filterOptions.exiFilters,'vhost',['ssl', 'type', 'deployment'],'All Virtual Hosts');
+	
+	filterWidget.addEvent('saveFilter', function(data) {
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was saved", {'filterName': data.filterName})});
+    });
+
+	filterWidget.addEvent('saveFilterFailed', function(data) {
+    	document.fireEvent('toastAlert', {'message': _t("Could not save filter: {errorMessage}", data.errorData)});
+    });
+
+	filterWidget.addEvent('deleteFilter', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was deleted", {'filterName': event.filterName})});
+	});
+	
+	filterWidget.addEvent('deleteFilterFailed', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was not deleted: {errorMessage}", {'filterName': event.filterName, 'errorMessage': event.errorData.errorMessage})});
+	});
+	
+	filterWidget.addEvent('loadItemDetails', function(params){
+		filterWidget.selectSearchFilter(params.query, 'freeText', 'search', 'freeText');
+		filterWidget.filterChanged();
+		filterWidget.runFiltering();
+	});
+	
+	filterWidget.addEvent('runFiltering', function(selectedFilters) {
+		polling.stop();
+		tableSorted = true;
+		zgrid2.loadData();
+   	}.bind(this));
+}
+<?php
+echo 'internalFilters='.json_encode($internalFilters).';';
+?>
+window.addEvent("load", function() {
+	
+	
+	loadFilterWidget(filterOptions);
+		
+	vhostInfo = <?php echo $this->zgridVhostInfo() ?>
+	
+	pager = <?php echo $this->zPager('mypager', $perPage); ?>
+	
+	var cmu = [
+          	{
+          		'title': _t('Type'),
+          		'dataIndex': 'zendDefined',
+          		'parser': vhostType,
+          		'width': '50px',
+          		'ellipsis': false,
+          		'sortable': true,
+          		'sortBy': '<?php echo \Vhost\Filter\Dictionary::COLUMN_OWNER ?>'
+          	},
+          	{
+          		'title': 'Virtual Host',
+          		'dataIndex': 'name',
+          		'parser': zGrid2.prototype.string,
+          		'width': '40%',
+          		'seperator': false,
+          		'ellipsis': true,
+          		'sortable': true,
+          		'sortBy': '<?php echo \Vhost\Filter\Dictionary::COLUMN_NAME ?>'
+          	},
+          	{
+          		'title': _t('Port'),
+          		'dataIndex': 'port',
+          		'parser': showPort,
+          		'width': '70px',
+          		'seperator': false,
+          		'sortable': true,
+          		'sortBy': '<?php echo \Vhost\Filter\Dictionary::COLUMN_PORT ?>'
+          	},
+          	{
+          		'title': 'Status',
+          		'dataIndex': 'status',
+          		'parser': function(item) {
+              		if (item == 'Ok' || item == 'Unknown') {
+          				return '<div class="zgrid-status-ok" title="{title}">{label}</div>'.substitute({'label': _t('OK'), 'title': _t('OK')});
+              		} else if (item == 'PendingRestart') {
+              			return '<div class="zgrid-status-progress" title="{title}">{label}</div>'.substitute({'label': _t('Pending'), 'title': _t('Pending Restart')});
+              		} else if (item == 'CreateError') {
+              			return '<div class="zgrid-status-error" title="{title}">{label}</div>'.substitute({'label': _t('Error'), 'title': _t('Creation Error')});
+              		} else if (item == 'DeploymentNotEnabled') {
+              			return '<div class="zgrid-status-error" title="{title}">{label}</div>'.substitute({'label': _t('Error'), 'title': _t('Deployment Not Enabled')});
+                  	} else if (item == 'Modified') {
+              			return '<div class="zgrid-status-progress" title="{title}">{label}</div>'.substitute({'label': _t('Modified'), 'title': _t('Manually Modified')}); 
+              		} else if (item == 'Warning') {
+              			return '<div class="zgrid-status-progress" title="{title}">{label}</div>'.substitute({'label': _t('Warning'), 'title': _t('Warning')});
+              		}
+
+              		return '<div class="zgrid-status-error" title="{title}">{label}</div>'.substitute({'label': _t('Error'), 'title': _t('Error')});
+          		},
+          		'width': '95px',
+          		'seperator': false,
+          		'ellipsis': false
+          	},
+          	{
+				'title': _t('Properties'),
+				'dataIndex': 'default',
+				'parser': function(value, data) {
+					var html = '';
+						if (data.zendManaged) {
+							html += '<div class="zgrid-icon zgrid-vhost-deployment zgrid-vhost-property float-left" title="Deployment Enabled"></div>';
+						}
+						if (data.ssl) {
+							html += '<div class="zgrid-icon zgrid-vhost-ssl zgrid-vhost-property float-left" title="SSL Enabled"></div>';
+						}
+						if (value == '1') {
+							html += '<div class="zgrid-icon zgrid-vhost-default zgrid-vhost-property float-left" title="Default Virtual Host"></div>';
+						}
+						
+						return html;
+					},
+				'width': '85px',
+				'tooltip' : "<?php echo _t('Properties')?>"
+			},
+          	{
+          		'title': _t('Messages'),
+          		'dataIndex': 'servers',
+          		'parser': function(servers, data) {
+              		var errorMessage = '';
+
+	              		servers.each(function(server) {
+	                  		if (server.status == 'PendingRestart') {
+	                  			errorMessage = _t('Server is pending restart'); 
+	                  			return;
+	                  		} else if (server.status == 'DeploymentNotEnabled') {
+	                  			errorMessage = _t('Enable deployment configuration has not been applied on this virtual host'); 
+	                  			return;
+		                  	} else if (server.status == 'Modified') {
+	                  			errorMessage = _t('Virtual host\'s configuration was manually modified'); 
+	                  			return;
+	                  		}
+	                  		if (server.lastMessage != null && server.lastMessage != '') {
+	                      		if (servers.length == 1) {
+	                      			errorMessage = server.lastMessage;
+	                      		} else {
+	                  				errorMessage = _t('There is a problem with this virtual host');
+	                      		}
+	                  			return;
+	                  		} 
+	              		});
+
+              		return errorMessage;
+          		},
+          		'width': '60%',
+          		'seperator': false
+          	},
+          	{
+          		'title': _t('Last Updated'),
+          		'dataIndex': 'lastUpdatedTimestamp',
+          		'parser': zGrid2.prototype.timestamp,
+          		'width': '160px',
+          		'seperator': false,
+          		'sortable': true,
+          		'sortBy': '<?php echo \Vhost\Filter\Dictionary::COLUMN_LAST_UPDATED ?>'
+          	},
+          	{
+          		'title': _t('Remove'),
+          		'dataIndex': 'remove',
+          		'parser': zGrid2.prototype.button,
+          		'display': function(data) {
+					return allowedToRemove && data.zendDefined;
+				}
+          	},
+          	{
+				'title': _t('Redeploy'),
+				'dataIndex': 'redeploy',
+				'parser': zGrid2.prototype.button,
+				'display': function(data) {
+					return allowedToFix && data.zendDefined;
+				}
+			},
+        	{
+				'title': _t('Edit'),
+				'dataIndex': 'edit',
+				'parser': zGrid2.prototype.button,
+				'display': function(data) {
+					return allowedToEdit && data.zendDefined;
+				}
+			},
+			{
+				'title': _t('Enable deployment'),
+				'dataIndex': 'manage',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('Disable deployment'),
+				'dataIndex': 'unmanage',
+				'parser': zGrid2.prototype.button
+			}
+          	];
+          <?php 
+          $options = array(
+          	'idColumn' 		=> 'id',
+          	'totalContainer' => 'grid-count-bar',
+			'sortedBy'		=> 'name',
+			'direction'		=> 'asc',
+			'limit' => $perPage,
+          );
+          ?>
+        zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu', $options); ?>
+
+        zgrid2.addEvent('buttonClick', function(params) {
+        	switch (params.type) {
+        		case 'remove':
+					removeVhost(params.data.id);
+	        		break;
+        		case 'edit':
+        			openEditWizard(params);
+            		break;
+        		case 'manage':
+        			openManageVhostDialog(params.data.id);
+            		break;
+        		case 'unmanage':
+        			unmanageVhost(params.data.id);
+            		break;
+        		case 'redeploy':
+        			redeployVhost(params.data.id);
+            		break;
+            }
+
+        });
+
+        zgrid2.addEvent('rowUpdated', function(params) {
+            // for system vhost disable an option to remove it
+        	if (! params.data.zendDefined) {
+				zgrid2.removeCheckbox(params.id);
+			}
+
+        	// manage button 
+        	if (allowedToEnable
+                	&& (! params.data.zendDefined && ! params.data.zendManaged)
+                	&& ['ok', 'pendingrestart'].contains(params.data.status.toLowerCase())) {
+        		$('manage_' + params.id).removeClass('disabled');
+        	} else {
+        		$('manage_' + params.id).addClass('disabled');
+        	}
+
+        	// unmanage button 
+        	if (params.data.default != '1'
+            	&& allowedToDisable
+            	&& (! params.data.zendDefined && params.data.zendManaged)
+            	&& ['ok', 'pendingrestart'].contains(params.data.status.toLowerCase())) {
+        		$('unmanage_' + params.id).removeClass('disabled');
+        	} else {
+        		$('unmanage_' + params.id).addClass('disabled');
+        	}
+        });
+
+        pager.addEvent('pageSelect',function(params) {
+        	polling.stop();
+    		zgrid2.reloadData(params);
+    	});
+        
+        zgrid2.addEvent('descriptionOpen', function(params) {
+        	vhostInfo.loadData(params);
+        });
+
+		notificationCenter.addEvent('restartComplete', function(){
+			Object.keys(zgrid2.getRowsData()).each(function(key){
+				var row = zgrid2.getDescriptionParams(key);
+				if (zgrid2.isDescriptionOpen(key)) {
+					vhostInfo.reloadData(row, false);
+				}
+			});
+		});
+        
+        zgrid2.loadRequest = new Request.WebAPI({
+        	method: 'get',
+        	url: '<?php echo $this->basePath('/Api/vhostGetStatus'); ?>',
+        	'version': '1.7',
+        	link:'cancel',
+        	onSuccess: function(response) {
+        		if (undefined != response) {
+        			zgrid2.setData(response.responseData.vhostList, response.responseData.vhostList.length);
+        		}
+        	},
+        	onFailure: function(response) {
+        		var decoded = this.decodeResponse(response);
+        		document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+        	}
+        });
+
+        zgrid2.setData(initData.responseData.vhostList);
+        pager.reloadData(1, initData.responseData.total);
+
+        zgrid2.addEvent('loadData', function(params) {
+        	params.filters = filterWidget.selectedFilters;
+        	
+        	zgrid2.preLoad();
+        	pager.reloadData(params.page, pager.totalItems);
+        	tableSorted = true;
+        	zgrid2.loadRequest.get(params);
+        });
+
+        var url = '<?php echo $this->basepath('/Api/vhostGetStatus') ?>';
+        zgrid2.loadRequest = new Request.WebAPI({
+        	'version': '1.7',
+            url:url
+        });
+
+        zgrid2.loadRequest.addEvent('success', function(response){
+            if (tableSorted) {
+            	tableSorted = false;
+            	zgrid2.setData(response.responseData.vhostList, response.responseData.total);
+            	pager.reloadData(pager.page, response.responseData.total);
+            } else {
+            	zgrid2.overrideData(response.responseData.vhostList, 'top', response.responseData.total);
+            }
+            polling.start();
+        }.bind(polling));
+
+        zgrid2.loadRequest.addEvent('failure', function(response) {
+            if (response.responseData) {
+                document.fireEvent('toastAlert', {'message': response.responseData.errorData.errorMessage})
+            }
+            this.next();
+        }.bind(polling));
+
+        polling.start();
+
+        
+        $('add_vhost-wizard-btn').addEvent('click', function() {
+
+        	defaultTemplate = originalDefaultTemplate;
+    		
+    		var wiz = new AddVhostWizard('add_vhost_wizard-form', {"createControlArea": true, "title": _t('Add Virtual Host'),
+    			"wizardControls": ["cancel", "submit", "forward", "backward"],
+    			"controls": {
+    				"submit": {"title": _t("Finish")}, 
+    				"backward": {"title": _t("Previous")} 
+    			},
+    			'submitMaskMessage': _t('Adding new virtual host...')
+			});
+
+			$$('.add-vhost-message').removeClass('hidden');
+
+			wiz.addEvent('wizardSubmit', function(event){
+				var add = new AddVhost();
+				add.wizard = this;
+
+				if (! this.isTemplateValidated()) {
+					this.validateTemplate(this.fireEvent.pass(['wizardSubmit'], this));
+					return;
+				}
+				
+				if (this.validators.validate()) {
+					add.addVhost();
+				}
+			}.bind(wiz))
+        }); 
+
+});
+
+var tableSorted = false;
+
+function openEditWizard(params) {
+	 var wiz = new AddVhostWizard('add_vhost_wizard-form', {"createControlArea": true, "title": _t('Edit Virtual Host'),
+		"wizardControls": ["cancel", "submit", "forward", "backward"],
+		"controls": {
+			"submit": {"title": _t("Finish")}, 
+			"backward": {"title": _t("Previous")} 
+		},
+		'submitMaskMessage': _t('Applying changes to virtual host...') 
+	});
+ 	 // fill basic data
+ 	$('vhost-name').set('value', params.data.name);
+ 	$('vhost-name').set('disabled', true);
+ 	$('vhost-port').set('value', params.data.port);
+ 	$('vhost-port').set('disabled', true);
+
+ 	$$('#vhost-template-radios label[for="edit-config-off"]').set('text', 'Use the current virtual host configuration template');
+	$$('.edit-vhost-message').removeClass('hidden');
+ 	
+ 	var url = '<?php echo $this->basePath('/Api/vhostGetDetails'); ?>';
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url,
+		data: {'vhost' : params.data.id},
+		onSuccess: function(response) {
+			var extendedDetails = response.responseData.vhostDetails;
+
+			if (params.data.ssl) {
+				$('ssl-certificate-path').set('value', extendedDetails.vhostExtended.sslCertificatePath);
+				$('ssl-certificate-key-path').set('value', extendedDetails.vhostExtended.sslCertificateKeyPath);
+				$('ssl-certificate-chain-path').set('value', extendedDetails.vhostExtended.sslCertificateChainPath);
+				$('ssl-app-name').set('value', extendedDetails.vhostExtended.sslAppName);
+
+				$('ssl-enabled-off').set('disabled', true);
+				$('ssl-enabled-on').set('disabled', true);
+				$('ssl-enabled-on').set('checked', true);
+				wiz._switchSsl($('ssl-enabled-on'));
+				$('ssl-extra-fields').removeClass('disabled');
+				$$('.default-template-message').removeClass('disabled');
+			} else {
+				$('ssl-enabled-off').set('disabled', true);
+				$('ssl-enabled-on').set('disabled', true);
+			}
+			defaultTemplate = defaultSslTemplate = extendedDetails.vhostExtended.template;
+			$('vhost-template-textarea').set('value', extendedDetails.vhostExtended.template);
+			$('vhost-template-textarea').store('resetTemplate', extendedDetails.vhostExtended.template);
+
+			wiz.addEvent('wizardSubmit', function(extendedDetails, event){
+				var add = new EditVhost();
+				add.wizard = this;
+
+				if (! this.isTemplateValidated()) {
+					this.validateTemplate(this.fireEvent.pass(['wizardSubmit'], this));
+					return;
+				}
+
+				if (this.validators.validate()) {
+					add.addVhost({'vhostId': extendedDetails.vhostInfo.id, 'template': extendedDetails.vhostExtended.template});
+				}
+			}.bind(wiz, extendedDetails))
+		}.bind(this),
+		onFailure: function(response) {
+			document.fireEvent('toastAlert', {'message': _t('The virtual host could not be edited')});
+		}
+	}).send();
+}
+
+//////////////GRID CALLBACKS //////////////
+function vhostType(value, data) {
+
+	if (value) {
+		return "<img src='<?php echo $this->basePath('/images/vhost-zend-defined.png')?>' title='" + _t('Zend Server defined') + "'>";
+	} else {
+		return "<img src='<?php echo $this->basePath('/images/trace-event-based-icon.png')?>' title='" + _t('System defined') + "'>";
+	}
+}
+
+function deploymentEnabled(value, data) {
+	if (data.zendManaged) {
+		return '<div class="zgrid-status-ok" title="{title}">{label}</div>'.substitute({'label': _t('Enabled'), 'title': _t('Deployment enabled')});
+	} else {
+		return '<div class="zgrid-status-disabled" title="{title}">{label}</div>'.substitute({'label': _t('Disabled'), 'title': _t('Deployment disabled')});
+	}
+}
+
+function openDeleteDialog(vhost, showRemoveAppsCheckbox) {
+	var dialog = new SimpleModal({closeButton: false,
+		hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+		template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+				   <div id=\"enable-deployment-modal-body\" class=\"simple-modal-body\">{_CONTENTS_}</div>\
+				   <div class=\"simple-modal-footer\"></div></div>"
+	});
+	
+	dialog.addButton("<?php echo _t("Cancel") ?>", "btn define-cancel");
+
+	dialog.addButton(_t("Delete"), "btn primary", function(btn){
+		var actionUrl = "<?php echo $this->basePath('/Api/vhostRemove'); ?>";
+		var request = new Request.WebAPI({
+			url: actionUrl,
+			onSuccess: function(response) {
+				document.fireEvent('toastNotification', {'message': _t('The virtual host has been successfully removed')});
+				dialog.hide();
+			}.bind(this),
+			onFailure: function() {
+				document.fireEvent('toastAlert', {'message': _t('The virtual host could not be removed')});
+				dialog.hide();
+			}}
+		).post({'vhosts' : [vhost], 'ignoreFailures' : 'TRUE', 'removeApplications' : 'TRUE'});
+	}.bind(this));
+
+	var removeAppsCheckbox = '';
+	var removeMessage = '<?php echo _t('This action will completely remove the virtual host from your system, are you sure?'); ?>';
+	if (showRemoveAppsCheckbox) {
+		removeMessage = '<?php echo _t('There are applications depending on this virtual host. Removing it will remove these applications as well. Are you sure you wish to proceed?'); ?>' 
+	}
+	
+	dialog.show({
+	      "model":	"modal",
+	      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('working_with_virtual_hosts'); ?>"></a>', 
+	      "contents": '<div id="removeVhostContainer"><h2><?php echo _t('Remove Virtual Host'); ?></h2><p>{removeMessage}</p></div>'.substitute(
+	    		  {'removeMessage': removeMessage})
+	});
+}
+
+function removeVhost(vhost) {
+	var url = '<?php echo $this->basePath('/Api/vhostGetDetails'); ?>';
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url,
+		data: {'vhost' : vhost},
+		onSuccess: function(response) {
+			var vhostAppCount = Object.getLength(response.responseData.vhostDetails.vhostExtended.vhostApplications);
+			if (vhostAppCount > 0) {
+				openDeleteDialog(vhost, true);
+			} else {
+				openDeleteDialog(vhost, false);
+			}
+			
+		}.bind(this),
+		onFailure: function() {
+			document.fireEvent('toastAlert', {'message': _t('The virtual host could not be removed')});
+		}
+	}).send();
+}
+
+function showPort(value, data) {
+	if (value == '-1') {
+		return '';
+	}
+	if (['0','*'].contains(value)) {
+		return '<img class="port-any" src="{baseUrl}/images/icons/asterisk.png" title="<?php echo _t('Any port') ?>" />'.substitute({'baseUrl': baseUrl()});
+	}
+	return value.htmlEntities();
+}
+
+function getPortsList() {
+	var ports = [];
+	Object.each(zgrid2.getRowsData(), function(item) {
+		if (item.port != '') {
+			if (! ports.contains(item.port.toInt())) {
+				ports.push(item.port.toInt());
+			}
+		}
+	});
+
+	return ports.sort(function(a,b){return a - b});
+}
+
+function toggleTemplate() {
+	var item = $('toogleTemplateBtn');
+	$('expandedDetails').toggleClass('hidden');
+	item.set('text', ($('expandedDetails').isDisplayed()) ? _t('- Advanced settings') : _t('+ Advanced settings'));
+	window.fireEvent('resize');
+}
+</script>
+
+<div id="manage-by-zend-modal-wrapper" class="hidden">
+	<div id="manage-by-zend-modal">
+		<p id="vhostManageContent">
+			<h2><?php echo _t('Enable Deployment on Virtual Host')  ?></h2><br/>
+			<?php echo _t('To deploy applications on this system-defined virtual host, you will first need to enable deployment.<br/>Since Zend Server does not have write permissions for the virtual host\'s configuration files on your Web server, add the following line of code:'); ?><br/><br/>
+			<div class="codeBlock" id="addLine"></div><br/><br/>
+			<?php echo _t('to the virtual host section in the configuration files of all your servers, located at:'); ?><br/><br/>
+			<div class="codeBlock" id="toPath"></div><br/>
+			<p>
+				<h3><?php echo _t('Example'); ?></h3><br/>
+				<div class="codeBlock" id="vhostExaple">
+					<?php echo nl2br(str_replace('<%INCLUDE_LINE%>', '<span id="addLineInTemplate"></span>', trim($manageTemplate))); ?>
+				</div>
+				<br/><br/>
+			</p>
+		</p>
+	</div>
+</div>
+
+<div id="mytable"></div>
+
+<div id="grid-count-bar"></div>
+
+<div id="mypager"></div>
+
+<?php $page = 0; ?>
+<div id="add_vhost_wizard-wrapper" class="hidden">
+	<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('working_with_virtual_hosts'); ?>"></a>
+	<form id="add_vhost_wizard-form" novalidate="novalidate">
+<?php echo $this->formInput($vhostForm->get('forceCreate')) ?>
+		<div class="side-legend"> 
+		<h1  id="legend_title"><?php echo _t('Add Virtual Host'); ?></h1>
+			<ul>
+				<li id="sl<?php echo $page++ ?>" class="legend_item glyphicons nameplate">
+					<i></i>
+					<h2><?php echo _t('Properties')  ?></h2>
+					<div class="item-selected-arrow"></div>
+				</li>
+				<li id="sl<?php echo $page++ ?>" class="legend_item glyphicons lock">
+					<i></i>
+					<h2><?php echo _t('SSL Configuration')  ?></h2>
+					<div class="item-selected-arrow"></div>
+				</li>
+				<li id="sl<?php echo $page++ ?>" class="legend_item glyphicons table">
+					<i></i>
+					<h2><?php echo _t('Template')  ?></h2>
+					<div class="item-selected-arrow"></div>
+				</li>
+				<li id="sl<?php echo $page++ ?>" class="legend_item glyphicons notes">
+					<i></i>
+					<h2><?php echo _t('Summary')  ?></h2>
+					<div class="item-selected-arrow"></div>
+				</li>
+			</ul>
+		</div>
+		
+		<fieldset class="wizard-page form_fields-box" id="vhostProperties">
+			<div class="page-wrapper">
+				<div class="vhost-form-response-error simple-modal-toast message-box error hidden"></div>
+				<h2><?php echo _t('Enter Virtual Host Properties') ?></h2>
+				<p class="add-vhost-message hidden"><?php echo _t('This wizard will enable you to create a new virtual host on your Web server. 
+						In the case of a clustered environment, Zend Server will create the virtual host on all servers in the cluster, 
+						while validating the integrity and consistency of the virtual host across the cluster. Once created, you will be 
+						able deploy new applications to the virtual host using Zend Server\'s Deployment mechanism.'); ?>
+				</p>
+				<p class="edit-vhost-message hidden"><?php echo _t('This wizard will enable you to edit a virtual host on your Web server. In the case of a 
+						clustered environment, Zend Server will apply the changes to the virtual host on all servers in the cluster, while 
+						validating the integrity and consistency of the virtual host across the cluster.'); ?>
+				</p> 
+				<br/>
+				<div class="form_field">
+					<?php echo $this->formLabel($vhostForm->get('name'), _t('Virtual Host Name')) ?>
+					<?php echo $this->formInput($vhostForm->get('name')
+									->setAttribute('data-validators', "required validate-hostname warn-validate-lowercase-only msgPos:'vhost-name-errors'"))?>
+					<div  id="vhost-name-errors" class="vhost-errors float-right"></div>
+				</div>
+				
+				<div class="form_field">
+					<?php echo $this->formLabel($vhostForm->get('port'), _t('Listen on Port'))  ?>
+					<?php echo $this->formInput($vhostForm->get('port')
+										->setAttribute('data-validators', "validate-integer validate-between validate-vhost-unique validate-not-contains hayStack:{$this->json($reservedPorts)} vhostField:'vhost-name' msgPos:'vhost-port-errors'"))?>
+					<div  id="vhost-port-errors" class="vhost-errors float-right"></div>
+				</div>
+			</div>
+		</fieldset>
+		
+		<fieldset class="wizard-page tight_form_fieldset" id="sslVhost">
+			<div class="page-wrapper">
+				<div class="vhost-form-response-error simple-modal-toast message-box error hidden"></div>
+				<h2><?php echo _t('Configure Virtual Host Security Settings') ?></h2>
+	 			<div id="vhost-ssl-radios" class="radio-list">
+					<div><input type="radio" name="sslEnabled" id="ssl-enabled-off" class="ssl-enabled" value="0" checked="checked" />&nbsp;<label for="ssl-enabled-off"><?php echo _t('This virtual host does not use SSL') ?></label></div>
+					<div><input type="radio" name="sslEnabled" id="ssl-enabled-on" class="ssl-enabled" value="1" />&nbsp;<label for="ssl-enabled-on"><?php echo _t('Enable SSL security on this virtual host') ?></label></div>
+				</div> 
+				<div id="ssl-extra-fields" class="disabled">
+					<?php if ($useCertAppName) : ?>
+						<p class="default-template-message disabled"><?php echo _t('Using an SSL-secured virtual host requires you provide the certificate application name.') ?></p>
+						<div class="form_field">
+							<?php echo $this->formLabel($vhostForm->get('sslAppName')->setLabelAttributes(array('class' => 'required')), _t('Certificate Application name')); ?>
+							<?php echo $this->formInput($vhostForm->get('sslAppName')->setAttribute('data-validators', "required msgPos:'vhost-app-name-errors'")); ?>
+							<div  id="vhost-app-name-errors" class="vhost-errors float-right"></div>
+						</div>
+						<?php echo $this->formInput($vhostForm->get('sslCertificatePath')->setAttribute('class', 'hidden')); ?>
+						<?php echo $this->formInput($vhostForm->get('sslCertificateKeyPath')->setAttribute('class', 'hidden'));  ?>
+						<?php echo $this->formInput($vhostForm->get('sslCertificateChainPath')->setAttribute('class', 'hidden'));  ?>
+					<?php else : ?>
+						<p class="default-template-message disabled"><?php echo _t('Using an SSL-secured virtual host requires you provide the full paths to the certificate and key files. If you are using an Intermediate SSL certificate, you will need to provide the path to the certificate\'s chain file as well.') ?></p>
+						<div class="form_field">
+							<?php echo $this->formLabel($vhostForm->get('sslCertificatePath')->setLabelAttributes(array('class' => 'required')), _t('Certificate Path')) ?>
+							<?php echo $this->formInput($vhostForm->get('sslCertificatePath')->setAttribute('data-validators', "required validate-ssl msgPos:'vhost-certificate-errors'"))  ?>
+							<div  id="vhost-certificate-errors" class="vhost-errors float-right"></div>
+						</div>
+						<div class="form_field">
+							<?php echo $this->formLabel($vhostForm->get('sslCertificateKeyPath')->setLabelAttributes(array('class' => 'required')), _t('Key File Path'))  ?>
+							<?php echo $this->formInput($vhostForm->get('sslCertificateKeyPath')->setAttribute('data-validators', "required validate-ssl msgPos:'vhost-certificate-key-errors'"))  ?>
+							<div  id="vhost-certificate-key-errors" class="vhost-errors float-right"></div>
+						</div>
+						<div class="form_field">
+							<?php echo $this->formLabel($vhostForm->get('sslCertificateChainPath'), _t('Chain File Path'))  ?>
+							<?php echo $this->formInput($vhostForm->get('sslCertificateChainPath')->setAttribute('data-validators', "validate-ssl msgPos:'vhost-certificate-chain-errors'"))  ?>
+							<div  id="vhost-certificate-chain-errors" class="vhost-errors float-right"></div>
+						</div>
+						<?php echo $this->formInput($vhostForm->get('sslAppName')->setAttribute('class', "hidden"))  ?>
+					<?php endif; ?>
+					<div class="required-fields"><?php echo _t('* required fields'); ?></div>
+					<div id="vhost-ssl-errors-box" class="hidden">
+						<div id="vhost-ssl-errors-message" class="masked-error validation-advice hidden"></div>
+						<input type="checkbox" id="vhost-ssl-continue-checkbox" /> <label for="vhost-ssl-continue-checkbox" id="vhost-ssl-continue-checkbox-label"><?php echo _t('I understand that these changes may cause problems with the configuration of my server, and wish to proceed anyway')  ?></label>
+					</div>
+				</div>
+			</div>
+		</fieldset>
+		
+		<fieldset class="wizard-page" id="templateEditor">
+			<div class="page-wrapper">
+				<div class="vhost-form-response-error simple-modal-toast message-box error hidden"></div>
+				<h2><?php echo _t('Virtual Host Configuration Template') ?></h2>
+				<div id="vhost-template-radios" class="radio-list">
+					<div><input type="radio" name="editConfig" id="edit-config-off" value="edit-off" checked="checked" />&nbsp;<label for="edit-config-off"><?php echo _t('Use the default virtual host configuration template') ?></label></div>
+					<div><input type="radio" name="editConfig" id="edit-config-on" value="edit-on" />&nbsp;<label for="edit-config-on"><?php echo _t('Edit the virtual host configuration template') ?></label></div>
+				</div>
+				
+				<div id="expandedDetails" class="form_field form_field-large">
+				
+					<div id="vhost-template-errors-box" class="masked-error"><div id="vhost-template-errors"></div>
+					<button type="button" id="vhost-template-errors-btn"><?php echo _t('Back')  ?></button>
+					<button type="button" id="vhost-template-continue-btn" disabled="disabled"><?php echo _t('Continue')  ?></button>
+					<br/><input type="checkbox" id="allowToContinue" onclick="toggleAllowToContinue()"/> <label for="allowToContinue" id="allowToContinueLabel">I understand that these changes may cause problems with the configuration of my server, and wish to proceed anyway</label>
+					</div>
+					<div id="template-field-help" class="info-icon float-right"></div>
+					<?php echo $this->formLabel($vhostForm->get('template'), _t('Virtual Host Configuration Template:')) ?>
+				   <div class="default-note-message disabled"><i></i><?php echo _t('Note: If you are not using the default port, add a listen directive for the port you are using. e.g. "Listen 8080"') ?></div>
+					<div id="vhost-field-template-box">
+					<?php echo $this->formTextarea($vhostForm->get('template')->setAttribute('id', 'vhost-template-textarea')
+											->setAttribute('wrap', 'off')->setAttribute('spellcheck', 'false')
+											->setAttribute('data-validators', 'required validate-template warn-validate-possible msgPos:\'vhost-template-errors\''))?>
+					</div>
+					<div class="default-template-message"><?php echo _t('Note: Editing the virtual host template could potentially cause problems to your server\'s configuration') ?></div>
+				</div>
+			</div>
+		</fieldset>
+		<fieldset class="wizard-page" id="summary">
+			<div class="page-wrapper">
+				<div class="vhost-form-response-error simple-modal-toast message-box error hidden"></div>
+				<h2><?php echo _t('Summary') ?></h2>
+				<span id="vhost-summary-action-address"></span>
+				<h3 id="vhost-summary-action" class="add-vhost-message hidden"> <?php echo _t('will be created.')  ?></h3>
+				<h3 id="vhost-summary-action" class="edit-vhost-message hidden"> <?php echo _t('will be modified.')  ?></h3>
+				<div id="vhost-summary-secure">
+					<p class="add-vhost-message hidden"><?php echo _t('This virtual host is marked as a secure virtual host. Zend Server will create this virtual host as an SSL enabled virtual host which will rely on the following files:')  ?></p>
+					<p class="edit-vhost-message hidden"><?php echo _t('This virtual host is marked as a secure virtual host. Zend Server will modify this virtual host as an SSL enabled virtual host which will rely on the following files:')  ?></p>
+					<ul id="vhost-summary-ssl-files-list">
+						<li id="vhost-summary-ssl-file-key"><label class="vhost-summary-ssl-filename float-left"><?php echo _t('SSL Private Key file') ?></label><code class="vhost-summary-ssl-filepath ellipsis_wrp ellipsis"></code></li>
+						<li id="vhost-summary-ssl-file-cert"><label class="vhost-summary-ssl-filename float-left"><?php echo _t('SSL Certificate file') ?></label><code class="vhost-summary-ssl-filepath ellipsis_wrp ellipsis"></code></li>
+						<li id="vhost-summary-ssl-file-chain"><label class="vhost-summary-ssl-filename float-left"><?php echo _t('SSL Chain file') ?></label><code class="vhost-summary-ssl-filepath ellipsis_wrp ellipsis"></code></li>
+						<li id="vhost-summary-ssl-app-name"><label class="vhost-summary-ssl-filename float-left"><?php echo _t('SSL Application Name') ?></label><code class="vhost-summary-ssl-filepath ellipsis_wrp ellipsis"></code></li>
+					</ul>
+				</div>
+				<div id="vhost-summary-notsecure">
+					<p><?php echo _t('Once you complete this wizard, applications can be deployed to this virtual host. To make the virtual host available, restart Zend Server.')  ?></p>
+				</div>
+			</div>
+		</fieldset>
+	</form>
+</div>
+
+<script type="text/javascript">
+	$('add_vhost_wizard-wrapper').store('form', $('add_vhost_wizard-wrapper').get('html'));
+	$('add_vhost_wizard-wrapper').empty();
+
+	$('manage-by-zend-modal-wrapper').store('form', $('manage-by-zend-modal-wrapper').get('html'));
+	$('manage-by-zend-modal-wrapper').empty();
+</script>

@@ -1,0 +1,13 @@
+"responseData":{"components": [
+<?php 
+	$componentsArray = array();
+	foreach ($components as $key => $component) {	
+
+		$componentsArray[] =  '{	"extension": ' . $this->ExtensionJson($component['extension']) . ',
+									"daemon" : ' . $this->DaemonJson($component['daemon']) . '}';
+		
+	}
+	
+	echo implode(',', $componentsArray);
+?>
+]}

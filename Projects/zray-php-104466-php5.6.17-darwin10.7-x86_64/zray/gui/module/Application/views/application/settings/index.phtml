@@ -1,0 +1,788 @@
+<?php use Deployment\Model;
+/* @var $restartStrategy \Configuration\DirectiveContainer */?>
+<?php /* @var $restartStrategyValue \Configuration\DirectiveContainer */?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/FragmentManager.js' );?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/zgridPolling.js' );?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/Spinner.js' );?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/logs.css")?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css") ?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/spinner-input.css") ?>
+
+<script type="text/javascript">
+
+var gracefulRestartAvailableWebServer = <?php echo $gracefulRestartAvailableWebServer ? 'true' : 'false' ?>;
+var gracefulRestartAvailableOs = <?php echo $gracefulRestartAvailableOs ? 'true' : 'false' ?>;
+var isCluster = <?php echo $isCluster ? 'true' : 'false' ?>;
+var serverMode = '<?php echo $serverMode ?>';
+
+<?php
+$serverModeProductionChecked = $serverModeDevelopmentChecked = '';
+
+if ($serverMode == 'Production') {
+	$serverModeProductionChecked = 'checked="checked"';
+} else {
+    $serverModeDevelopmentChecked = 'checked="checked"';
+}
+?>
+
+window.addEvent('load', function(){
+	window.fireEvent('resize',{});
+});
+
+window.addEvent("domready", function(){
+
+	/// set up polling for waiting for tasks to be completed
+	var polling = new zGridPolling();
+	var tasksRequest = new Request.WebAPI({url: '<?php echo $this->basepath('/Api/tasksComplete') ?>'});
+
+	tasksRequest.addEvent('success', function(response){
+		if (response.responseData.tasksComplete) {
+			polling.fireEvent('tasksComplete');
+		}
+	});
+	
+	tasksRequest.addEvent('complete', function(response){
+		if (response.responseData && ! response.responseData.tasksComplete) {
+			polling.next();
+		} else {
+			polling.stop();
+		}
+	});
+	
+	polling.addEvent('poll', function(){
+		tasksRequest.get();
+	});
+
+	polling.addEvent('tasksComplete', function(){
+		var restartRequest = new Request.WebAPI({url: '<?php echo $this->basepath('/Api/restartPhp') ?>'});
+		restartRequest.post({force: 'TRUE'});
+	});
+
+	$('server-mode-form-submit').addEvent('click', function(item) {
+		var newServerMode = $$('input[name="zend_gui.serverProfile"]:checked').pick().get('value');
+		var content = '';
+		var title = forTitle = '';
+
+		if (serverMode != newServerMode) {
+			
+			if (newServerMode == 'Production') {
+				title = _t('Production Mode');
+				forTitle = 'production';
+			} else if (newServerMode == 'Development') {
+				title = _t('Development Mode');
+				forTitle = 'development';
+			} 
+			content = '<p><?php echo _t('This action optimizes your system and PHP configuration settings for ')?><br>' + forTitle + '<?php echo _t(', and requires restarting Zend Server.')?><br /><?php echo _t('Are you sure you wish to proceed?') ?><br/><br/><a href="<?php echo $this->helpLink('launch_types')?>" target="_blank"><?php echo _t('More information on server profiles'); ?></a></p><br/>';
+			
+			simpleModal = new SimpleModal({width: 673, closeButton: false, hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+				template: "<div id=\"simple-modal-box-devbar-mode\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+					<div class=\"simple-modal-body\">{_CONTENTS_}\
+					<input type=\"checkbox\" id=\"server_mode-confirm\" class=\"are-you-sure\"> <label for=\"server_mode-confirm\"><?php echo _t('Yes, I\'m sure!')  ?></label>\
+					</div>\
+					<div class=\"simple-modal-footer\"></div></div>"});
+			simpleModal.addButton("<?php echo _t("Cancel") ?>", "btn", function() {
+				this.hide();
+				$$('input[name="zend_gui.serverProfile"][value="' + serverMode + '"]').pick().click();
+				return;
+			});
+			simpleModal.addButton("<?php echo _t("Proceed") ?>", "btn primary", function(){
+				this.hide();
+				item.target.spin();
+				saveServerModeSettings(item.target.getParent('form'), function(){
+					polling.start();
+				});
+		    }.bind(simpleModal));
+
+			simpleModal.show({
+		      "model":	"modal",
+		      "title": title, 
+		      "contents": content
+		    });
+
+			$('simple-modal-box-devbar-mode').getElement('input.are-you-sure').addEvent('click', function(e){
+				if (this.checked) {
+					$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', false);
+			    } else {
+			    	$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', true);
+			    }
+			});
+			
+			$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', true);
+
+			$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', true);
+
+			//// do not execute alternative path 
+			return ;
+		}
+	});
+
+	$$('#section-devbar-settings input[type="submit"]').addEvent('click', function(event) {
+		event.target.spin();
+		saveServerModeSettings(event.target.getParent('form'));
+	});
+	
+	if (! gracefulRestartAvailableWebServer) {
+		$('webserver-graceful-restart').hide();
+	} else if(! gracefulRestartAvailableOs) {
+		$('save-webserver-graceful-restart').dispose();
+		$$('#webserver-graceful-restart input').set('disabled', true);
+		$('webserver-graceful-restart-warning').show();
+	}
+
+	
+	<?php if (! $allowToEditRestart) : ?>
+	$$('#restart-settings input[type="submit"]').dispose();
+	$$('#restart-settings input').set('disabled', true);	
+	<?php endif; ?>
+	
+	$$('.settings-wrapper').set('onsubmit', 'return false;');
+	$$('.settings-wrapper input[type="submit"]').each(function(item) {
+		item.spinner = new Spinner(item);
+		item.spinner.hide();
+		
+		var errorsContainer = new Element('div');
+		errorsContainer.addClass('settings-error');
+		errorsContainer.inject(item.getParent());
+	});
+	
+	$$('.settings-wrapper form.submit-store-directives input[type="submit"]').addEvent('click', function(item) {
+		var form = item.target.getParent('form');
+		if (!form) {
+			return;
+		}
+		
+		item.target.spinner.show();
+		form.getElement('.settings-error').set('html', '');
+		var url = '<?php echo "{$this->basePath('/Api/configurationStoreDirectives')}" ?>';
+		
+		var request = new Request.WebAPI({
+			url: url,
+			'version': '1.6',
+			onSuccess: function(response) {
+				document.fireEvent('toastNotification', {'message': '<?php echo _t("Your new settings have been saved"); ?>'});
+			}.bind(form),
+			onComplete: function(response) {
+				item.target.spinner.hide();
+			},
+			onFailure: function(response) {
+				response = this.decodeResponse(response);
+				form.getElement('.settings-error').set('html', response.errorData.errorMessage);
+			}
+		});
+
+		var directives = form.toObj();
+		if (directives['zend_gui.defaultServer'] && (typeof directives['zend_gui.defaultServer'] != '') && directives['zend_gui.defaultServer'].length == 0) {
+			directives['zend_gui.defaultServer'] = '<?php echo Model::DEFAULT_SERVER ?>';
+			form.getElement('input[name="zend_gui.defaultServer"]').set('value', directives['zend_gui.defaultServer']);
+		}
+
+		if (directives['zend_gui.resultsPerPage'] != undefined) {
+			  directives['zend_gui.resultsPerPage'] = directives['zend_gui.resultsPerPage'].trim();
+		}
+		request.post({'directives': directives});
+	});
+	
+if ($('save-restart-settings') && typeof $('save-restart-settings').spinner == 'undefined') {
+	$('save-restart-settings').spinner = new Spinner($('save-restart-settings'));
+	$('save-restart-settings').spinner.hide();
+}
+
+if ($('save-webserver-graceful-restart')) {
+	$('save-webserver-graceful-restart').addEvent('click', function(){
+		var restartOption = $$('.graceful_restart-options:checked').pick();
+		if (! restartOption) {
+			return ;
+		}
+		var restartGraceful = restartOption.get('value');
+	    if (! ['1', '0'].contains(restartGraceful)) {
+	        document.fireEvent('toastAlert', {'message': _t('Error reporting may only accept one of \'all\' or \'errors\'')});
+	        return;    
+	    }
+	
+	    $('save-webserver-graceful-restart').spin();
+	
+	    var params = new Object();
+	    params.directives = new Object();
+		
+	    params.directives['zend_utils.use_graceful_restart'] = restartGraceful;
+	
+		var request = new Request.WebAPI({
+			   method: 'post',
+			   url:'<?php echo $this->basePath(); ?>' + '/Api/configurationStoreDirectives',
+			   data:params,
+			   onComplete: function(response) {
+				   checkTasksComplete();
+				}
+			}).send();
+	});
+}
+
+if ($('notification-center-settings')) {
+	$$('#notification-center-settings input[type="submit"]').addEvent('click', function(event){
+
+		event.target.spin();
+		
+		var request = new Request({
+			   method: 'post',
+			   url:'<?php echo $this->basePath('/Settings/notificationCenter'); ?>',
+			   data: $('notification-center-settings').toObj(),
+			   onSuccess: function(response) {
+				   document.fireEvent('toastNotification', {'message': '<?php echo _t('Notification Center settings have been successfully stored')?>'})
+			   },
+			   onFailure: function(response) {
+				   var decoded = this.decodeResponse(response);
+				   document.fireEvent('toastAlert', {'message': '<?php echo _t('Error found in Notification Center settings') ?>'});
+				   $$('#notification-center-settings .settings-error').pick().set('text', decoded.errorData.errorMessage);
+			   },
+			   onComplete: function(response) {
+				   event.target.unspin();
+				}
+			}).send();
+	});
+}
+
+if ($('audit-trail-settings')) {
+	$$('#audit-trail-settings input[type="submit"]').addEvent('click', function(event){
+
+		event.target.spin();
+		
+		var request = new Request({
+			   method: 'post',
+			   url:'<?php echo $this->basePath('/Settings/audit'); ?>',
+			   data: $('audit-trail-settings').toObj(),
+			   onSuccess: function(response) {
+				   document.fireEvent('toastNotification', {'message': '<?php echo _t('Audit Trail settings have been successfully stored')?>'})
+			   },
+			   onFailure: function(response) {
+				   var decoded = this.decodeResponse(response);
+				   document.fireEvent('toastAlert', {'message': '<?php echo _t('Error found in Audit Trail settings')?>'});
+				   $$('#audit-trail-settings .settings-error').pick().set('text', decoded.errorData.errorMessage);
+			   },
+			   onComplete: function(response) {
+				   event.target.unspin();
+				}
+			}).send();
+	});
+}
+
+if ($('save-webserver-errors-settings')) {
+	$('save-webserver-errors-settings').addEvent('click', function(){
+		var errorOption = $$('.webserver-errors-options:checked').pick();
+		if (! errorOption) {
+			return ;
+		}
+		var errorReporting = errorOption.get('value');
+	    if (! ['all', 'errors'].contains(errorReporting)) {
+	        document.fireEvent('toastAlert', {'message': _t('Error reporting may only accept one of \'all\' or \'errors\'')});
+	        return;    
+	    }
+	
+	    $('save-webserver-errors-settings').spin();
+	
+	    var params = new Object();
+	    params.directives = new Object();
+		
+	    params.directives['zend_server_daemon.webserver.error_reporting_level'] = errorReporting;
+	
+		var request = new Request.WebAPI({
+			   method: 'post',
+			   url:'<?php echo $this->basePath(); ?>' + '/Api/configurationStoreDirectives',
+			   data:params,
+			   onComplete: function(response) {
+				   checkTasksComplete();
+				}
+			}).send();
+	});
+}
+
+
+if ($('save-restart-settings')) {
+	$('save-restart-settings').addEvent('click', function() {
+	    var strategy = $$('.strategy-options:checked')[0].get('value');
+	    if (strategy == 0) {
+	        var strategyValue = $('absoluteNumServer').get('value');
+	    } else {
+	        var strategyValue = $('relativeNumServer').get('value');
+	    }
+	    // Simple Client Side Validation
+	    strategyValue = parseInt(strategyValue);
+	    var errorMessage = "Number of servers to restart at a time is invalid";
+	    if (strategyValue <= 0 || strategyValue > 100) {
+	        document.fireEvent('toastAlert', {'message': _t(errorMessage)});
+	        return;    
+	    }
+	
+	    $('save-restart-settings').spinner.show();
+	
+	    var params = new Object();
+	    params.directives = new Object();
+		
+	    params.directives['zend_server_daemon.restart_strategy'] = strategy;
+	    params.directives['zend_server_daemon.restart_strategy_value'] = strategyValue;
+	
+		var request = new Request.WebAPI({
+			   method: 'post',
+			   url:'<?php echo $this->basePath(); ?>' + '/Api/configurationStoreDirectives',
+			   data:params,
+			   onComplete: function(response) {
+				   checkTasksComplete();
+				}
+			}).send();
+	});
+}
+
+$$('.strategy-options').addEvent('click', function() {
+    var strategy = $$('.strategy-options:checked')[0].get('value');
+    if (strategy == 0) {
+        $('relativeNumServer').setAttribute('disabled', true);
+        $('relativeNumServer').set('value', '');
+        $('absoluteNumServer').removeAttribute('disabled');
+    } else {
+        $('absoluteNumServer').setAttribute('disabled', true);
+        $('absoluteNumServer').set('value', '');
+        $('relativeNumServer').removeAttribute('disabled');
+    }
+});
+$$('#new-tabs-container li').addEvent('click', function() {
+	showSection(this);
+});
+	// Mail Settings Manipulations 1
+	$$('select[name=zend_gui.mail_service]').addEvent('change', selectMailService);
+	
+	// disable all smpt settings if user choose the mail type of sendmail
+	$$('select[name=zend_gui.mail_type]').addEvent('change', selectMailType);
+
+	// When the authentication is Off, dissapear all auth fields
+	$$('input[name=zend_gui.authentication]').addEvent('change', function(e) {
+		toggleAuthentication(e.target);
+		window.fireEvent('resize',{});		
+	}.bind(this));
+
+	if ($$('input[name=zend_gui.authentication]')[0].get('checked')) {
+		toggleAuthentication($$('input[name=zend_gui.authentication]')[0]);
+	} else {
+		toggleAuthentication($$('input[name=zend_gui.authentication]')[1]);
+	}
+
+	if ($('test-email')) {
+		$('test-email').addEvent('click', function() {
+		
+			var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/emailSend'; ?>';
+		    var request = new Request.WebAPI({
+		    	method: 'post',
+		    	url: url,
+		    	data: {'to': $('email_to').value.trim(), 'subject': _t('Test Email'), 'templateName': 'test', 'from': 'no-reply@zend.com', 'fromName': 'Zend Server GUI'},
+		    	onSuccess: function(response) {
+		    	    document.fireEvent('toastNotification', {'message': '<?php echo _t("The test mail was sent"); ?>'});
+		    	},
+		    	onFailure: function(response) {
+					var decoded = this.decodeResponse(response);
+					document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+				}
+		    }).send();
+		}.bind(this));
+	}
+
+
+	var mailService = $$('select[name=zend_gui.mail_service]').pick();
+	selectMailService({'target': mailService});
+	
+	var fragment = new FragmentManager();
+	fragmentObject = fragment.getFragmentObject();
+	if (fragmentObject['panel'] != undefined && $('panel-' + fragmentObject['panel'])) {
+		$('panel-' + fragmentObject['panel']).click();
+	} else {
+		// click on the first element
+		showSection($$('#new-tabs-container li')[0]);
+	}
+}); // end domready
+
+function selectMailType(e) {
+	var disableValue =  (e.target.get('value') == 'sendmail');
+	$$('input[name=zend_gui.mail_host]').set('disabled', disableValue);
+	$$('input[name=zend_gui.mail_port]').set('disabled', disableValue);
+	$$('input[name=zend_gui.authentication]').set('disabled', disableValue);
+	$$('select[name=zend_gui.authentication_method]').set('disabled', disableValue);
+	$$('select[name=zend_gui.mail_ssl]').set('disabled', disableValue);
+	$$('input[name=zend_gui.mail_username]').set('disabled', disableValue);
+	$$('input[name=zend_gui.mail_password]').set('disabled', disableValue);
+}
+
+function selectMailService(e) {
+	if (e.target.get('value') == 'custom') {
+		//$$('select[name=zend_gui.mail_type]').set('value', 'smtp');
+		$$('select[name=zend_gui.mail_type]').set('disabled', false);
+		selectMailType({'target': $$('select[name=zend_gui.mail_type]').pick()});
+	} else {
+		$$('select[name=zend_gui.mail_type]').set('value', 'smtp');
+		$$('select[name=zend_gui.mail_type]').set('disabled', true);
+		$$('input[name=zend_gui.mail_host]').set('value', predefinedConnections[e.target.get('value')][0]);
+		$$('input[name=zend_gui.mail_host]').set('disabled', true);
+		$$('input[name=zend_gui.mail_port]').set('value', predefinedConnections[e.target.get('value')][1]);
+		$$('input[name=zend_gui.mail_port]').set('disabled', true);
+
+		$$('input[name=zend_gui.authentication]')[0].set('checked', 1);
+		$$('input[name=zend_gui.authentication]')[1].set('checked', 0);
+		/// authentication toggle to show fields that may be hidden
+		toggleAuthentication($$('input[name=zend_gui.authentication]')[0]);
+		
+		$$('input[name=zend_gui.authentication]').set('disabled', true);
+		$$('select[name=zend_gui.authentication_method]').set('value', predefinedConnections[e.target.get('value')][2]);
+		$$('select[name=zend_gui.authentication_method]').set('disabled', true);
+		$$('select[name=zend_gui.mail_ssl]').set('value', predefinedConnections[e.target.get('value')][3]);
+		$$('select[name=zend_gui.mail_ssl]').set('disabled', true);
+		$$('input[name=zend_gui.mail_username]').set('disabled', false);
+		$$('input[name=zend_gui.mail_password]').set('disabled', false);
+	}
+}
+
+// Mail Settings Manipulations 2
+
+var predefinedConnections = {	'yahoo' : ['plus.smtp.mail.yahoo.com', 465, 'login', 'ssl'],
+								'gmail' :  ['smtp.gmail.com', 587, 'login', 'tls'],
+								'outlook' : ['Smtpout.secureserver.net', 587, 'login', 'tls']};
+
+// Hide or Show the auth fields according to On/Off of 'Authentication'
+function toggleAuthentication(radioElement) {
+	var elementsToHideShow = [	'select[name=zend_gui.authentication_method]',
+		                  		'select[name=zend_gui.mail_ssl]',
+		                  		'input[name=zend_gui.mail_username]',
+		                  		'input[name=zend_gui.mail_password]',
+		                  		'label[for=zend_gui.authentication_method]',
+		                  		'label[for=zend_gui.mail_ssl]',
+		                  		'label[for=zend_gui.mail_username]',
+		                  		'label[for=zend_gui.mail_password]'];
+
+	if(radioElement.get('value') == '0') {
+		Array.each(elementsToHideShow, function(element, key) {
+			$$(element).getParent('tr').addClass('hidden');
+			$$(element).getParent('tr').getNext('.settings-row-description')[0].addClass('hidden');
+		});
+	} else {
+		Array.each(elementsToHideShow, function(element, key) {
+			$$(element).getParent('tr').removeClass('hidden');
+			$$(element).getParent('tr').getNext('.settings-row-description')[0].removeClass('hidden');
+		});
+	}	
+}
+
+// End of Mail Settings Manipulations
+
+function checkTasksComplete(retry) {
+   	if (!retry) {
+   	   	retry = 0;
+   	}
+	var maxRetries = 50;
+	var url = '<?php echo $this->basePath('/Api/tasksComplete'); ?>';
+    var request = new Request.WebAPI({
+    	method: 'get',
+    	url: url,
+    	data:{},
+    	onComplete: function(response) {
+    	    retry++;  
+        	if (retry > maxRetries) {
+        		return false;
+        	}
+        	
+    		if (undefined != response && response.responseData.tasksComplete == true) {
+				if ($('save-restart-settings') && $('save-restart-settings').spinner) {
+					$('save-restart-settings').spinner.hide();
+				}
+				
+    		    $('save-webserver-errors-settings').unspin();
+    		    $('save-webserver-graceful-restart').unspin();
+    		    document.fireEvent('toastNotification', {'message': '<?php echo _t("Webserver configuration have been updated"); ?>'});
+    		    return true;
+    		}
+
+    		checkTasksComplete.delay('700', this, [retry]);
+    	}
+    }).send();
+}
+
+window.addEvent('resize', function(){
+
+	var windowHeight = window.getSize().y;
+	var topHeight = $('topbar').getSize().y + $('bread-wrp').getSize().y;
+
+	var containerSize = $('content_container').getSize();
+	var logDisplayDimensions = $('log_display').getComputedSize({styles: ['padding','border','margin']});
+	var extrasDifference = logDisplayDimensions.totalWidth - logDisplayDimensions.width;
+});
+
+
+function showSection(current) {
+	$$('#new-tabs-container li').removeClass('active').removeClass('selected');
+	
+	section = current.get('section');
+	
+	current.addClass('selected active');
+	
+	$$('.settings-section').setStyle('display', 'none');
+	$('section-' + section).setStyle('opacity', '0');
+	$('section-' + section).setStyle('display', 'block');
+	$('section-' + section).tween('opacity', '1');
+
+	sectionChanged(section);
+
+	window.location.hash = 'panel=' + section;
+	window.fireEvent('resize',{});
+}
+
+function sectionChanged(section) {
+	switch (section) {
+		case 'notification-center':
+		case 'audit-trail':
+			var mailUsername = $$('input[name="zend_gui.mail_username"]').pick();
+			if (mailUsername && mailUsername.get('value').length > 0) {
+				$$('.notification-mail-not-configured').setStyle('display', 'none');
+			} else {
+				$$('.notification-mail-not-configured').setStyle('display', 'block');
+			} 
+			break;
+	}
+}
+
+function saveServerModeSettings(item, successCallback) {
+	var form = item;
+	var directives = form.toObj();
+
+	var production = 'TRUE';
+	if (directives['zend_gui.serverProfile'] && (typeof directives['zend_gui.serverProfile'] != '') && directives['zend_gui.serverProfile'] == 'Development') {
+		production = 'FALSE';
+	}
+
+	var params = new Object();
+	params.production = production;
+
+	var request = new Request.WebAPI({
+		method: 'post',
+		url:'<?php echo $this->basePath(); ?>' + '/Api/setServerProfile',
+		data:params,
+		onSuccess: function(response) {
+    		document.fireEvent('toastNotification', {'message': '<?php echo _t("Your new settings have been saved"); ?>'});
+
+    		var newServerMode = $$('input[name="zend_gui.serverProfile"]:checked').pick().get('value');
+    		serverMode = newServerMode;
+    	    		
+    		if (successCallback) {
+    			successCallback();
+    		}
+		}.bind(form),
+		onComplete: function() {
+			$('server-mode-form-submit').unspin();
+		},
+		onFailure: function(response) {
+			response = this.decodeResponse(response);
+			form.getElement('.settings-error').set('html', response.errorData.errorMessage);
+		}
+	}).send();
+}
+
+</script>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration") ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div id="content_container">
+
+<div id="log_display" class="log_display float-left new-tabs">
+	<nav id="new-tabs-container">
+		<ul>
+			<li section="general" class="diagonal-tab active hidden loaded">UI</li>
+			<li section="notification-center" class="diagonal-tab hidden">Notification Center</li>
+			<li section="audit-trail" class="diagonal-tab hidden">Audit Trail</li>
+			<li section="mail-settings" class="diagonal-tab hidden">Mail Settings</li>
+			<li section="restart-strategy" class="diagonal-tab hidden">Web Server</li>
+			<li section="server-mode" class="diagonal-tab hidden">Server Profile</li>
+		</ul>
+	</nav>
+
+
+
+	<div id="log_display" class="log_display float-left">
+
+		<div class="settings-section" id="section-general">
+		<?php echo $this->zendSettings($generalSettingsForm->setAttribute('class', 'submit-store-directives')); ?>
+	</div>
+
+		<div class="settings-section" id="section-notification-center">
+			<h2 class="warningTopMessage notification-mail-not-configured"><?php echo _t('To start receiving notifications, configure the mailing account that is used by Zend Server in the Mail Settings section'); ?></h2>
+		<?php echo $this->zendSettings($notificationCenterForm); ?>
+	</div>
+
+
+		<div class="settings-section" id="section-audit-trail">
+			<h2 class="warningTopMessage notification-mail-not-configured"><?php echo _t('To start receiving notifications, configure the mailing account that is used by Zend Server in the  Mail Settings section'); ?></h2>
+		<?php echo $this->zendSettings($auditForm); ?>
+	</div>
+
+		<div class="settings-section" id="section-mail-settings">
+		<?php echo $this->zendSettings($mailForm->setAttribute('class', 'submit-store-directives')); ?>
+		
+		<?php if ($allowToEditSettings) : ?>
+		<hr />
+
+			<div class="settings-wrapper">
+				<h2>Test Mail</h2>
+
+				<table>
+					<tbody>
+						<tr>
+							<td>
+							<?php if (! $allowToEditSettings) : ?>
+							<label for="email_to"><?php echo('Enter a valid email address to test your mail settings: '); ?></label>
+								<input type="text" name="email_to" id="email_to"
+								disabled="disabled" />
+							<?php else : ?>
+							<label for="email_to"><?php echo('Enter a valid email address to test your mail settings: '); ?></label>
+								<input type="text" name="email_to" id="email_to" /> <input
+								name="submit" type="submit" value="Test" id="test-email" />
+							<?php endif; ?>
+						</td>
+						</tr>
+						<tr>
+							<td></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		<?php endif; ?>
+	</div>
+
+		<div class="settings-section" id="section-restart-strategy">
+	<?php if ($restartStrategy && $isClusterSupport): ?>
+		<div class="settings-wrapper" id="restart-settings">
+				<h2><?php echo _t('Restart Strategy Configurations') ?></h2>
+				<div class="settings-desc">
+				<?php echo _t('To minimize the downtime of a cluster, you can configure the way in which your servers perform a restart. You can either select to restart a certain percentage of your servers at a time, or define a specific amount of servers to be restarted at a time:') ?>
+				<?php if (! $allowToEditRestart) : ?>
+				<div class="restart-server-note global-restart-server-note"><?php echo _t('Not available in this edition') ?></div>
+				<?php endif; ?>
+			</div>
+				<table>
+					<tbody>
+						<tr>
+							<td><input type="radio"
+								<?php echo ($restartStrategy->getFileValue() == 0) ? 'checked' : '' ?>
+								name="strategy" value="0" class="strategy-options" id="absolute">
+								Restart <input type="text" id="absoluteNumServer"
+								style="width: 25px;" maxlength="3"
+								class="strategy-option-values"
+								<?php echo ($restartStrategy->getFileValue() == 0) ?  " value='{$restartStrategyValue->getFileValue()}'" : ' disabled' ?>>&nbsp;servers
+								at a time</td>
+						</tr>
+						<tr>
+							<td><input type="radio"
+								<?php echo ($restartStrategy->getFileValue() == 1) ? 'checked' : '' ?>
+								name="strategy" value="1" class="strategy-options" id="relative">
+								Restart <input type="text" id="relativeNumServer"
+								style="width: 25px;" maxlength="3"
+								class="strategy-option-values"
+								<?php echo ($restartStrategy->getFileValue() == 1) ?  " value='{$restartStrategyValue->getFileValue()}'" : ' disabled' ?>>&nbsp;%
+								servers at a time</td>
+						</tr>
+						<tr>
+							<td><input name="submit" type="submit" value="Save"
+								id="save-restart-settings" /></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		<?php endif; ?>
+		<div class="settings-wrapper" id="webserver-graceful-restart">
+				<h2><?php echo _t('Web Server Graceful Restart')  ?></h2>
+				<div class="settings-desc">
+				<?php echo _t('Determines whether the Web server awaits the completion of all active processes before restarting:') ?>
+			</div>
+				<table>
+					<tbody>
+						<tr>
+							<td><label><input type="radio"
+									<?php echo ($gracefulRestart == '1') ? 'checked="checked"' : '' ?>
+									name="graceful_restart" value="1"
+									class="graceful_restart-options" id="use_graceful_restart"><?php echo _t('Enable graceful restart')  ?></label></td>
+						</tr>
+						<tr>
+							<td><label><input type="radio"
+									<?php echo ($gracefulRestart == '0') ? 'checked="checked"' : '' ?>
+									name="graceful_restart" value="0"
+									class="graceful_restart-options" id="no_graceful_restart"><?php echo _t('Disable graceful restart')  ?></label></td>
+						</tr>
+						<tr>
+							<td><input name="submit" type="submit" value="Save"
+								id="save-webserver-graceful-restart" />
+								<div id="webserver-graceful-restart-warning"
+									class="default-server-message hidden"><?php echo _t('Graceful restart can only be enabled on an Apache Web server on Linux OS distributions.') ?></div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		<?php if ($webserverMessagesLevel->isExists()) :?>
+		<div class="settings-wrapper" id="webserver-errors-settings">
+				<h2><?php echo _t('Web Server Error Reporting') ?></h2>
+				<div class="settings-desc">
+				<?php echo _t('Determines whether to display Web server warnings received from configuration tests performed by Zend Server.') ?>
+			</div>
+				<table>
+					<tbody>
+						<tr>
+							<td><label><input type="radio"
+									<?php echo ($webserverMessagesLevel->getFileValue() == 'all') ? 'checked' : '' ?>
+									name="messages_level" value="all"
+									class="webserver-errors-options" id="full"><?php echo _t('Display Web server warnings') ?></label></td>
+						</tr>
+						<tr>
+							<td><label><input type="radio"
+									<?php echo ($webserverMessagesLevel->getFileValue() == 'errors') ? 'checked' : '' ?>
+									name="messages_level" value="errors"
+									class="webserver-errors-options" id="errors"><?php echo _t('Ignore Web server warnings') ?></label></td>
+						</tr>
+						<tr>
+							<td><input name="submit" type="submit" value="Save"
+								id="save-webserver-errors-settings" /></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		<?php endif; ?>
+	</div>
+	
+	<div class="settings-section" id="section-server-mode">
+    	<div class="settings-wrapper">
+        	<h2>Server Profile</h2>
+        	<div class="settings-desc">
+				<i><?php echo _t('The server mode determines which configuration settings you wish to work with: Development or Production.%s %sClick here%s for a full breakdown of the difference between these two modes.', array('<br />', '<a href="'. $this->helpLink('launch_types') .'" target="_blank">','</a>')) ?></i>
+        	</div>
+			<div class="settings-desc">
+				<?php echo _t('Select a working environment to run Zend Server with optimized system configuration settings:');?>
+			</div>
+        	<form action="Server Profile" method="post" name="server-mode" id="server-mode">
+            	<table class="zend-form-table">
+            	<tbody>
+                	<tr>
+                	  <td><label><input type="radio" name="zend_gui.serverProfile" value="Development" <?php echo $serverModeDevelopmentChecked ?>>Development</label></td>
+                    </tr>
+                    <tr class="settings-row-description">
+                	   <td colspan="2"><div class="zend-form-table-description">Apply system and PHP settings optimized for a development environment. This option enables Z-Ray.</div></td>
+                    </tr> 
+                    <tr>
+                	  <td><label><input type="radio" name="zend_gui.serverProfile" value="Production" <?php echo $serverModeProductionChecked ?>>Production</label></td>
+                    </tr>
+                    <tr class="settings-row-description">
+                	   <td colspan="2"><div class="zend-form-table-description"> Apply system and PHP settings optimized for a production environment. This option disables Z-Ray.</div></td>
+                    </tr>
+                    <tr><td colspan="2"><input name="submit" type="submit" id="server-mode-form-submit" value="Save and Restart Zend Server"><div class="spinner" id="spinner-i3siaezt" style="display: none;"><div class="spinner-content"><div class="spinner-img"></div></div></div><div class="settings-error"></div></td></tr>
+                </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+	</div>
+</div>

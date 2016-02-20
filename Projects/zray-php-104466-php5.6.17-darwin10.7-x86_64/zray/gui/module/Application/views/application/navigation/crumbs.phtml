@@ -1,0 +1,32 @@
+<?php $container = $this->navigation()->breadcrumbs();  ?>
+<?php $container->setContainer('Breadcrumbs');  ?>
+<?php /* @var $container \Zend\View\Helper\Navigation\Breadcrumbs */ ?>
+<?php $navigation = $container->getContainer() ?>
+<?php /* @var $navigation \Zend\Navigation\Navigation */ ?>
+
+
+<div id="bread-wrp">
+	<div id="bread" style="width: auto;">
+		<ul>
+			
+    <?php foreach($this->pages as $page): ?>
+        <?php /* @var $page \Zend\Navigation\Page\Mvc */ ?>
+        <?php if( ! $page->isActive()): ?>
+            <li>
+                <a href="<?php echo $page->getHref() ?>"><?php echo _t($page->getLabel()) ?></a> 
+            </li>
+        <?php else: ?>
+            <li class="active">
+                <?php echo _t($page->getLabel()) ?>
+            </li>
+        <?php endif ?>
+    <?php endforeach ?>
+		</ul>   
+	</div>
+<?php $active = current($container->findActive($navigation)); /* @var $active Zend\Navigation\Page\Mvc */ ?>
+<?php if ($active->get('description')) :?>
+	<div class="page-description-content">
+		<?php echo _t($active->get('description'), array('<a href="'. $active->get('readmore') .'" target="_blank">','</a>')) ?>
+	</div>
+<?php endif ?>
+</div>

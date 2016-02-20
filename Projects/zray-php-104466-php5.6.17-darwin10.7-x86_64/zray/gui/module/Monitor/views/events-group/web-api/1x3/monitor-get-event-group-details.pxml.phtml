@@ -1,0 +1,64 @@
+<?php
+$issue = $issue ?: new Issue\Container(array(),0);
+$eventsGroup = $eventsGroup?: new EventsGroup\Container(array(),0);
+$event = $event?: new EventsGroup\DataContainer(array(),0);
+
+$superGlobalsData = $event->getSuperGlobalsData ();
+
+$superGlobals = array(
+	ZM_DATA_VAR_GET => 'get',
+	ZM_DATA_VAR_POST => 'post',
+	ZM_DATA_VAR_COOCKIE => 'cookie',
+	ZM_DATA_VAR_SERVER => 'server',
+	ZM_DATA_VAR_SESSION => 'session',
+);
+?>
+	<responseData>
+		<eventsGroupDetails>
+			<issueId><?php echo $issue->getId() ?></issueId>
+			<eventsGroup>
+<?php echo $this->eventsGroupXml($eventsGroup)?>
+			</eventsGroup>
+			<event>
+				<eventsGroupId><?php echo $eventsGroup->getEventsGroupId () ?></eventsGroupId>
+				<type><?php echo $eventsGroup->getEventType () ?></type>
+				<description><?php echo $event->getErrorString () ?></description>
+				<superGlobals>
+<?php foreach ($superGlobals as $superGlobal => $type) :?>
+					<<?php echo $type ?>>
+<?php 	if (is_array($superGlobalsData[$superGlobal])): ?>
+<?php 		foreach ($superGlobalsData[$superGlobal] as $key => $value) :?>
+						<parameter>
+							<name><![CDATA[<?php echo $key ?>]]></name>
+							<value><![CDATA[<?php echo $value ?>]]></value>
+						</parameter>
+<?php 		endforeach ?>
+<?php 	endif ?>
+					</<?php echo $type ?>>
+<?php endforeach ?>
+				</superGlobals>
+				<severity><?php echo $this->issueSeverity($issue->getSeverity()) ?></severity>
+				<backtrace>
+<?php $stepNumber = 1; ?>
+<?php foreach ($event->getBacktrace() as $step) :?>
+					<step>
+						<number><?php echo $stepNumber ?></number>
+						<object><?php echo isset($step[ZM_DATA_BACKTRACE_OBJECT_NAME]) ? $step[ZM_DATA_BACKTRACE_OBJECT_NAME] : ''?></object>
+						<class><?php echo isset($step[ZM_DATA_BACKTRACE_CLASS_NAME]) ? $step[ZM_DATA_BACKTRACE_CLASS_NAME] : ''?></class>
+						<function><?php echo $step[ZM_DATA_BACKTRACE_FUNCTION_NAME] ?></function>
+						<file><![CDATA[<?php echo $step[ZM_DATA_BACKTRACE_FUNCTION_NAME] ?>]]></file>
+						<line><?php echo $step[ZM_DATA_BACKTRACE_LINE_NUMBER] ?></line>
+					</step>
+<?php $stepNumber ++ ?>
+<?php endforeach ?>
+				</backtrace>
+<?php
+$codeTracing = '';
+$codeTracingPath = $event->getCodeTracingPath();
+if (0 < preg_match ( '#\.([[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+)$#', $codeTracingPath, $matches )) {
+	$codeTracing = $matches [1];
+}?>
+				<codeTracing><![CDATA[<?php echo $codeTracing ?>]]></codeTracing>
+			</event>
+		</eventsGroupDetails>
+	</responseData>

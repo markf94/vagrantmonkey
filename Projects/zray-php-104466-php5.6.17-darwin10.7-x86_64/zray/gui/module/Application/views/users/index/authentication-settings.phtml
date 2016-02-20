@@ -1,0 +1,386 @@
+<div id="authentication-settings-wizard-content" class="hidden">
+<div>
+<form id="authentication-settings-box" novalidate="novalidate">
+	<div  class="side-legend">
+		<h1><?php echo _t('Change Authentication Settings'); ?></h1>
+		<ul>
+			<?php // in simple authenticationMethod to skip the first wizard
+				$page = 0;
+				?>
+			<?php if('simple' != $authSource) : ?>
+			<li id="sl<?php echo $page++ ?>" class="legend_item">
+				<h2><?php echo _t('Authentication Method') ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<?php endif; ?>
+			<li id="sl<?php echo $page++ ?>" class="legend_item ldap-connection">
+				<h2><?php echo _t('Connection Parameters') ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $page++ ?>" class="legend_item ldap-connection">
+				<h2><?php echo _t('Canonical Form');?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $page++ ?>" class="legend_item ldap-connection">
+				<h2><?php echo _t('LDAP Server Details');?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $page++ ?>" class="legend_item ldap-connection">
+				<h2><?php echo _t('Query Credentials');?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $page++ ?>" class="legend_item">
+				<h2><?php echo _t('Confirmation');?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+		</ul>
+	</div>
+	<div class="simple-modal-toast message-box error hidden"></div>
+	<?php // in simple authenticationMethod to skip the first wizard?>
+	<?php if('simple' != $authSource) : ?>
+	<fieldset class="wizard-page" id="authenticationMethod">
+<?php
+	$radioSimple = new Zend\Form\Element\Radio('type');
+	$radioSimple->setLabel(_t('Simple Authentication'));
+	$radioSimple->setAttributes(array(
+			'id' => 'authentication_source-simple',
+			'class' => 'authentication_source',
+			'value' => 'simple',
+			'checked' => 'simple' == $authSource
+	));
+	
+	$radioExtended = new Zend\Form\Element\Radio('type');
+	$radioExtended->setLabel(_t('Extended Authentication'));
+	$radioExtended->setAttributes(array(
+			'id' => 'authentication_source-extended',
+			'class' => 'authentication_source',
+			'value' => 'extended',
+			'checked' => 'extended' == $authSource
+	));
+	?>
+		<div class="page-wrapper radio_select_option_holder">
+			<h2><?php echo $this->formInput($radioSimple);?>&nbsp;<?php echo $this->formLabel($radioSimple);?></h2>
+			<em><?php echo _t('Authenticate users using the internal authentication service provided with Zend Server'); ?></em>
+			<h2><?php echo $this->formInput($radioExtended);?>&nbsp;<?php echo $this->formLabel($radioExtended);?></h2>
+			<em><?php echo _t('Authenticate users using external LDAP server definitions'); ?></em>
+		</div>
+	</fieldset>
+	<?php endif; ?>
+	<fieldset class="wizard-page" id="connectionDetails">
+		<div class="page-wrapper">
+		<h2><?php echo _t('Configure LDAP Connection Paramaters') ?></h2>
+		<table class="clear tableDescContent">
+					<tbody><tr>
+					
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('host')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('host'))?> :
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('port')->setAttribute('size', 2))?><br>
+						<em><?php echo _t('Host or location of the active directory server') ?></em>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('baseDn')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('baseDn'))?><br>
+						<em><?php echo _t('Base domains for use for user authentication') ?></em>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('encryption')) ?></td>
+						<td id="encryption-selector">
+						<?php echo $this->formRadio($ldapPropertiesForm->get('ldap')->get('encryption'))?>
+						</td>
+					</tr>
+		
+				</tbody>
+		</table>		
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="cannonicalForm">
+		<div class="page-wrapper">
+		
+		<h2><?php echo _t('Select and Configure LDAP Canonical Form') ?></h2>
+		<table class="clear tableDescContent">
+					<tbody>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('accountCanonicalForm')) ?></td>
+						<td>
+						<?php echo $this->formSelect($ldapPropertiesForm->get('ldap')->get('accountCanonicalForm'))?><br>
+						<em><?php echo _t('Choose a canonical form to use for authentication')  ?></em>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('accountDomainName')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('accountDomainName'))?><br>
+						<em><?php echo _t('Domain name for use in Principal form')  ?></em>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('accountDomainNameShort')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('accountDomainNameShort'))?><br>
+						<em><?php echo _t('Short domain name for use in Backslash form')  ?></em>
+						</td>
+					</tr>
+		
+				</tbody>
+		</table>		
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="ldapServerDetails">
+		<div class="page-wrapper">
+		
+		<h2><?php echo _t('Configure LDAP Server') ?></h2>
+		<em><?php echo _t('LDAP user\'s information may be presented in different ways. Zend Server requires some details about your server to correctly authenticate and connect your users'); ?></em>
+		<table class="clear tableDescContent">
+					<tbody>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('bindRequiresDn')) ?></td>
+						<td><?php echo $this->formSelect($ldapPropertiesForm->get('ldap')->get('bindRequiresDn'))?></td>
+					</tr>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('groupsAttribute')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('groupsAttribute'))?>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('adminRoleGroup')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('adminRoleGroup'))?>
+						</td>
+						
+					</tr>
+		
+				</tbody>
+		</table>
+		<div id="default-server-message">
+		<em><?php echo $ldapPropertiesForm->get('ldap')->get('adminRoleGroup')->getAttribute('description'); ?></em>		
+		</div>		
+
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="queryCredentials">
+		<div class="page-wrapper">
+		
+		<h2><?php echo _t('Set LDAP Query Credentials') ?></h2>
+		<em><?php echo _t('These credentials are used for performing authentication and for retrieving permissions\' information about the user.'); ?></em>
+		<table class="clear tableDescContent">
+					<tbody>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('username')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('username')->setAttribute('autocomplete', 'off'))?><br>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo $this->formLabel($ldapPropertiesForm->get('ldap')->get('password')) ?></td>
+						<td>
+						<?php echo $this->formInput($ldapPropertiesForm->get('ldap')->get('password')->setAttribute('autocomplete', 'off'))?><br>
+						</td>
+					</tr>
+		
+				</tbody>
+		</table>			
+		<div class="default-server-message">
+		<em><?php echo _t('You may leave these fields empty to use anonymous binding for authentication.') ?></em>	
+		</div>		
+		<div class="default-server-message">
+		<em><?php echo _t('The format for the username DN information depends on the server type you selected in the previous step. If you selected "LDAP server", all DN information about the user must be specified. If you selected  "Active Directory", only a username is required.') ?></em>	
+		</div>		
+
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page last-wizard-page" id="Summary">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Submit Extended Authentication') ?></h2>
+			<div id="submit_formlet" class="zend_form">
+				<table class="clear tableDescContent">
+							<tbody>
+							<tr>
+								<td><label for="your_password"><?php echo _t('Admin Password:') ?></label></td>
+								<td>
+								<input id="your_password" type="password" autocomplete="off" required="required" name="password"><br>
+								<em><?php echo _t('Enter your password to save the new settings') ?></em>
+								</td>
+							</tr>
+				
+						</tbody>
+				</table>				
+			</div>
+			<em><?php echo _t('Once this form is submitted you will be immediately logged out of the Zend Server user interface and required to log in again. This step will be done using the newly configured authentication settings.'); ?></em>
+		</div>
+	</fieldset>
+	
+</form>
+</div>
+</div>
+
+<script type="text/javascript">
+var simpleModel = null;
+
+function cancelDialog() {
+	simpleModal.hide();
+}
+
+window.addEvent('load', function() {
+
+		// stash away the wizard's content
+		$('authentication-settings-wizard-content').store('wizardContent', 
+			$('authentication-settings-wizard-content').getChildren().pick().dispose().show().outerHTML
+		);
+
+		$('auth_settings_button').addEvent('click', function(){
+			wizard = {
+					wizardComplete: function(){},
+					wizardExitNext: function(target,current){
+						var validTargets = $$('.legend_item').filter(function(item, key){
+							if (current >= key || item.hasClass('disabled')) {
+								return false;
+							}
+							return true;
+						});
+						return validTargets.pick().get('id').substring('2').toInt();
+					},
+					wizardExitPrev: function(target,current) {
+						var validTargets = $$('.legend_item').filter(function(item, key){
+							if (current <= key || item.hasClass('disabled')) {
+								return false;
+							}
+							return true;
+						});
+						return validTargets.getLast().get('id').substring('2').toInt();
+					}
+			};
+			
+			simpleModal = new SimpleModal({width: 673, closeButton: false, offsetTop: 45,
+				hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+				template: "<div class=\"wizard-title\" id=\"wizard-title\">{_TITLE_}</div>\
+				<div class=\"contents\">{_CONTENTS_}</div>"});
+			
+			simpleModal.show({
+			      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('working_with_authentication'); ?>"></a>',
+			      "model": "modal",
+			      /// retrieve from cold storage
+			      'contents': $('authentication-settings-wizard-content').retrieve('wizardContent')
+			    });
+
+
+			var wizardPages = {};
+
+			<?php if('simple' != $authSource) : ?>
+			Object.append(wizardPages,{"authenticationMethod": { 
+				"onEnter": function(target, current) {
+					return true;
+				},
+				"onExit": function(target, current) {
+					return wizard.wizardExitNext(target,current);
+				}
+			}});
+			<?php endif; ?>
+			
+			Object.append(wizardPages,
+				{
+					
+					"connectionDetails": { 
+						"onEnter": function(target, current) {
+							return true;
+						},
+						"onExit": function(target, current) {
+							return true;
+						}
+					},
+					"cannonicalForm": { 
+						"onEnter": function(target, current) {
+							return true;
+						},
+						"onExit": function(target, current) {
+							return true
+						}
+					},
+					"ldapServerDetails": { 
+						"onEnter": function(target, current) {
+							return true;
+						},
+						"onExit": function(target, current) {
+							return true;
+						}
+					},
+					"queryCredentials": { 
+						"onEnter": function(target, current) {
+							return true;
+						},
+						"onExit": function(target, current) {
+							return true;
+						}
+					},
+					"Summary": { 
+						"onEnter": function(target, current) {
+							$('wizard-control-submit').show();
+
+							return true;
+						},
+						"onExit": function(target, current) {
+							if (target < current) {
+								$('wizard-control-submit').hide();
+								return wizard.wizardExitPrev(target,current);
+							}
+
+							if (target > current) {
+								$('wizard-control-submit').hide();
+								closeDialog();
+							}
+							return false;
+						}
+					},
+				});
+			
+			new FormWizard('authentication-settings-box', {"createControlArea": true,
+				"wizardControls": ["cancel", "submit", "forward", "backward"] }, wizardPages);
+
+			<?php // in simple authenticationMethod to skip the first wizard?>
+			<?php if('simple' != $authSource) : ?>
+			$('authentication_source-simple').addEvent('click', function(){
+				$$('.ldap-connection').addClass('disabled');
+			});
+			
+			$('authentication_source-extended').addEvent('click', function(){
+				$$('.ldap-connection').removeClass('disabled');
+			});
+
+			$$('.authentication_source[checked="checked"]').fireEvent('click', {});
+			<?php endif;?>
+			$('authentication-settings-box').addEvent('submit', function(){
+				var url = '<?php echo "{$this->basePath()}/Api/userAuthenticationSettings"; ?>';
+				var params = this.toObj();
+
+				// in simple authenticationMethod to skip the first wizard
+				if (!params.type) {
+					params.type = 'extended';
+				}
+				var request = new Request.WebAPI({
+					method: 'post',
+					url:url, 
+					data: params, 
+						onSuccess: function(response) {
+							document.fireEvent('toastAlert', {'message': '<?php echo _t("Authentication settings saved"); ?>'});
+							/// uri.go and delay don't go hand in hand
+							setTimeout('location.href = \'<?php echo $this->basePath() ?>/Login/logout\'', 5000);
+							$('authentication-settings-box').spin();
+						},
+						onFailure: function(response) {
+							var errorData = this.decodeResponse(response, true).errorData;
+							document.fireEvent('toastAlert', {'message': _t("Action failed: {errorMessage}", errorData)});
+						}
+				}).send();
+				
+				
+				return false;
+			});
+			
+		});
+	});
+
+</script>

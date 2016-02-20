@@ -1,0 +1,248 @@
+<?php
+$uploaderUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'Uploader'));
+$installationUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'Installation'));
+$readmeUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'readme'));
+$eulaUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'eula'));
+$PrerequisitesUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'Prerequisites'));
+$summaryUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'Summary'));
+$deployUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'Deploy'));
+$updateUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'Update'));
+$downloadUrl = $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'Download'));
+$pageCounter = 0;
+$lastPageId = 4;
+?>
+
+<script type="text/javascript">
+	window.addEvent('domready',function() {
+		wizard = new pluginDeploymentWizard({
+			pluginId: '<?php echo $pluginId; ?>',
+			type: '<?php echo $wizardAction; ?>',
+			urls: [
+				<?php
+					if ($wizardAction == 'update' || $wizardAction == 'update-download') {
+						echo "'$updateUrl',\n";
+					} else {
+						echo "'$deployUrl',\n";
+					}
+				?>
+				'<?php echo $readmeUrl; ?>',
+				<?php if($wizardAction != 'update' && $wizardAction != 'update-download') echo "'$installationUrl',\n"; ?>
+				'<?php echo $eulaUrl; ?>',
+				'<?php echo $PrerequisitesUrl; ?>'
+			],
+			wizardId: <?php echo $wizardId; ?>
+		});
+
+		// FormWizard(<container-id>, <options>, <page-flow>) //
+		new FormWizard('deploymentWizard', {
+			"createControlArea": true,
+			"controls": { 
+				"submit": { 
+					"title": "<?php echo ($wizardAction == 'update' || $wizardAction == 'update-download') ? 'Update' : 'Deploy'; ?>" 
+				}
+		    },
+			"wizardControls": ["cancel", "submit", "forward", "backward"] 
+		}, {
+				<?php if ($external) : ?>
+				"uploadPage": { 
+					"onEnter": function(target, current) {
+						if (current == 1) {
+							$('wizard-control-forward').set('disabled', false);
+						}
+						return true;
+					},
+					"onExit": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return current - 1;
+						}
+						return true;
+					}
+				},
+				<?php endif; ?>
+				"readmePage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						return true;
+					},
+					"onExit": function(target, current) {
+						return true;
+					}
+				},
+				"licenseAgreementPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+
+						if ($('accept-terms') && !$('accept-terms').checked) {
+							$('wizard-control-forward').set('disabled', true);
+						}
+						
+						return true;
+					}, 
+					"onExit": function(target, current) {
+						$('wizard-control-forward').set('disabled', false);
+						return true;
+					}
+				},
+				"PrerequisitesPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+
+						if (! prerequisitesValid) {
+							$('wizard-control-forward').set('disabled', true);
+						} else {
+							$('wizard-control-forward').set('disabled', false);
+						}
+						return true;
+					},
+					"onExit":  function(target, current){
+						return true; 
+					}
+				},
+				"summaryPage": { 
+					"onEnter": function(){
+						wizard.getPageContent(<?php echo $lastPageId; ?>, 'summaryContent', '<?php echo $summaryUrl; ?>');
+						/// disable restart notification
+						document.fireEvent('disableRestartTooltip', {});
+						$('wizard-control-submit').setStyle('display', 'block');
+						return true; 
+					},
+					"onExit": function(target, current){
+						if (target == (current - 1)) {
+							$('wizard-control-submit').setStyle('display', 'none');
+							return target;
+						}
+
+						return false;
+					}
+				}
+			});
+		
+			$('wizard-control-forward').set('disabled', true);
+
+			<?php if (($wizardAction == 'download' || $wizardAction == 'update-download') && $external) : ?>
+			downloadPackage();
+			<?php elseif (($wizardAction == 'download' || $wizardAction == 'update-download') && !$external) : ?>
+			var uploadStatus = true;
+			uploading = false;
+			wizard.uploadComplete(uploadStatus, 'Plugin package loaded successfully');
+			$('wizard-control-forward').set('disabled', false);
+			<?php endif; ?>
+     	});
+
+	<?php if (($wizardAction == 'download' || $wizardAction == 'update-download') && $external) : ?>
+	function downloadPackage() {
+		var myRequest = new Request({
+			data: {url: '<?php echo $downloadParams['url']; ?>', name: '<?php echo $downloadParams['name']; ?>'},
+			url: '<?php echo $downloadUrl; ?>?wizardId=<?php echo $wizardId; ?>',
+			async: false,
+			evalScripts: true,
+			onComplete: function(response){
+				$('downloadLibraryContainer').set('html', response);
+			}
+		}).send();
+	}
+	<?php endif; ?>
+</script>
+
+<div id="deploymentWizard">
+	<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('deploying_a_plugin'); ?>"></a>
+	<div class="side-legend">
+		<h1><?php echo ($wizardAction == 'update' || $wizardAction == 'update-download') ? _t('Update Plugin') : _t('Deploy Plugin'); ?></h1>
+		<ul>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons <?php echo ($wizardAction == 'download' || $wizardAction == 'update-download') ? 'cloud-download' : 'cloud-upload'; ?>">
+				<i></i>
+				<?php if ($wizardAction == 'download') : ?>
+				<h2><?php echo _t('Plugin Download'); ?></h2>
+				<?php else : ?>
+				<h2><?php echo _t('Plugin Upload'); ?></h2>
+				<?php endif; ?>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons book">
+				<i></i>
+				<h2><?php echo _t('Readme'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons pen">
+				<i></i>
+				<h2><?php echo _t('License Agreement'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons ok_2">
+				<i></i>
+				<h2><?php echo _t('Prerequisites Validation'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons notes">
+				<i></i>
+				<h2><?php echo _t('Deployment Summary'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+		</ul>
+	</div>
+	<fieldset class="wizard-page" id="uploadPage">
+		<div class="page-wrapper">
+			<div class="message-box error hidden"></div>
+			<div class="message-box ok hidden"></div>
+			<?php if ($wizardAction == 'download' || $wizardAction == 'update-download') : ?>
+				<h2><?php echo _t('Plugin Package Download') ?></h2>
+				<p>
+					<?php echo _t('The deployment wizard will deploy a PHP packaged plugin in Zend Server. In the case of a clustered environment, the plugin will be deployed on all servers in the cluster.'); ?>
+				</p>
+				<div id="downloadLibraryContainer"></div>
+			<?php else : ?>
+				<h2><?php echo _t('Upload the Plugin Package') ?></h2>
+				<p>
+				<?php echo _t('The deployment wizard will deploy a PHP packaged plugin in Zend Server. In the case of a clustered environment, the plugin will be deployed on all servers in the cluster. After you have installed the plugin, it will become available on the server so that users can begin using it.'); ?>
+				</p>
+				<p><?php echo _t('Locate the package file that corresponds to the plugin you wish to install.'); ?></p>
+				<iframe src="<?php echo $uploaderUrl . '?wizardId=' . $wizardId; ?>" scrolling="no" style="width: 100%; height: 150px; margin-top: 18px" frameborder="0"></iframe>
+			<?php endif; ?>
+		</div>		
+	</fieldset>
+	<fieldset class="wizard-page" id="readmePage">
+		<div class="page-wrapper">
+			<div id="readmeContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="licenseAgreementPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Read the End User License Agreement');  ?></h2>
+			<p><?php echo _t('This End User License Agreement relates to the deployed plugin.') ?></p>
+			<div id="licenseAgreementContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="PrerequisitesPage">
+		<div class="page-wrapper">
+		    <div class="message-box error hidden"></div>
+			<h2><?php echo _t('Validate the Plugin Prerequisites'); ?></h2>
+			<p><?php echo _t('The plugin prerequisites specify the dependencies of the deployed plugin. To continue the deployment process, these dependencies need to be met.') ?></p>
+			<div id="prerequisitesContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="summaryPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('View the Deployment Summary'); ?></h2>
+			<p><?php echo _t('Review the summarized details for the deployed plugin before submitting.') ?></p>
+			<div id="summaryContent"></div>
+		</div>
+	</fieldset>
+</div>

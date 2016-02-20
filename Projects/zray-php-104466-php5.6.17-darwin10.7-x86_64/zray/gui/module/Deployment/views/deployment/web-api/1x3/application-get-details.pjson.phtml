@@ -1,0 +1,31 @@
+<?php $application = $application ?: new \Deployment\Application\Container(new \ZendDeployment_Application()); ?>
+<?php $servers = $servers ?: array(); ?>
+<?php $prerequisitesIsValid = isset($prerequisitesIsValid) ? $prerequisitesIsValid : false; ?>
+<?php 
+
+$serversJson = array();
+foreach ($servers as $id => $serverData) {
+	$serversJson[$id] = $serverData;
+}
+$serversJson = $this->json($serversJson);
+?>
+
+
+<?php
+$userParams = $application->getUserParams();
+foreach ($userParams as $key => $param) {
+	if (strpos(strtolower($key), 'pass') !== false) {
+		$userParams[$key] = str_repeat('*', strlen($param));
+	}
+}
+?>
+
+"responseData":{"applicationDetails":{
+    "applicationInfo": <?php   echo $this->applicationInfoJson($application);?>,
+    "applicationPackage": {
+    	"prerequisitesValidation": "<?php echo $prerequisitesIsValid ? 'true' : 'false'; ?>",
+        "prerequisites": "<?php echo $prerequisites; ?>",
+        "userParams":<?php echo $this->json($userParams); ?>
+    },
+    "servers" : <?php echo $serversJson;?>
+}}

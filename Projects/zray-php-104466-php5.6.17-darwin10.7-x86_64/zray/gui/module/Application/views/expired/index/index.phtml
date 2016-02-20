@@ -1,0 +1,418 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/expired.css")?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/license.css")?>
+<?php $this->headScript()->appendFile($this->basePath('/js/zendcom.js'))?>
+<?php $this->headscript()->appendFile($this->basePath('js/zsLicenseValidation.js'))?>
+<script type="text/javascript">
+function ping() {
+	zendIntegration.ping();
+}
+
+zendIntegration = new ZendLicenseRetriever('<?php echo \Application\Module::config('package', 'version'); ?>', '<?php echo $extraParams; ?>');
+var simpleModal;
+
+registeredLicense = '<?php echo $currentLicense->getEdition() ?>';
+changesMatrix = <?php echo $this->json($changesMatrix) ?>;
+capabilitiesMap = <?php echo $this->json($capabilitiesMap) ?>;
+negativeCapabilitiesLabels = <?php echo $this->json($this->capabilitiesLabels()->getNegativeLabels()) ?>;
+positiveCapabilitiesLabels = <?php echo $this->json($this->capabilitiesLabels()->getPositiveLabels()) ?>;
+
+function produceLostCapabilities(currentEdition, newEdition) {
+	/// retrieve all false capabilities
+	var lostCapabilities = Object.filter(changesMatrix[currentEdition][newEdition], function(item){return (!item)});
+	
+	/// if any items in the change matrix are false -> i.e lost capabilities
+	var warning = new Element('ul', {'class': 'capabilities-list negative-capabilities-list'});
+	warning.appendText(_t("Applying your new license will impact the following product features:"));
+	Object.each(lostCapabilities, function(item, key){
+		if (negativeCapabilitiesLabels[key]) {
+			warning.adopt(new Element('li', {'text': negativeCapabilitiesLabels[key]}));
+		}
+	});
+	return warning;
+}
+
+window.addEvent('resize', function(){
+	$('expired-container').setStyle('left', ($(document).getSize().x - $('expired-container').getSize().x) / 2);
+	$('expired-container').setStyle('top', ($(document).getSize().y - $('expired-container').getSize().y) / 2);
+});
+
+var zendComLicense = false;
+
+window.addEvent('load', function(){
+	$('expired-container').setStyle('display', 'block');
+	window.fireEvent('resize');
+
+	document.addEvent('hideMessage', function(event){
+		$('error_message-pane').hide();
+	});
+	document.addEvent('displayMessage', function(event){
+		$('error_message-pane').set('html', event.message);
+		$('error_message-pane').show();
+	});
+	
+	zendIntegration.addEvent('licenseReceived', function(license) {
+		$('keyname').set('value', license.user);
+		$('serial').set('value', license.serial);
+		zendComLicense = true;
+		licenseValidator.validate();
+	});
+
+	$('setLicenseForm').addEvent('validate', function(event){
+		$('store_license-btn').set('disabled', (! event.validateResult));
+		if (event.validateResult) {
+			$('store_license-btn').removeClass('disabled');
+		} else {
+			$('store_license-btn').addClass('disabled');
+		}
+	});
+	
+	licenseValidator = new LicenseValidator({baseUrl: '<?php echo $this->basePath()?>'}, $('keyname'), $('serial'));
+
+	licenseValidator.addEvent('valid', function(event) {
+		disconnectionFlag = false;
+		$('setLicenseForm').fireEvent('validate', {validateResult: true});
+		$('store_license-btn').set('disabled', false);
+
+		if (zendComLicense) {
+			zendComLicense = false;
+			submitLicense();
+			zendIntegration.hide();
+		}
+
+		var currentEdition = event.licenseChange.currentLicense.edition.toUpperCase();
+		var newEdition = event.licenseChange.newLicense.edition.toUpperCase();
+		if (currentEdition != newEdition && ['<?php echo Configuration\License\License::EDITION_DEVELOPER; ?>', '<?php echo Configuration\License\License::EDITION_DEVELOPER_ENTERPRISE; ?>'].contains(newEdition)) {
+			$('expired-container').addClass('expired-container-high');
+			$('store_license-btn').set('disabled', true);
+			$('license_developer_license').removeClass('hidden');
+
+			$('license_developer_approve').addEvent('click', function() {
+				if (this.checked) {
+					$('store_license-btn').set('disabled', false);
+			    } else {
+			    	$('store_license-btn').set('disabled', true);
+			    }
+			});
+			window.fireEvent('resize');
+		} else {
+			$('expired-container').removeClass('expired-container-high');
+			$('license_developer_license').addClass('hidden');
+			window.fireEvent('resize');
+		}
+	});
+	
+	licenseValidator.addEvent('invalid', function(event) {
+		if (event.errorData.errorCode == '<?php echo \WebAPI\Mvc\View\Http\ExceptionStrategy::ERRORCODE_CLUSTER_NOT_ALLOWED ?>') {
+			$('store_license-btn').set('disabled', false);
+			disconnectionFlag = true;
+
+			if (zendComLicense) {
+				zendComLicense = false;
+				submitLicense();
+				zendIntegration.hide();
+			}
+		} else {
+			disconnectionFlag = false;
+			document.fireEvent('displayMessage', {'message': _t("Invalid license", event.errorData)});
+			$('store_license-btn').set('disabled', true);
+			$('setLicenseForm').fireEvent('validate', {validateResult: false});
+		}
+	});
+	
+	licenseValidator.addEvent('preValidate', function(event) {
+		document.fireEvent('hideMessage', {});
+		event.inputs.spin();
+	});
+	
+	licenseValidator.addEvent('postValidate', function(event) {
+		event.inputs.unspin();
+	});
+	licenseValidator.validate();
+});
+
+function pollToServerChange(retry) {
+	if (!retry) {
+   	   	retry = 0;
+   	}
+	var maxRetries = 150;
+	retry++;
+	if (retry > maxRetries) {
+		return false;
+	}
+	
+	var url = '<?php echo $this->basePath('/Api/clusterGetServerStatus'); ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		onSuccess: function(response) {
+			if (response.responseData.serversList.length == 1 &&
+				response.responseData.serversList.pick().id == '0') {
+				// server is single
+				disconnectionFlag = false;
+    			submitLicense();
+          		return true;
+			} else {
+				pollToServerChange.delay(2000, this, [retry]);
+			}
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': _t("Failed to disconnect from cluster: {errorMessage}",decoded.errorData)});
+		}
+	}).send();
+}
+
+function disconnectServer() {
+	if (confirm(_t('New license does not support cluster mode. Server need to be removed first. Are you sure you would like to remove this server?'))) {
+		$('white-section').spin({'class': 'spinner-large'});
+		var url = '<?php echo $this->basePath('/Api/clusterRemoveServer'); ?>';
+		var request = new Request.WebAPI({
+			method: 'post',
+			url: url,
+			data: {serverId: '<?php echo $serverId; ?>'},
+			onSuccess: function(response) {
+				//
+				var restartUrl = baseUrl() + "/Api/restartPhp";
+				new Request.WebAPI({url: restartUrl, data: {force: 'TRUE'},
+					onSuccess: function(response) {
+						pollToServerChange();
+					},
+					onFailure: function(response) {
+						var decoded = this.decodeResponse(response);
+						document.fireEvent('toastAlert', {'message': _t("Failed to disconnect from cluster: {errorMessage}",decoded.errorData)});
+					}}).post();
+				new Request.WebAPI({url: baseUrl()+ '/Api/restartDaemon'}).post({'daemon': 'zdd'});
+				new Request.WebAPI({url: baseUrl()+ '/Api/restartDaemon'}).post({'daemon': 'scd'});
+			},
+			onFailure: function(response) {
+				var decoded = this.decodeResponse(response);
+				document.fireEvent('toastAlert', {'message': _t("Failed to disconnect from cluster: {errorMessage}",decoded.errorData)});
+			}
+		}).send();
+	}
+}
+
+function submitLicense() {
+	// prevent submittion if disconnect needed first 
+	if (disconnectionFlag) {
+		disconnectServer();
+		return;
+	}
+	var actionUrl = baseUrl() + "/Api/serverStoreLicense";
+	var restartUrl = baseUrl() + "/Api/restartPhp";
+	var licenseUpdatedUrl = baseUrl() + "/Api/licenseUpdated";
+
+	var request = new Request.WebAPI({url: actionUrl, method: 'post',
+		data: {licenseName: $('keyname').value,licenseValue:$('serial').value},
+		onSuccess: function(response) {
+			document.fireEvent('toastNotification', {'message': _t("Restarting Zend Server...")});
+			$('white-section').spin({'class': 'spinner-large'});
+		
+			/// call restart
+			new Request.WebAPI({url: restartUrl, data: {force: 'TRUE'},
+				onSuccess: function(response) {
+					/// call license updated
+					new Request.WebAPI({url: licenseUpdatedUrl,
+						onSuccess: function(response) {
+							checkTasksComplete();						
+						},
+						onFailure: function(response) {
+							response = JSON.decode(response.responseText);
+							document.fireEvent('toastAlert', {'message': _t("Could not save license: {errorCode} - {errorMessage}", response.errorData)});
+							$('simple-modal-box').unspin();
+						}
+					}).post();
+				},
+				onFailure: function(response) {
+					response = JSON.decode(response.responseText);
+					document.fireEvent('toastAlert', {'message': _t("Could not save license: {errorCode} - {errorMessage}", response.errorData)});
+					$('simple-modal-box').unspin();
+				}}).post();
+
+			new Request.WebAPI({url: baseUrl()+ '/Api/restartDaemon'}).post({'daemon': 'zdd'});
+			new Request.WebAPI({url: baseUrl()+ '/Api/restartDaemon'}).post({'daemon': 'scd'});
+		},
+		onFailure: function(response) {
+			response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': _t("Could not save license: {errorCode} - {errorMessage}", response.errorData)});
+	}});
+		
+	request.post();
+}
+
+var disconnectionFlag = false;
+
+function checkTasksComplete(retry) {
+   	if (!retry) {
+   	   	retry = 0;
+   	}
+	var maxRetries = 150;
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/tasksComplete'; ?>';
+    var request = new Request.WebAPI({
+    	method: 'get',
+    	url: url,
+    	data:{},
+    	onComplete: function(response) {
+    	    retry++;  
+        	if (retry > maxRetries) {
+        		return false;
+        	}
+        	
+    		if (undefined != response && response.responseData.tasksComplete == true) {
+    			// disconnect flag is on - just finished disconnecting. Now call apply new license.
+        		if (disconnectionFlag) {
+        			disconnectionFlag = false;
+        			submitLicense();
+              		return true;
+        		} else {
+	    			$('white-section').unspin();
+	    			$('congrats-container').setStyle('display', 'block');
+	    			$('congrats-container').setStyle('left', ($(document).getSize().x - $('congrats-container').getSize().x) / 2);
+	    			$('congrats-container').setStyle('top', ($(document).getSize().y - $('congrats-container').getSize().y) / 2);
+	    			
+	    			$('expired-container').setStyle('display', 'none');
+	    		    return true;
+        		}
+    		}
+
+    		checkTasksComplete.delay(2000, this, [retry]);
+    	}
+    }).send();
+}
+</script>
+
+<div id="expired-container" style="display: none;">
+	<a id="logout" href="<?php echo $baseUrl; ?>/Login/logout/">x</a>
+	<div id="expired-top">
+		<?php if (! $isEvaluation && ! $isFree) : ?>
+			<h2><?php echo _t('Your Zend Server license has expired.'); ?></h2>
+		<?php elseif (! $isEvaluation && $isFree) : ?>
+			<h2><?php echo _t('We hope you\'re finding Zend Server useful!'); ?></h2>
+			<div>
+				<?php echo _t('Zend Server %s Edition requires updating <br />your registration and license details annually:', array($this->FreeEditionString())) ?>
+			</div>
+		<?php else : ?>
+			<h2><?php echo _t('We hope you\'re finding Zend Server useful!'); ?></h2>
+			<div><?php echo _t('Your Enterprise Edition trial has ended.<br />Please select one of the following options:') ?></div>
+		<?php endif; ?>
+	</div>
+	<div id="white-section">
+		<div id="expired-center">
+				<?php if (! $isEvaluation && ! $isFree) : ?>
+					<div class="commercial-expired">
+						Talk to a Zend sales expert for help renewing your license
+						<div class="purchase-btn renew-button" id="contact" onclick="location.href='<?php echo $this->contactZend('server-6-paid-license-expired-contact-zend'); ?>';" >CONTACT ZEND</div>
+					</div>
+				<?php else : ?>
+					<div id="expired-center-left">
+					<?php if ($isEvaluation) : ?>
+						<h2><?php echo _t('Contact Zend to continue using Zend Server Enterprise Edition'); ?></h2>
+						<div style="font-size: 12px; margin-top: 5px;">
+							Talk to a Zend sales expert to get info on pricing for <a href="<?php echo $this->contactZend('server-6-licence-expired-feature-comparison'); ?>" target="_blank">enterprise features</a> including:
+							<ul style="list-style-type: disc; padding: 0 15px;">
+								<li>PHP long-term support and security fixes</li>
+								<li>Faster application performance</li>
+								<li>Production application diagnostics</li>
+								<li>Sophisticated performance metrics with unlimited data retention</li>
+								<?php if ($osType != ZendServer\Configuration\Manager::OS_TYPE_IBMI) : ?>
+								<li>Multi-server support</li>
+								<?php endif; ?>
+								<li>Z-Ray</li>
+							</ul>
+							<div class="purchase-btn renew-button" id="contact" onclick="location.href='<?php echo $this->contactZend('server-6-21day-license-expired-contact-zend'); ?>';" >CONTACT ZEND</div>
+						</div>
+					<?php else : ?>
+						<h2><?php echo _t('Contact Zend to upgrade'); ?></h2>
+						<div style="font-size: 12px; margin-top: 5px;">
+							Talk to a Zend sales expert to get info on pricing for <a href="<?php echo $this->contactZend('server-6-license-expired-feature-comparison'); ?>" target="_blank">enterprise features</a> including:
+							<ul style="list-style-type: disc; padding: 0 15px;">
+								<li>PHP long-term support and security fixes</li> 
+								<li>Faster application performance</li> 
+								<li>Production application diagnostics</li>
+								<li>Sophisticated performance metrics with unlimited data retention</li>
+								<?php if ($osType != ZendServer\Configuration\Manager::OS_TYPE_IBMI) : ?>
+								<li>Multi-server support</li>
+								<?php endif; ?>
+								<li>Z-Ray</li>
+							</ul>
+						</div>
+						<div class="purchase-btn renew-button" id="contact" onclick="location.href='<?php echo $this->contactZend('server-6-free-license-expired-contact-zend'); ?>';">CONTACT ZEND</div>
+					<?php endif; ?>
+				</div>
+				<div id="expired-center-center">
+				OR
+				</div>
+				<div id="expired-center-right">
+					<?php if ($isEvaluation) : ?>
+					<h2><?php echo _t('Visit our website to get Zend Server Developer Standard Edition'); ?></h2>
+						<div style="font-size: 12px; margin-top: 5px;">
+							Our state of the art edition for development purposes only. Watch development productivity soar with:
+							<ul style="list-style-type: disc; padding: 0 15px;">
+								<li>Z-Ray</li>
+								<li>Advanced debugging and profiling</li>
+								<li>Real-time performance diagnostics</li>
+								<li>Complete, pre-configured PHP runtime</li>
+							</ul>
+						</div>
+						
+						<a href="http://www.zend.com/server/redirect/developer-license" target="_blank"><div class="purchase-btn">VISIT ZEND.COM</div></a>
+						<?php if ($osType == ZendServer\Configuration\Manager::OS_TYPE_IBMI) : ?>
+						<div id="free" onclick="zendIntegration.openZendPortalWithCapabilities(registeredLicense.toUpperCase(), 'FREE',
+									produceLostCapabilities(registeredLicense.toUpperCase(), 'FREE')
+								);"><div class="purchase-btn purchase-btn-small" style="right: 0; width: 110px;">USE BASIC</div></div>
+						<?php endif; ?>
+						
+					<?php else : ?>
+						<h2><?php echo _t('Visit our website to get Zend Server Developer Standard Edition'); ?></h2>
+						
+						<div style="font-size: 12px; margin-top: 5px;">
+							Our state of the art edition for development purposes only. Watch development productivity soar with:
+							<ul style="list-style-type: disc; padding: 0 15px;">
+								<li>Z-Ray</li>
+								<li>Advanced debugging and profiling</li>
+								<li>Real-time performance diagnostics</li>
+								<li>Complete, pre-configured PHP runtime</li>
+							</ul>
+						</div>
+						
+						<a href="http://www.zend.com/server/redirect/developer-license" target="_blank"><div class="purchase-btn">VISIT ZEND.COM</div></a>
+						<?php if ($osType == ZendServer\Configuration\Manager::OS_TYPE_IBMI) : ?>
+						<div id="free" onclick="zendIntegration.openZendPortalWithCapabilities(registeredLicense.toUpperCase(), 'FREE',
+									produceLostCapabilities(registeredLicense.toUpperCase(), 'FREE')
+								);"><div class="purchase-btn purchase-btn-small multi-lines" style="right: 0; width: 110px;">CONTINUE BASIC</div></div>
+						<?php endif; ?>
+					<?php endif; ?>
+				</div>
+				<?php endif; ?>
+		</div>
+		<div id="expired-bottom">
+			<h2>Already have a license? Enter it here:</h2>
+			<form id="setLicenseForm" action="" method="POST" onsubmit="submitLicense(); return false;">
+				<h3><?php echo _t('Order Number'); ?></h3>
+				<input type="text" name="keyname" id="keyname" />
+				<h3><?php echo _t('License Key'); ?></h3>
+				<input type="text" name="serial" id="serial" />
+				
+				<div>
+				<input id="store_license-btn" type="submit" value="Submit" disabled="disabled">
+				<span id="error_message-pane"></span>
+				</div>
+			</form>
+			<div id="license_developer_license" class="hidden" style="text-align: left;">
+				<h2 style="font-size: 12px; margin-top: 15px;"><?php echo _t('The Zend Server license you entered, is a Developers edition and is meant for Development purposes only'); ?>.</h2>
+				<br/>
+				<div style="clear: both"></div>
+				<label for="license_developer_approve">
+				    <input type="checkbox" id="license_developer_approve" style="margin-top: 0;">
+				    I confirm that this license will be used for <span style="text-decoration: underline;">development purposes only</span>, and will not be used for production.
+				</label>
+			</div> 
+		</div>
+	</div>
+</div>
+
+<div id="congrats-container" style="display: none;">
+	<h2><?php echo _t('CONGRATULATIONS!'); ?></h2>
+	<div><?php echo _t('Your new license was successfully saved and applied'); ?></div>
+	<a href="<?php echo $baseUrl; ?>"><?php echo _t('Continue to Zend Server Dashboard &raquo;'); ?></a>
+</div>

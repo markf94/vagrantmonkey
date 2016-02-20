@@ -1,0 +1,10 @@
+"responseData":{"auditMessages": [
+<?php 
+	$auditInfo = array();
+	foreach ($auditMessages as $auditMessage) {
+		$auditInfo[] = $this->auditMessageJson($auditMessage);
+	}
+	echo implode(',', $auditInfo);
+?>
+],
+"totalCount": "<?php echo $totalCount ?>"}

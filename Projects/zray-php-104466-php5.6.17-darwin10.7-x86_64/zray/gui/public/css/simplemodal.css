@@ -1,0 +1,55 @@
+.simple-modal {
+	border: 1px solid #000;
+	width: auto;
+	min-width: 200px;
+}
+
+.simple-modal .simple-modal-header {
+	height: 24px;
+	font-size: 12px;
+	font-weight: bold;
+	color: #CDDCE2;
+	background: #2774a0;
+	line-height: 24px;
+	padding: 0 0 0 5px;
+}
+
+.simple-modal .simple-modal-body {
+	min-height: 200px;
+	overflow: auto;
+}
+.simple-modal .simple-modal-body h2 {
+	font-size: 18px;
+}
+
+.simple-modal .simple-modal-footer {
+	position:absolute;
+  	
+	bottom: -21px;
+  	background: #2774A0;
+  	border: 0;
+  	margin:0;
+  	width: 100%;
+  	padding: 7px 0;
+  	text-align: center;
+  	display: block;
+  	height: 27px;
+
+	-webkit-border-radius: 0 0 0 0;
+    -moz-border-radius: 0 0 0 0;
+    border-radius: 0 0 0 0;
+}
+
+.simple-modal .simple-modal-footer .btn {
+	margin: 0 14px;
+	float: left;
+}
+
+.simple-modal .simple-modal-footer .btn.primary {
+	float: right;
+}
+
+.simple-modal .disabled {
+	color: gray;
+	cursor: default;
+}

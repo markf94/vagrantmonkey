@@ -1,0 +1,655 @@
+<?php use Issue\View\Helper\IssuesCount;
+
+$this->headLink()->appendStylesheet($this->basePath() . '/css/zmenu.css'); ?>
+<?php $this->headLink()->appendStylesheet($this->basePath() . '/css/issueDetails.css'); ?>
+<?php
+use \MonitorUi\Model\Model;
+
+$marketingLink = $this->contactZend('server-6-upgrade-dashboard');
+
+function getIssueSeverity($severity) {
+	$divClass = '';
+	switch ($severity) {
+		case 'Warning':
+			$divClass = 'severity-warning';
+			$divTitle = 'Warning';
+			break;
+		case 'Critical':
+			$divClass = 'severity-error';
+			$divTitle = 'Critical';
+			break;
+		case 'Info':
+		default:
+			$divClass = 'severity-info';
+			$divTitle = 'Notice';
+			break;
+	}
+
+	return '<div class="' . $divClass . ' float-left" title="' . $divTitle . '"></div>';
+}
+
+?>
+<script type="text/javascript">
+var eventsGroups = {<?php echo $this->partial('issue/web-api/1x3/monitor-get-issue-event-groups.pjson.phtml', array('eventsGroups' => $eventsGroups))?>};
+var serversIds = <?php echo json_encode($serversIds); ?>;
+var eventGroupsOffset = 0; 
+
+var lastBtnClicked = null;
+var accumulatingCount = 0;
+
+var currentEventsGroupId = '<?php $eventsGroups->rewind();echo $eventsGroups->current()->getEventsGroupId()?>';
+
+window.addEvent("load", function(){
+	addIssueDetailsButtons();
+
+	eventsGroups.responseData.eventsGroups.each(function(eventGroup) {
+		addEventGroup(eventGroup);
+		accumulatingCount += eventGroup.eventsCount.toInt();
+	});
+
+	checkLoadMoreNeeded();
+	
+	$$('.box-list li').each(function(item) {
+		eventGroupItemEvents(item);
+	});
+	window.fireEvent('resize');
+	/// cause details functionality to fire
+	window.fireEvent('detailsLoaded');
+});
+
+window.addEvent('resize', function() {
+
+	$$('.ellipsis').each(function(item) {
+		item.ellipsis();
+	});
+
+	var documentHeight = $(document).getSize().y;
+	var documentWidth = $(document).getSize().x;
+	var topWidth = $('main-container').getComputedSize({'styles': ['border']}).width - ($('main-container').getStyle('padding-left').toInt() * 2);
+	var topHeight = $('main-container').getComputedSize().totalHeight + $('topbar').getComputedSize().totalHeight;
+	var actionsHeight = $('action-buttons-bar').getComputedSize().totalHeight;
+	//$('issue-details-events-list').setStyle('height', documentHeight - topHeight - actionsHeight);
+
+	var listWidth = $('issue-details-events-list').getComputedSize().totalWidth;
+
+	$('issue-details-content-wrapper').setStyle('width', topWidth - listWidth - 2);
+
+	var studioActionsBar = $('event-studio-actions-bar').getComputedSize();
+	var studioActionsBarExtras = studioActionsBar.totalWidth - studioActionsBar.width;
+	$('event-studio-actions-bar').setStyle('width', topWidth - listWidth - studioActionsBarExtras);
+	
+	$('issue-details-content-wrapper').getChildren('div').each(function(item){
+		var itemSize = item.getComputedSize({styles: ['border','padding','margin']});
+		item.setStyle('width', topWidth - listWidth - itemSize.computedLeft - itemSize.computedRight);
+	});
+	
+	var documentHeight = $(document).getSize().y;
+	var detailsHeight = $('main-container').getComputedSize().totalHeight;
+	var topbarHeight = $('topbar').getComputedSize().totalHeight;
+	var issueDetailsHeight = $$('.issue-details').pick().getComputedSize().totalHeight;
+
+	var mainAreaHeight = documentHeight - $('issue-details-events-list').getPosition().y - 20;
+	$('issue-details-content-wrapper').setStyle('height', mainAreaHeight - $('event-studio-actions-bar').getComputedSize().totalHeight);
+	$('issue-details-events-list').setStyle('height', mainAreaHeight);
+	
+	//$('issue-details-content-wrapper').setStyle('height', documentHeight - topbarHeight - issueDetailsHeight);
+	
+	var parentHeight = $('issue-details-content-wrapper').getComputedSize().totalHeight;
+	var studioActionsHeight = 0;
+	if ($('event-studio-actions-bar').getStyle('display') != 'none') {
+	    studioActionsHeight = $('event-studio-actions-bar').getComputedSize().totalHeight;
+	}
+	
+	
+});
+
+function eventGroupItemEvents(item) {
+	item.addEvent('mouseenter', function() {
+		$$('.box-list li').removeClass('hover');
+		item.addClass('hover'); 
+	});
+	item.addEvent('mouseleave', function() { item.removeClass('hover'); });
+}
+
+function addEventGroupClicked(item) {
+
+	item.addEvent('click', function(e) {
+		if (e.target.get('class') == 'event-actions-codetracing') { // click may be both on the event-group and the codetracing icon. we deal here with the latter
+			<?php if ($this->isAllowed('data:collectEventsCodeTrace')): ?>
+				var eventGroupId = e.target.get('eventGroupId');
+				window.location.href = <?php echo '"'. $this->url('default', array('controller' => 'CodeTracing', 'action' => 'details')) .'?eventsGroupId=' ?> " + eventGroupId;
+				return;
+		 	<?php endif; ?>
+		}
+					
+		$$('.box-list li').removeClass('active'); 
+		item.addClass('active');
+		var eventId = item.get('id').replace('event_', '');
+
+		currentEventsGroupId = eventId;
+		
+		var request = new Request({
+			url: '<?php echo $this->basepath('/EventsGroup/details'); ?>?eventsGroupId=' + eventId,
+			method: 'get',
+			onSuccess: function(response) {
+				$('issue-details-content-wrapper').set('html', response);
+				addIssueDetailsButtons();
+				window.fireEvent('resize');
+				window.fireEvent('detailsLoaded');
+			},
+			onFailure: function() {					
+				var theId = item.get('id');
+				var errorText = '<div class="grid-action-bar"></div><div id="issue-details-content"><div class="errorMsg"><?php echo _t("Failed to retrieve content") ?><a href="javascript:void(0)" onclick="$(\'' + theId + '\').fireEvent(\'click\');" ><?php echo _t("Try again") ?></a></div>';
+				$('issue-details-content-wrapper').set('html', errorText);
+				window.fireEvent('resize');
+			}
+		}).send();
+	});
+}
+
+function checkLoadMoreNeeded() {
+	// show "show more" link if have more event groups
+	if (<?php echo $issue->getCount(); ?> > accumulatingCount) {
+		var eventGroupListItem = new Element('li', {'id': 'event_load_more'});
+		eventGroupListItem.set('html', '<div class="header-wrapper"><h2 title="Server Name">Load more event groups</h2></div><div class="clear"></div>');	
+		eventGroupListItem.inject('events-groups-box-list');
+
+		eventGroupItemEvents(eventGroupListItem);
+		eventGroupListItem.addEvent('click', function(e) {
+			eventGroupListItem.dispose();
+			var url = '<?php echo $this->basepath('/Api/monitorGetIssueEventGroups') ?>';
+			//make the request
+			var request = new Request.WebAPI({
+				method: 'get',
+				url: url,
+				data: {'issueId': <?php echo $issue->getId(); ?>, 'limit': <?php echo $eventsGroupsLimit; ?>, 'offset': eventGroupsOffset},
+				onSuccess: function(response) {
+					if (undefined != response) {
+						response.responseData.eventsGroups.each(function(eventGroup) {
+							addEventGroup(eventGroup);
+							accumulatingCount += eventGroup.eventsCount.toInt();
+						});
+
+						checkLoadMoreNeeded();
+					}
+				},
+				onFailure: function(response) {
+					var decoded = this.decodeResponse(response);
+					document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+				}
+			}).send();
+		});
+	}
+
+	createUnsupportedTooltip();
+}
+
+function addEventGroup(eventGroup) {
+	var eventGroupListItem = new Element('li', {'id': 'event_' + eventGroup.eventsGroupId, 'class': '' });
+	if ($$('#events-groups-box-list li').length == 0) {
+		eventGroupListItem.addClass('active');
+	}
+
+	var eventsCount = eventGroup.eventsCount;
+	if (eventsCount > 1000) {
+		return Math.floor(eventsCount / 1000) + "k";
+	}
+
+	var times = 'time';
+	if (eventsCount != '1') {
+		times = 'times';
+	}
+
+
+	var codeTracing = '';
+	var email = '';
+	var url = '';
+	var isAllowedTrace = <?php echo $this->isAllowed('data:collectEventsCodeTrace') ? 'true' : 'false' ?>;
+	var isAllowedEmail = <?php echo $this->isAllowed('data:useMonitorAction','email') ? 'true' : 'false' ?>;
+	var isAllowedCustom = <?php echo $this->isAllowed('data:useMonitorAction','custom') ? 'true' : 'false' ?>;
+
+	if (! isAllowedTrace) {
+		// MARKETING
+		var title = "<?php echo _t('Want to view line-by-line code execution for this PHP request? <a href=\'%s\' target=\'_blank\' >Contact Zend</a> to upgrade.', array($marketingLink)); ?>";
+		codeTracing = '<a class="event-actions-codetracing disable unsupported-tip" title="' + title + '" href="javascript:void(0)" eventGroupId="' + eventGroup.eventsGroupId + '" ></a>';		
+	}
+	else if (eventGroup.hasCodetracing) {
+		var title = 'Code Trace';
+		codeTracing = '<a class="event-actions-codetracing" style="margin-right: 2px;" title="' + title + '" href="javascript:void(0)" eventGroupId="' + eventGroup.eventsGroupId + '" ></a>';
+	}
+	else {
+		var title = "<?php echo _t('No codetrace available for this event') ?>";
+		codeTracing = '<a class="event-actions-codetracing disable" title="' + title + '"></a>';
+	}
+
+	if (! isAllowedEmail) {
+		// MARKETING
+		title = "<?php echo _t('Want to manage notifications for this PHP request? <a href=\'%s\' target=\'_blank\' >Contact Zend</a> to upgrade.', array($marketingLink)); ?>";
+		email = '<img class="regular-cursor unsupported-tip" style="margin-right: 2px;" src="/ZendServer/images/event-group-email-action-disable.png" title="' + title + '">';		
+	}
+	else if (eventGroup.email != '') {
+		var title = 'email was sent to ' + eventGroup.email;
+		email = '<img class="regular-cursor" style="margin-right: 2px;" src="/ZendServer/images/event-group-email-action.png" title="' + title + '">';
+	}
+	else {
+		var title = "<?php echo _t('Email was not sent for this event') ?>";
+		email = '<img class="regular-cursor" style="margin-right: 2px;" src="/ZendServer/images/event-group-email-action-disable.png" title="' + title + '">';
+	}
+
+	if (! isAllowedCustom) {
+		// MARKETING
+		title = "<?php echo _t('Want to manage notifications for this PHP request? <a href=\'%s\' target=\'_blank\' >Contact Zend</a> to upgrade.', array($marketingLink)); ?>";
+		url = '<img class="regular-cursor unsupported-tip" src="/ZendServer/images/event-group-custom-action-disable.png" title="' + title  + '">';	
+	}
+	else if (eventGroup.actionUrl != '') {
+		var title = 'custom action was triggered at ' + eventGroup.actionUrl;
+		url = '<img class="regular-cursor" src="/ZendServer/images/event-group-custom-action.png" title="' + title  + '">';
+	}
+	else {
+		title = "<?php echo _t('Custom action was not triggered for this event') ?>";
+		url = '<img class="regular-cursor" src="/ZendServer/images/event-group-custom-action-disable.png" title="' + title  + '">';	
+	}
+
+	var runTime = '';
+	var memUsage = '';
+	var relOutputSize = '';
+
+	if (eventGroup.relExecTime > 0) {
+		runTime = 'Relative Execution Time: ' + Math.round(eventGroup.relExecTime) + '% (' + Math.round(eventGroup.execTime) + ' ms)';
+	} else if (eventGroup.execTime > 0) {
+		runTime = 'Execution Time: ' + Math.round(eventGroup.execTime) + ' ms';
+	}
+
+	if (eventGroup.relMemUsage > 0) {
+		memUsage = 'Relative Memory Usage: ' + Math.round(eventGroup.relMemUsage) + '% (' + Math.round(eventGroup.memUsage) + ' kb)';
+	} else if (eventGroup.memUsage > 0) {
+		memUsage = 'Memory Usage: ' + Math.round(eventGroup.memUsage) + ' kb';
+	}
+
+	if (eventGroup.relOutputSize > 0) {
+		relOutputSize = 'Relative Output Size: ' + Math.round(eventGroup.relOutputSize) + '%';
+	}
+
+	var eventGroupListItemContent = '<div class="header-wrapper"> \
+		<div class="count-icon float-right" title="Event repeated ' + eventsCount + ' ' + times + '">' + eventsCount + '</div> \
+		<h2 title="Server Name">' + serversIds[eventGroup.serverId] + '</h2> \
+		<div style="float:left">' + formatDate(eventGroup.startTimeTimestamp) + '</div> \
+		<div style="float:right"> ' + codeTracing + email + url + '</div> \
+		<br> \
+		' + runTime + memUsage + relOutputSize + ' \
+	</div> \
+	<div class="clear"></div>';
+
+	eventGroupListItem.set('html', eventGroupListItemContent);
+
+	eventGroupListItem.inject('events-groups-box-list');
+
+	addEventGroupClicked(eventGroupListItem);
+
+	eventGroupsOffset++;
+}
+
+function detailsButtonClicked(item) {
+	lastBtnClicked = item.get('id');
+	
+	$$('#issue-details-content-wrapper .action-text-buttons li').removeClass('active');
+	item.getParent().addClass('active');
+	item.getParent().addClass('selected');
+	
+	$$('#issue-details-content > div').setStyle('display', 'none');
+	
+	var dataId = item.get('id').replace('event-details-btn-', '');
+
+	if ($('event-details-' + dataId)) {
+		   $('event-details-' + dataId).setStyle('display', 'block');
+		   $('event-details-' + dataId).fade('hide');
+		   $('event-details-' + dataId).fade('in');
+	}
+}
+
+function addIssueDetailsButtons() {
+	$$('#issue-details-content-wrapper .action-text-buttons li a').each(function(item) {
+		item.addEvent('click', function() {
+			detailsButtonClicked(item);
+		});
+	});
+
+	if (lastBtnClicked != null && $(lastBtnClicked)) {
+		$(lastBtnClicked).fireEvent("click");
+	} else {
+		$$('#issue-details-content-wrapper .action-text-buttons li:first-child a').fireEvent("click");
+	}	
+}
+
+// auto detect IDE configurations within event info page
+function autoDetectStudioIntegrationAction(action, id) {
+	// callback when IDE settings loaded
+    var callbackFn = function() {
+    	$('debugButton').spinner.hide();
+        $('profileButton').spinner.hide();
+        $('sourceButton').spinner.hide();
+		if (typeof zendStudioSettings != 'undefined') {
+			runInStudio(action, id, zendStudioSettings);
+		} else {
+            document.fireEvent('toastAlert', {'message': _t('IDE was not detected, action cannot be completed')});
+		}
+    }
+    
+	var autoDetectSettings = <?php echo $ideConfig->getAutoDetect() ? 'true' : 'false'; ?>;
+	if (autoDetectSettings) {
+		window.autoDetectIdePort = parseInt("<?php echo $ideConfig->getAutoDetectionPort(); ?>") || 20080;
+    	var request = new Request.JSONP({url: 'http://localhost:' + window.autoDetectIdePort + '/?ZendServer=8.5',
+    		timeout:<?php echo $timeout ?>,
+            onTimeout: callbackFn
+        });
+        request.send();
+	} else {
+		// set global var for IDE config
+		<?php echo $this->ZendStudioSettingsJsString($ideConfig); ?>
+		
+		callbackFn();
+	}
+}
+
+function createUnsupportedTooltip() {
+	var tip = new FloatingTips('.unsupported-tip', {
+		html: true,
+		showDelay: 500,
+		hideDelay: 100,
+		content: 'title',
+		position: 'bottom',
+		center: false, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		distance: -20,
+		hideOn: 'null'
+	});
+
+	tip.addEvent('show', function() {
+		$$('.floating-tip-wrapper').each(function(item) {
+	    	item.addEvent('mouseleave', function() {
+	    		tip._animate(item, 'out');
+	        });
+		});
+	});
+}
+
+function studioActions(action)
+{
+	switch(action) {
+		case 'debug': // Debug in IDE
+			$('debugButton').spinner.show();
+			autoDetectStudioIntegrationAction('studioStartDebug', currentEventsGroupId);
+			break;
+		case 'profile': // Profile in IDE
+			$('profileButton').spinner.show();
+			autoDetectStudioIntegrationAction('studioStartProfile', currentEventsGroupId);
+			break;
+		case 'show_source': // Show in IDE
+			$('sourceButton').spinner.show();
+			autoDetectStudioIntegrationAction('studioShowSource', currentEventsGroupId);
+			break;
+		case 'export': // Export Issue
+			location.href = baseUrl() + '/IDEIntegration/exportIssueByEventsGroup?eventsGroupId=' + currentEventsGroupId;
+			break;
+	}
+}
+
+function runInStudio(action, eventsGroupId, additionalParams) {
+    var params = {
+		eventsGroupId: eventsGroupId
+	};
+
+    if (additionalParams) {
+    	params = Object.merge(params, additionalParams);
+    }
+
+	var actionUrl = baseUrl() + '/Api/' + action;
+
+	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post', timeout: <?php echo $timeout ?>,
+	onSuccess: function(response) {
+		var toastType = response.responseData.debugRequest.success == '0' ? 'toastAlert' : 'toastNotification';
+		document.fireEvent(toastType, {'message': response.responseData.debugRequest.content});
+	},
+	onFailure: function(response) {
+		response = this.decodeResponse(response);
+		document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+	}});
+	
+	request.post();
+}
+
+var settingsTip;
+
+function hideActionsTip() {
+	settingsTip.hide($$('.settings'));
+}
+
+var addTips = function() {
+	settingsTip = new FloatingTips('.settings', {
+		// Content can also be a function of the target element!
+		content: function(e) {
+			var localChecked = '';
+			var alternateChecked = '';
+			if(alternateServer) {
+				alternateChecked = 'checked';
+			} else {
+				localChecked = 'checked';
+			}
+
+			toggleAlternateServer.delay(50);
+			var url = '<?php echo $this->basePath('/IDEIntegration'); ?>';
+			return '<div class="bar"><span onclick="hideActionsTip();">x</span></div><table border="0" cellpadding="4" cellspacing="4" class="table-middle">' +
+
+			'<tr><td>' + _t('Select the server upon which you would like to perform IDE diagnostics:') + '</td></tr>' +
+			'<tr><td><input type="radio" ' + localChecked + ' onclick="toggleAlternateServer()" name="debugServer" id="debugServerOrig" value="local" /><label for="debugServerOrig">' + _t('Originating server') + 
+					'</label></td></tr>' +
+			'<tr><td><input type="radio" ' + alternateChecked + ' onclick="toggleAlternateServer()" name="debugServer" id="debugServerAlt" value="alternate" /><label for="debugServerAlt">' + _t('Alternate server:') +
+					'</label>&nbsp;&nbsp;<input type="text" id="alternate-server" value="' + alternateServer + '"/>' + 
+				'</td></tr><tr><td>' + _t('For additional settings, go to the <a href="' + url + '" title="IDE Integration">IDE Integration</a> page.') + '</td></tr><tr><td>' + 
+				'<button onclick="saveAlternateServer(); hideActionsTip();" style="margin-top:5px;">Set</button>' +
+				'</td></tr></table>';
+		}.bind(this),
+		html: true,
+		position: 'top', // Bottom positioned
+		center: true, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		showOn: 'click',
+		hideOn: 'null',
+		className: 'debugSettingsTipWrapper',
+	});
+	
+	
+
+}
+
+function toggleAlternateServer() {
+	if ($('debugServerOrig').get('checked')) {
+		$('alternate-server').set('disabled', true);
+	} else {
+		$('alternate-server').set('disabled', false);
+	}
+}
+
+window.addEvent("load", function() {
+	$('debugButton').spinner = new Spinner($('debugButton'));
+	$('debugButton').spinner.hide();
+	$('profileButton').spinner = new Spinner($('profileButton'));
+	$('profileButton').spinner.hide();
+	$('sourceButton').spinner = new Spinner($('sourceButton'));
+	$('sourceButton').spinner.hide();
+
+	addTips();
+});
+
+</script>
+
+<div id="bread-wrp">
+	<div id="bread">
+	    <h1><?php echo $issue->getRuleName() . ' (#' . $issue->getId(); ?>)</h1>
+		<ul>
+			<li><a href="<?php echo $this->url('home/dashboard') ?>"><?php echo _t("Monitoring"); ?></a></li>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'IssueList')) ?>"><?php echo _t("Events"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="issue-details">
+	<div class="general-details-top event">
+		<ul>
+			<li>
+				<table>
+					<tbody>
+						<tr>
+							<td><?php echo _t('Time'); ?></td>
+							<td><?php echo $this->uiDate($issue->getLastOccurance()); ?></td>
+						</tr>
+						<tr>
+							<td><?php echo _t('Count'); ?></td>
+							<td><div class="count-icon <?php echo strtolower($this->issueSeverity($issue->getSeverity())); ?>" title="<?php echo $issue->getCount()?>" ><?php echo $this->issuesCount($issue->getCount()); ?></div></td>
+						</tr>
+						<tr>
+							<td><?php echo _t('Application'); ?></td>
+							<td><?php
+							if ($applications && ($application = $applications->end())) { // if somehow there's more than one, we're interested in the latest one
+								echo "<a href=\"{$this->basepath('/Deployment')}#grid={$application->getApplicationId()}\">{$this->escapehtml($application->getUserApplicationName())}</a>";
+							}
+							?></td>
+						</tr>
+						<tr>
+							<td><?php echo _t('Sample URL'); ?></td>
+							<td><div class="ellipsis_wrp" style="width: 90%;"><?php echo '<a href="' . $issue->getUrl() . '" target=\'_blank\'>' . htmlspecialchars($issue->getUrl()) . '</a>' ?></div></td>
+						</tr>
+					</tbody>
+				</table>
+			</li>
+			<li>
+				<table>
+    				<tbody>
+    					<?php if ($issue->hasMvcData()) : ?>
+						<tr>
+							<td><?php echo _t('Route'); ?></td>
+							<?php 
+							$routeStr = implode(' :: ', $issue->getMvcData());
+							if (strlen($routeStr) > 50) {
+							    $routeStr = substr($routeStr, 0, 50) . '...cut...';
+							}
+							?>
+							<td><span><?php  echo  $routeStr; ?></span></td>
+						</tr>
+						<?php endif; ?>
+						<tr>
+							<td><?php echo _t('Code Trace'); ?></td>
+							<?php if (! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+							<?php //MARKETING ?>
+							<td><span class="unsupported-tip" title="<?php echo _t('Code trace collecting is not available in this edtion of Zend Server.<a href=\'' . $this->contactZend('server-6-upgrade') . '\' target=\'_blank\' > Contact Zend</a> to upgrade.'); ?>">Unlicensed</span><td>
+							<?php else: ?>
+							<td><?php echo $issue->hasTrace() ? 'Yes' : 'No'; ?></td>
+							<?php endif; ?>
+						</tr>
+						<tr>
+							<td><?php echo _t('Email Action'); ?></td>
+							<?php if(! $this->isAllowed('data:useMonitorAction','email')): ?>
+							<?php //MARKETING ?>
+							<td><span class="unsupported-tip" title="<?php echo _t('Multi-server configurations are not available in this edtion of Zend Server. <a href=\'' . $this->contactZend('server-6-upgrade') . '\' target=\'_blank\' > Contact Zend</a> to upgrade.'); ?>">Unlicensed</span><td>
+							<?php else: ?>
+							<td><?php echo $hasEmail ? 'Yes' : 'No'; ?></td>
+							<?php endif; ?>
+						</tr>
+						<tr>
+							<td><?php echo _t('Custom Action'); ?></td>
+							<?php if(! $this->isAllowed('data:useMonitorAction','custom')): ?>
+							<?php //MARKETING ?>
+							<td><span class="unsupported-tip" title="<?php echo _t('Custom action is not available in this edtion of Zend Server. <a href=\'' . $this->contactZend('server-6-upgrade') . '\' target=\'_blank\' > Contact Zend</a> to upgrade.'); ?>">Unlicensed</span><td>
+							<?php else: ?>
+							<td><?php echo $hasCustomAction ? 'Yes' : 'No'; ?></td>							
+							<?php endif; ?>
+						</tr>
+					</tbody>
+				</table>
+			</li>
+			<li>
+				<table>
+					<tbody>
+					   <tr>
+							<td><?php echo _t('Rule'); ?></td>
+							<td><a href="<?php echo \Application\Module::config()->baseUrl . '/MonitorEditRule?id=' . $issue->getRuleId()?>"><?php echo $issue->getRuleName(); ?></a></td>
+						</tr>
+						<?php if (in_array($issue->getEventType(), Model::getCustomEventTypes())): ?>
+						<tr>
+							<td><?php echo _t('Class Name'); ?></td>
+							<td><div class="ellipsis"><?php echo $issue->getCustomEventClass(); ?></div></td>
+						</tr>
+						<?php elseif (in_array($issue->getEventType(), array_merge(
+						                Model::getPhpErrorsEventTypes(), 
+						                Model::getFunctionEventTypes(), 
+						                Model::getJavaExceptionsEventTypes())
+						        )): ?>
+						<tr>
+							<td><?php echo _t('Function'); ?></td>
+							<td><div class="ellipsis"><?php echo $issue->getFunction(); ?></div></td>
+						</tr>
+						<?php endif ?>
+						<?php if (in_array($issue->getEventType(), Model::getPhpErrorsEventTypes())): ?>
+						<tr>
+							<td><?php echo _t('Error Type'); ?></td>
+							<td><div class="ellipsis"><?php echo current($events)->getErrorType()?$this->phpErrorType(current($events)->getErrorType()):""; ?></div></td>
+						</tr>
+						<?php endif ?>
+						<?php if (in_array($issue->getEventType(), array_merge(
+						                Model::getCustomEventTypes(), 
+						                Model::getFunctionEventTypes(), 
+						                Model::getPhpErrorsEventTypes(),
+						                Model::getJavaExceptionsEventTypes())
+						        )) : ?>
+						<tr>
+							<td><?php echo _t('Source File'); ?></td>
+							<td><div class="ellipsis" ellipsis="front"><?php
+								$filename = $issue->getFilename();
+								echo (empty($filename)) ? '' : $filename . ' : ' . $issue->getLine(); 
+							?></div></td>
+						</tr>
+						<?php endif ?>
+						<?php if (in_array($issue->getEventType(), array_merge(
+						                Model::getCustomEventTypes(), 
+						                Model::getPhpErrorsEventTypes(),
+						                Model::getJavaExceptionsEventTypes())
+						        )) : ?>
+						<tr>
+							<td><?php echo _t('Error String'); ?></td>
+							<td><div class="ellipsis"><?php echo htmlentities(current($events)->getErrorString()); ?></div></td>
+						</tr>
+						<?php endif?>
+					</tbody>
+				</table>
+			</li>
+		</ul>
+	</div>
+	
+	<div id="issue-details-wrapper">
+		<div id="issue-details-events-list">
+			<div style="font-size: 16px; color: #43AFE0; margin-bottom: 7px;"><?php echo _t('Details'); ?></div>
+			<div class="box-list-wrapper">
+				<ul class="box-list" id="events-groups-box-list">
+				</ul>
+			</div>
+		</div>
+		<div id="issue-details-content-wrapper">
+
+<?php 
+$eventsGroups->rewind();
+reset($events);
+echo $this->partial('events-group/events-group/details.phtml', array('issueDetails' => $issue, 'event' => current($events), 'eventsGroup' => $eventsGroups->current(), 'alternateServer' => $alternateServer))?>
+		</div>
+		<div id="event-studio-actions-bar" class="event-bottom-actions">
+		  <div style="margin: 5px 10px;">
+			<?php echo _t('IDE Diagnostics'); ?>:
+			<button id="debugButton" onclick="studioActions('debug')" title="<?php echo _t('Debug Event'); ?>"><?php echo _t('Debug Event'); ?></button> 
+			<button id="profileButton" onclick="studioActions('profile')" title="<?php echo _t('Profile Event'); ?>"><?php echo _t('Profile Event'); ?></button>
+			<button id="sourceButton" onclick="studioActions('show_source')" title="<?php echo _t('Show in IDE'); ?>"><?php echo _t('Show in IDE'); ?></button>
+			<button onclick="studioActions('export')" title="<?php echo _t('Export'); ?>"><?php echo _t('Export'); ?></button>
+			<button class="float-right settings" title="<?php echo _t('IDE Diagnostics settings'); ?>"><?php echo _t('Settings'); ?></button>
+		  </div>
+		</div>
+	</div>
+	
+</div>

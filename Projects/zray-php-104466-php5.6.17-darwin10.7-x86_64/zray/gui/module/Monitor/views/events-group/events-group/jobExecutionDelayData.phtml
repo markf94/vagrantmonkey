@@ -1,0 +1,27 @@
+<ul class="jobqueue_event_properties">
+<?php if ((string)$xml->queueName != ""): ?>
+	<li><strong><?php echo _t('Queue Name'); ?></strong><?php echo (string)$xml->queueName ?></li>
+<?php endif;?>
+<?php if ((int)$xml->scheduleId != 0): ?>
+	<li><strong><?php echo _t('Scheduling Rule'); ?></strong><a href="<?php echo "{$this->basePath()}/RecurringJobs/update?jobId=" .(string)$xml->scheduleId ?>"><?php echo (string)$xml->scheduleId ?></a></li>
+<?php endif;?>
+<?php if ((int)$xml->jobId != 0): ?>
+	<li><strong><?php echo _t('Job ID'); ?></strong><a href="<?php echo "{$this->basePath()}/JobQueue/Index?jobId=" . (string)$xml->jobId . "#grid=" .(string)$xml->jobId ?><?php echo "{$this->basePath()}/JobQueue/Index?jobId=" . (string)$xml->jobId . "#grid=" .(string)$xml->jobId ?>"><?php echo (string)$xml->jobId ?></a></li>
+<?php endif;?>
+<?php if ((string)$xml->jobUrl != ''): ?>
+	<li><strong><?php echo _t('Job URL'); ?></strong><?php echo (string)$xml->jobUrl ?></li>
+<?php endif;?>
+<?php if ((string)$xml->skewSeconds != ''): ?>
+	<li><strong><?php echo _t('Job Delay (seconds):'); ?></strong><?php echo (string)$xml->skewSeconds ?></li>
+<?php endif;?>
+<?php if ((string)$xml->jobParams != ''):
+	$jobParams = (string)$xml->jobParams;
+	if (0 !== strpos($jobParams, '"')) {
+		$jobParams = '"' . $jobParams . '"';
+	}
+?>
+	<li><strong><?php echo _t('Job Variables'); ?></strong>
+	<?php echo $this->selectAll('job-execution-error-variables'); ?>
+	<ul><li id="job-execution-error-variables"><?php echo $this->variablesTree($jobParams) ?></li></ul></li>
+<?php endif;?>
+</ul>

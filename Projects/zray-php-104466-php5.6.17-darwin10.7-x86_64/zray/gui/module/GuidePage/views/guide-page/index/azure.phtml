@@ -1,0 +1,1064 @@
+<script type="text/javascript">
+    var loadedExtensions = <?php echo json_encode($loadedExtensions); ?>; 
+    var builtInExtensions = <?php echo json_encode($builtInExtensions); ?>;
+    var extensionsDiff = <?php echo json_encode(array_udiff($loadedExtensions, $builtInExtensions, 'strcasecmp')); ?>;
+    var licenseType = '<?php echo $licenseType; ?>';
+</script>
+
+<?php if (isset($welcomeContent) && ! empty($welcomeContent)) : ?>
+<?php echo $welcomeContent; ?>
+<?php else : ?>
+
+<?php $this->headLink()->appendStylesheet($this->basePath('/css/guidePage.css'))?>
+
+<style>
+#welcome-page .getting-started-bottom section:not(#whats-new) {
+	padding-left: 0;
+	width: 450px;
+}
+
+#intro-zs-pc {
+	overflow: hidden;
+    height: 362px;
+}
+
+#intro-zs-pc .video-box-thumb.active:before {
+	margin-top: -59px !important;
+}
+
+#welcome-page .font-md {
+	font-size: 13px;
+}
+
+#welcome-page section#welcome_slideshow {
+	height: 420px;
+}
+
+#welcome-page section#welcome_slideshow [slide="1"] .part-a h1 {
+	font-size: 34px;
+}
+
+.getting-started-bottom {
+	clear: both;
+	margin-top: 30px;
+}
+
+.getting-started-bottom section {
+	width: 50%;
+	float: left;
+	padding-right: 65px;
+	
+	-webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+    box-sizing: border-box;         /* Opera/IE 8+ */
+}
+
+#welcome-page section#welcome_blue {
+	height: 90px;
+	margin-bottom: 20px;
+	
+	background: #52aac2; /* Old browsers */
+    background: -moz-linear-gradient(top,  #52aac2 0%, #50abc0 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#52aac2), color-stop(100%,#50abc0)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top,  #52aac2 0%,#50abc0 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top,  #52aac2 0%,#50abc0 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top,  #52aac2 0%,#50abc0 100%); /* IE10+ */
+    background: linear-gradient(to bottom,  #52aac2 0%,#50abc0 100%); /* W3C */
+    filter: "progid:DXImageTransform.Microsoft.gradient( startColorstr='#52aac2', endColorstr='#50abc0',GradientType=0 )"; /* IE6-9 */
+}
+
+#welcome_blue .container {
+	height: 90px;
+}
+
+#welcome_blue ul {
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+	height: 90px;
+}
+
+#welcome_blue ul li {
+	color: #fff;
+    float: left;
+    height: 90px;
+    line-height: 90px;
+	margin: 0;
+	padding: 0;
+	
+    cursor: pointer;
+	position: relative;
+	
+	border-right:1px solid #7DBED0;
+}
+
+#welcome_blue ul li,
+#welcome_blue ul li:focus {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    outline-style:none;/*IE*/
+}
+
+#welcome_blue ul li:first-child {
+	border-left:1px solid #7DBED0;
+}
+
+#welcome_blue ul li:hover,
+#welcome_blue ul li.active {
+	background: #52aac2; /* Old browsers */
+    background: -moz-linear-gradient(top,  #52aac2 0%, #38869d 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#52aac2), color-stop(100%,#38869d)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top,  #52aac2 0%,#38869d 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top,  #52aac2 0%,#38869d 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top,  #52aac2 0%,#38869d 100%); /* IE10+ */
+    background: linear-gradient(to bottom,  #52aac2 0%,#38869d 100%); /* W3C */
+    filter: "progid:DXImageTransform.Microsoft.gradient( startColorstr='#52aac2', endColorstr='#38869d',GradientType=0 )"; /* IE6-9 */
+}
+
+#welcome_blue ul li:before {
+	position:absolute; 
+	display:block; 
+	content:''; 
+	 
+	border:1px solid #4197AE;
+	border-top: 0;
+	border-bottom: 0;
+	border-left: 0;
+	
+	height:100%; 
+	width:100%; 
+	box-sizing: border-box; 
+	-moz-box-sizing: border-box; 
+	-webkit-box-sizing: border-box;
+}
+
+#welcome_blue ul li:first-child:before {
+	border-left:1px solid #4197AE;
+}
+
+#welcome_blue ul li img {
+	padding: 10px 14px;
+}
+
+#welcome_blue ul li.disabled img {
+	opacity: 0.5;
+}
+
+#welcome_blue ul li img.welcome_hover_image {
+	display: none;
+}
+
+#welcome_blue ul li:hover img,
+#welcome_blue ul li.active img {
+	display: none;
+}
+
+#welcome_blue ul li:hover img.welcome_hover_image,
+#welcome_blue ul li.active img.welcome_hover_image {
+	display: block;
+}
+
+#gallery {
+	margin-bottom: 30px;
+	position: relative;
+	overflow: hidden;
+    height: 230px;
+    width: 780px;
+}
+
+.gallery-wrapper {
+	display: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	
+	-webkit-transition: all 1s ease;                  
+    -moz-transition: all 1s ease;                 
+    -o-transition: all 1s ease;   
+    -ms-transition: all 1s ease;          
+    transition: all 1s ease;
+}
+
+.gallery-wrapper.active {
+	display: block;
+}
+
+.gallery-wrapper .section {
+	width: 950px;
+	float: left;
+	margin: 0;
+	padding: 0;
+}
+
+.gallery-wrapper #ext_status {
+	float: left;
+	margin-left: 30px;
+	width: 332px;
+}
+
+.gallery-wrapper #ext_list {
+	margin: 0;
+	padding: 0;
+	float: left;
+    margin-right: 10px;
+}
+
+.gallery-wrapper .section img {
+	float: right;
+    margin-right: 170px;
+    margin-top: 30px;
+	margin-left: 15px;
+    width: 440px;
+    height: 150px;
+	cursor: -webkit-zoom-in; 
+	cursor: -moz-zoom-in;
+}
+
+.gallery-wrapper .section h2 {
+	margin-top: 20px;
+}
+
+.gallery-wrapper .section p {
+	font-size: 16px;
+    line-height: 22px;
+	height: 140px;
+}
+
+#section-dots {
+	text-align: center;
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	width: 950px;
+}
+
+#section-dots div {
+	border-radius: 50%;
+    display: inline-block;
+    margin-right: 20px;
+	background: #d1d1d1;
+	cursor: pointer;
+	
+	height: 10px;
+	width: 10px;
+}
+
+#section-dots div.active {
+	background: #52a9c4;
+}
+
+#section-video {
+	float: left;
+	margin-right: 20px;
+	margin-top: 10px;
+}
+
+#section-video .video-box-thumb img {
+	display: none;
+}
+
+#section-video .video-box-thumb.active img {
+	display: block;
+}
+
+#welcome-page section#welcome_slideshow [slide="1"] .part-a #welcome-version {
+	margin-bottom: 20px;
+}
+
+.ext_enabled,
+.ext_disabled {
+	display: inline-block;
+    margin-left: 10px;
+    background: #49A8C6;
+    padding: 0px 12px;
+    font-size: 12px;
+    color: #FFF;
+}
+
+.ext_disabled {
+	background: #9A9A99;
+}
+
+#limitedMsg {
+	width: 600px;
+    padding: 5px;
+	margin-left: 4px;
+	display: none;
+	
+	background: #ffc578; /* Old browsers */
+    background: -moz-linear-gradient(left,  #ffc578 0%, #ffffff 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, right top, color-stop(0%,#ffc578), color-stop(100%,#ffffff)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(left,  #ffc578 0%,#ffffff 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(left,  #ffc578 0%,#ffffff 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(left,  #ffc578 0%,#ffffff 100%); /* IE10+ */
+    background: linear-gradient(to right,  #ffc578 0%,#ffffff 100%); /* W3C */
+    filter: "progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffc578', endColorstr='#ffffff',GradientType=1 )"; /* IE6-9 */
+}
+
+#limitedMsg.active {
+	display: block;
+}
+
+#welcome-page .video-box::before {
+	opacity: 1;
+	background: transparent;
+}
+
+#welcome-page .video-box .video-box-thumb.active:hover::before{
+	opacity:1;
+}
+#welcome-page .video-box .video-box-thumb.active::before{
+	-webkit-transition:all 0.5s;
+	opacity:0.5;
+	content:" ";
+	background:url(/ZendServer/images/welcome/play-btn.png) no-repeat center;
+	position:absolute;
+	top:50%;
+	left:50%;
+	margin-left:-29px;
+	margin-top:-29px;
+	width:58px;
+	height:58px;
+}
+
+.simple-modal a.close {
+    z-index: 1;
+    color: #FFF;
+    background: #000;
+    padding: 2px 5px;
+    border-radius: 4px;
+    -webkit-transition: 0.2s opacity;
+    transition: 0.2s opacity;
+    right: -8px;
+    top: -6px;
+}
+
+@media (max-width: 1400px) {
+	#welcome-page section#welcome_blue {
+		height: 80px;
+    }
+	
+    #welcome_blue .container {
+	   height: 80px;	
+    }
+    
+	#welcome_blue ul li {
+        height: 80px;
+        line-height: 60px;
+    }
+    
+    #welcome_blue ul li img {
+    	height: 60px;
+    }
+}
+</style>
+
+<script type="text/javascript">
+
+function showFullImage(img,plugin_id){
+	var SM = new SimpleModal({
+		closeButton: true,
+		hideHeader: true,
+		hideFooter: true,
+		draggable: false,
+		overlayClick: true,
+		template: "<div class=\"contents\"><img class=\"modal-zoom-image\" src=\""+img+"\"></div>"
+	});
+	SM.show({
+		"model":"modal"
+	});
+	/* Hooking close func of SimpleModel */
+	SM._oldOverlay = SM._overlay
+	SM._overlay = function(status){
+		this._oldOverlay(status);
+	}
+}
+
+window.addEvent("domready", function(){
+
+    if (licenseType == 'free' || licenseType == 'basic') {
+        $$('.edition_standard').addClass('disabled');
+    }
+
+    $$('.gallery-wrapper .section img').addEvent('click', function(item) {
+        showFullImage($(this).get('src'));
+    });
+	
+	$$('.video-box .video-box-thumb').addEvent('click', function(item) {
+		var target = item.target;
+		if ((target.nodeName != 'DIV' && target.nodeName != 'IMG') || ! target.hasClass('video-box-thumb')) {
+			target = target.getParent('div.video-box-thumb');
+		}
+
+		simpleModal = new SimpleModal({width: 700, closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\" style=\"display:block;\">{_TITLE_}</div>\
+				<div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+				</div>"});
+
+		
+		var content = '<iframe style="height: 400px; width: 600px;" src="' + target.get('href') + '" frameborder="0" allowfullscreen></iframe>';
+		
+		simpleModal.show({
+	      "model":	"modal",
+	      "title": '<?php echo isAzureEnv() || isZrayStandaloneEnv() ? 'Z-Ray' : 'Zend Server'; ?>' + '<div style="float: right; display:inline-block; cursor: pointer; margin-right: 5px;" onclick="simpleModal.hide()">x</div>',
+	      "contents": content
+	    });
+	});
+
+	$$('#welcome_blue li').addEvent('click', function(item) {
+		var listItem = item.target;
+		if (listItem.get('tag') == 'img') {
+			listItem = listItem.getParent();
+		}
+		var dataId = listItem.get('data-id');
+
+		// show limited by edition message
+		if (listItem.hasClass('disabled')) {
+			$('limitedMsg').addClass('active');
+		} else {
+			$('limitedMsg').removeClass('active');
+		}
+		
+		$$('#welcome_blue li').removeClass('active');
+		listItem.addClass('active');
+	    
+		$$('.gallery-wrapper').removeClass('active');
+		if ($('gallery_' + dataId)) {
+			  $('gallery_' + dataId).addClass('active');
+		}
+
+		$$('#section-video .video-box-thumb').removeClass('active');
+		if ($('video_' + dataId)) {
+			  $('video_' + dataId).addClass('active');
+		}
+		
+		restartGallery(dataId);
+	});
+
+	$$('.gallery-wrapper').each(function(item) {
+		var totalWidth = 0;
+		var sections = item.getChildren('.section');
+		for (var i = 0; i < sections.length; i++) {
+			totalWidth += sections[i].getComputedSize().totalWidth;
+		}
+		item.setStyle('width', totalWidth + 'px');
+	});
+
+	restartGallery('builtin');
+
+	var closed = true;
+	var extList;
+
+	if (Object.keys(extensionsDiff).length == 0) {
+		extList = new Element('div');
+		extList.set('html', 'There are no custom extensions installed on your system.');
+		extList.inject($('ext_status'));
+	} else {
+		var counter = 0;
+		Object.some(extensionsDiff, function(item, key) {
+    		if (counter % 4 == 0) {
+    			extList = new Element('ul', {id: 'ext_list'});
+    			closed = false;
+    		}
+    		var listItem = new Element('li');
+    		if (licenseType == 'standard') {
+    			listItem.set('html', item + '<div class="ext_enabled">enabled</div>');
+    		} else {
+    			listItem.set('html', item + '<div class="ext_disabled">disabled</div>');
+    		}
+    		listItem.inject(extList);
+    
+    		if (counter % 4 == 3 && counter > 0) {
+    			extList.inject($('ext_status'));
+    			closed = true;
+    		}
+    		
+    		counter++;
+    	});
+    	if (! closed) {
+    		extList.inject($('ext_status'));
+    	}
+	}
+});
+
+var galleryTimer = null;
+var galleryId = '';
+var sectionId = 0;
+var galleryInterval = 5000;
+
+function next() {
+	if ($('gallery').hasClass('hover')) {
+		return;
+	}
+	
+	var gellerySections = $$('#gallery_' + galleryId + ' .section');
+	$('gallery_' + galleryId).setStyle('left', (-1 * (sectionId * gellerySections[sectionId].getComputedSize().totalWidth)));
+//		gellerySections.removeClass('active');
+//		gellerySections[galleryId].addClass('active');		
+
+	$$('#section-dots div').removeClass('active');
+	$$('#gallery-dot-' + sectionId).addClass('active');
+
+	sectionId++;
+	if (sectionId >= gellerySections.length) {
+		sectionId = 0;
+	}
+}
+
+function restartGallery(galleryContainerId) {
+	clearTimeout(galleryTimer);
+	galleryId = galleryContainerId;
+	sectionId = 0;
+	
+	// set dots
+	var dotsWrapper = $('section-dots');
+	dotsWrapper.set('html', '');
+	var len = $$('#gallery_' + galleryContainerId + ' .section').length;
+	if (len > 1) {
+    	for (var i = 0; i < len; i++) {
+    		var dot = new Element('div', {id: 'gallery-dot-' + i});
+    		if (i == 0) {
+    			dot.addClass('active');
+    		}
+    		dot.addEvent('click', function() {
+    			sectionId = this.get('id').replace('gallery-dot-', '');
+    			next();
+    
+    			clearTimeout(galleryTimer);
+    			galleryTimer = setInterval(function() {
+    				next();
+    			}, galleryInterval);
+    		});
+    		dot.inject(dotsWrapper);
+    	}
+	}
+
+	galleryTimer = setInterval(function() {
+		next();
+	}, galleryInterval);
+
+	if ($('gallery_' + galleryId)) {
+		   $('gallery_' + galleryId).setStyle('left');
+	}
+	
+	$$('.gallery-wrapper').addEvents({
+	    'mouseenter': function() { $('gallery').addClass('hover'); },
+		'mouseleave': function() { $('gallery').removeClass('hover'); }
+	});
+}
+</script>
+
+<div id="welcome-page">
+	<section id="welcome_slideshow">
+		<div class="container">
+			<div slide="1">
+				<div class="part-a">
+				    <?php // disabled for preview ?>
+				    <?php if (getAzureLicense() == 'disabled') : ?>
+				    <span class="toast static alert">Oops. The Z-Ray license you are using is invalid. <a href="#">Click here</a> to find out why</span>
+				    <?php endif; ?>
+					<!-- TITLE -->
+					<h1><?php echo _t('Welcome to Z-Ray for Azure') ?></h1>
+					<?php $azureLicense = getAzureLicense(); if (is_null($azureLicense)) { $azureLicense = 'basic'; }?>
+					<div id="welcome-version"><?php echo ucfirst($azureLicense); ?> Edition, Version 1.0 Preview 2</div>
+					<!-- GETTING STARTED -->
+					<p class="font-md getting-started-summary">
+					   Zend Z-Ray for Azure is the most advanced debugging and productivity solution fully integrated with Microsoft App Services. It provides unprecedented insight into PHP apps deployed on the Azure Platform by displaying all the under-the-hood details of a page request, across all the PHP scripts involved in building the page.
+					</p>
+					<div class="getting-started-bottom">
+					   <section>
+					   <h3>A little about Z-Ray:</h3>
+					   <p>
+					       Zend Z-Ray is a unique PHP debugging solution that delivers deep insights into all the under-the-hood details of the application very early in the development process. Its code dashboard gives unmatched visibility into code and application performance with critical information on the PHP language, PHP frameworks used, PHP based applications such as Magento, WordPress and Drupal, as well as mobile applications.
+					   </p>
+					   </section>
+					</div>
+				</div><div class="part-b">
+					<div id="intro-zs-pc" class="video-box">
+					   <div class="video-box-thumb active" href="https://www.zend.com/z-ray-azure/redirect/introducing-z-ray-azure?ecat=guidePage&eaction=Introducing Z-Ray Azure"><img src="<?php echo "{$this->basePath()}/images/welcome/intro-zs-azure.png"?>"/></div>
+				    </div>
+				</div>
+			</div>
+		</div>
+	</section>
+	<section id="welcome_blue">
+		<div class="container">
+			<ul>
+    			 <li data-id="builtin" class="edition_basic active">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/zend.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/zend.png" />
+    			 </li>
+    			 <li data-id="custom" class="edition_standard">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/plus.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/plus.png" />
+    			 </li>
+    			 <li data-id="wordpress" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/wordpress.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/wordpress.png" />
+    			 </li>
+    			 <li data-id="magento" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/magento.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/magento.png" />
+    			 </li>
+    			 <li data-id="drupal" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/drupal.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/drupal.png" />
+    			 </li>
+    			 <li data-id="symfony" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/symfony.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/symfony.png" />
+    			 </li>
+    			 <li data-id="laravel" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/laravel.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/laravel.png" />
+    			 </li>
+    			 <li data-id="composer" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/composer.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/composer.png" />
+    			 </li>
+    			 <li data-id="apigility" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/apigility.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/apigility.png" />
+    			 </li>
+    			 <li data-id="zf" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/zf.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/zf.png" />
+    			 </li>
+    			 <li data-id="zf2" class="edition_basic">
+    			     <img src="<?php echo $this->basePath(); ?>/images/zray/logos/zf2.png" />
+    			     <img class="welcome_hover_image" src="<?php echo $this->basePath(); ?>/images/zray/logos/color/zf2.png" />
+    			 </li>
+			</ul>
+		</div>
+	</section>
+	<div class="container">
+	    <div id="limitedMsg">Custom extensions are not supported in this edition</div>
+	    <div id="section-video" class="video-box">            
+            <div class="video-box-thumb" href="https://www.zend.com/z-ray-azure/redirect/zray-for-wordpress?ecat=azureGuidePage&eaction=wordpress" id="video_wordpress"><img src="<?php echo $this->basePath(); ?>/images/zray/videos/azure/wordpress.jpg"></div>
+            <div class="video-box-thumb" href="https://www.zend.com/z-ray-azure/redirect/zray-for-magento?ecat=azureGuidePage&eaction=magento" id="video_magento"><img src="<?php echo $this->basePath(); ?>/images/zray/videos/azure/magento.jpg"></div>
+            <div class="video-box-thumb" href="https://www.zend.com/z-ray-azure/redirect/zray-for-drupal?ecat=azureGuidePage&eaction=drupal" id="video_drupal"><img src="<?php echo $this->basePath(); ?>/images/zray/videos/azure/drupal.jpg"></div>
+            <div class="video-box-thumb" href="https://www.zend.com/z-ray-azure/redirect/zray-for-symfony?ecat=azureGuidePage&eaction=symfony" id="video_symfony"><img src="<?php echo $this->basePath(); ?>/images/zray/videos/azure/symfony.jpg"></div>
+            <div class="video-box-thumb" href="https://www.zend.com/z-ray-azure/redirect/zray-for-laravel?ecat=azureGuidePage&eaction=laravel" id="video_laravel"><img src="<?php echo $this->basePath(); ?>/images/zray/videos/azure/laravel.jpg"></div>
+            <div class="video-box-thumb" href="https://www.zend.com/z-ray-azure/redirect/zray-for-zf1?ecat=azureGuidePage&eaction=zf1" id="video_zf"><img src="<?php echo $this->basePath(); ?>/images/zray/videos/azure/zf.jpg"></div>
+            <div class="video-box-thumb" href="https://www.zend.com/z-ray-azure/redirect/zray-for-zf2?ecat=azureGuidePage&eaction=zf2" id="video_zf2"><img src="<?php echo $this->basePath(); ?>/images/zray/videos/azure/zf2.jpg"></div>
+    	</div>
+    	<div id="gallery">
+    	   <div class="gallery-wrapper active" id="gallery_builtin">
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/builtin/page-requests.png"; ?>">
+    	           <h2>Page Requests</h2>
+    	           <p>
+    	               Displays a list of all the requests sent by the page to the Web server, their method, HTTP response, number of queries executed, and more. Sub-requests, such as Ajax calls, will be displayed as well. 
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/builtin/execution-time.png"; ?>">
+    	           <h2>Memory and Time</h2>
+    	           <p>
+    	               Displays a breakdown of how the server time was split between PHP, database, I/O and Network, and a comparison between consumed vs. free (available PHP process memory as defined) memory at the point when memory consumption for the request peaked.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/builtin/errors.png"; ?>">
+    	           <h2>Errors and Warnings</h2>
+    	           <p>
+    	               Displays errors, warnings and exceptions triggered by the request, included silenced errors. Only errors triggered by PHP itself or by similar code functions (e.g., error_log) are displayed. 
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/builtin/db-queries.png"; ?>">
+    	           <h2>Database Queries</h2>
+    	           <p>
+    	                Displays detailed information on the database queries executed by the request. Supported database extensions: All PDO extensions, OCI, MySQL, MySQLi, DB2, SQLite3, PostgreSQL, MSSQL.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/builtin/functions.png"; ?>">
+    	           <h2>Functions</h2>
+    	           <p>
+    	                Displays the PHP functions called during the request. Functions can be filtered according to function groups and namespaces.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/builtin/request-info.png"; ?>">
+    	           <h2>Request Info</h2>
+    	           <p>
+    	               Displays detailed information on the request and the response, such as the PHP superglobals used, and the response body. 
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_custom">
+    	       <div class="section">
+    	           <h2>Custom extensions</h2>
+    	           <p style="width: 350px; float: left; border-right: 1px solid #4197AE; padding-right: 30px;">
+    	              Z-Ray allows plugging in custom extensions. Here is a list of the extensions currently loaded on your system:
+    	           </p>
+    	           <p id="ext_status">
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_wordpress">
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/wordpress/wp-dashboard.png"; ?>">
+    	           <h2>Dashboard</h2>
+    	           <p>
+    	               Provides useful information about the WordPress installation, including version, whether debug mode is enabled, the used template, and crons status.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/wordpress/wp-cache-objects.png"; ?>">
+    	           <h2>Cache Objects</h2>
+    	           <p>
+    	               Lists all the cached WordPress objects on the page, including their name and size.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/wordpress/wp-plugins.png"; ?>">
+    	           <h2>Plugins</h2>
+    	           <p>
+    	               Helps you understand which plugin is consuming the most resources by specifying all the different plugins enabled on the page, together with the time they took to load.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/wordpress/wp-theme.png"; ?>">
+    	           <h2>Theme</h2>
+    	           <p>
+    	               Helps profile the WordPress theme loaded on the page by breaking down the functions and classes and the time they took to execute.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/wordpress/wp-hooks.png"; ?>">
+    	           <h2>Hooks</h2>
+    	           <p>
+    	               Outlines all the WordPress hooks triggered during execution. See the name of the hook, it's type (action/filter), the file path, and the time it took to execute.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/wordpress/wp-query.png"; ?>">
+    	           <h2>WP Query</h2>
+    	           <p>
+    	               Displays the current main WordPress query, for example the post query.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/wordpress/wp-crons.png"; ?>">
+    	           <h2>Crons</h2>
+    	           <p>
+    	               Gives insight into the WordPress cron system. View the hooked functions used, their schedule, any defined arguments for the cron event, and the time of the next execution.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_magento">
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-overview.png"; ?>">
+    	           <h2>Overview</h2>
+    	           <p>
+    	               Gives a general overview of the Magento application, including the site's name and ID, cache method, and more.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-events.png"; ?>">
+    	           <h2>Events</h2>
+    	           <p>
+    	               Lists all the Magento events triggered by the request. Get information on the event's name, class, method and target, as well as how long the event lasted.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-observers.png"; ?>">
+    	           <h2>Observers</h2>
+    	           <p>
+    	               Lists all the Magento observers on the page, including information on the associated event, the observer type, used method, and more.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-layouts.png"; ?>">
+    	           <h2>Layouts</h2>
+    	           <p>
+    	               Lists all the current Magento template layouts.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-rendered-blocks.png"; ?>">
+    	           <h2>Rendered Blocks</h2>
+    	           <p>
+    	               Lists all the current rendered template blocks creating the current page, including performance profiling.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-blocks.png"; ?>">
+    	           <h2>Blocks</h2>
+    	           <p>
+    	               This panel outlines all the Magento blocks used on the page, including information on their template and class.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-logs.png"; ?>">
+    	           <h2>Logs</h2>
+    	           <p>
+    	               Displays Magento Mage::log calls adding a log entry.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/magento/magento-modules.png"; ?>">
+    	           <h2>Modules</h2>
+    	           <p>
+    	               Lists Magento installed modules.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_drupal">
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/drupal/drupal-called-functions.png"; ?>">
+    	           <h2>Called Functions</h2>
+    	           <p>
+    	               Provides a list of all the called Drupal functions on the page. Get the function name together with the name and values for any parameter passed for the function.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/drupal/drupal-loaded-modules.png"; ?>">
+    	           <h2>Loaded Modules</h2>
+    	           <p>
+    	               Displays a list of all the loaded Drupal modules on the page.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/drupal/drupal-retrieved-forms.png"; ?>">
+    	           <h2>Retrieved Forms</h2>
+    	           <p>
+    	               Displays a detailed information for used Drupal forms on the page, including the form name, the form ID, cache, the form method, and more.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/drupal/drupal-module-invoke.png"; ?>">
+    	           <h2>Module Invoke</h2>
+    	           <p>
+    	               Displays a list of loaded Drupal modules together with any action and hook they invoked during execution.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/drupal/drupal-user-properties.png"; ?>">
+    	           <h2>User Properties</h2>
+    	           <p>
+    	               Displays useful information on the current user and authentication, such as the user ID, host, and defined user role.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_symfony">
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/symfony/symfony-bundles.png"; ?>">
+    	           <h2>Bundles</h2>
+    	           <p>
+    	               Lists all the used Symfony bundles on the page, with information on the bundle name, its namespace and container and the source file path.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/symfony/symfony-events.png"; ?>">
+    	           <h2>Events</h2>
+    	           <p>
+    	               Lists all the Symfony events that were triggered by the request, with information on the event name, the event type, the event dispatcher, and an indication on whether propagation was stopped or not.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/symfony/symfony-listeners.png"; ?>">
+    	           <h2>Listeners</h2>
+    	           <p>
+    	               Lists all the Symfony event listeners used on the page, with information on the associated event.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/symfony/symfony-request.png"; ?>">
+    	           <h2>Request</h2>
+    	           <p>
+    	               Shows general data on the request, including routing info, local and additional info.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/symfony/symfony-security.png"; ?>">
+    	           <h2>Security</h2>
+    	           <p>
+    	               Displays useful information on authentication and authorization, including an indication on whether security is enabled or not, usernames and passwords, and information on used access tokens.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_laravel">
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/laravel/laravel-events-log.png"; ?>">
+    	           <h2>Events Log</h2>
+    	           <p>
+    	               Displays a list of all the Laravel events that were fired during the request. 
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/laravel/laravel-general.png"; ?>">
+    	           <h2>General</h2>
+    	           <p>
+    	               Shows information on the Laravel installation and environment, such as the application and URL paths, and the application version.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/laravel/laravel-route.png"; ?>">
+    	           <h2>Route</h2>
+    	           <p>
+    	               Displays information on the application route, including a specified name and defined route filters.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/laravel/laravel-session.png"; ?>">
+    	           <h2>Sessions</h2>
+    	           <p>
+    	               Displays the name and value for stored sessions.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/laravel/laravel-user-info.png"; ?>">
+    	           <h2>User Info</h2>
+    	           <p>
+    	               Provides useful information on the current user of the Laravel application, such as the user name and authentication data.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/laravel/laravel-views.png"; ?>">
+    	           <h2>Views</h2>
+    	           <p>
+    	               Shows information on currently loaded Laravel views, including their application file path, and any passed parameters.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_composer">
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/composer/composer-class-map.png"; ?>">
+    	           <h2>Class Map</h2>
+    	           <p>
+    	               Provides a complete mapping of the classes used on the page, including the class name and the source file location.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/composer/composer-packages.png"; ?>">
+    	           <h2>Packages</h2>
+    	           <p>
+    	               Lists all the Composer packages used on the page, with detailed information on each package, including: name, version, source, requirements, authors, and home page.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_apigility">
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/apigility/apigility-mcv-auth-event.png"; ?>">
+    	           <h2>MVC Auth Events</h2>
+    	           <p>
+    	               Information on MVC authentication events, including events name and result.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/apigility/apigility-identity-role.png"; ?>">
+    	           <h2>Identity Role</h2>
+    	           <p>
+    	               Information on the current user.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_zf">
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf1/zf1-plugin.png"; ?>">
+    	           <h2>Plugin</h2>
+    	           <p>
+    	              Displays information on all Zend Framework 1 internal plugins, including received objects and parameters. Shows a list of all the Zend Framework 1 views, including their location and helpers.
+    	           </p>
+    	       </div>
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf1/zf1-request.png"; ?>">
+    	           <h2>Request</h2>
+    	           <p>
+    	               Displays useful information on the request, including the request template, used methods, and the request status. 
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf1/zf1-request-object.png"; ?>">
+    	           <h2>Request Object</h2>
+    	           <p>
+    	                Displays detailed profiling information for the Zend Framework 1 request objects. 
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf1/zf1-view.png"; ?>">
+    	           <h2>View</h2>
+    	           <p>
+    	                Displays the current view file path.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf1/zf1-view-helpers.png"; ?>">
+    	           <h2>View Helpers</h2>
+    	           <p>
+    	                Shows a list of all the Zend Framework 1 view helpers, including their arguments and helper objects.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div class="gallery-wrapper" id="gallery_zf2">
+    	       <div class="section active">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-application-config.png"; ?>">
+    	           <h2>Application Config</h2>
+    	           <p>
+    	               Displays configuration information about the Zend Framework 2 application, including a modules list, configuration paths, and listeners. 
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-config.png"; ?>">
+    	           <h2>Config</h2>
+    	           <p>
+    	               Displays general Zend Framework 2 configuration data, together with user-specific data. 
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-events.png"; ?>">
+    	           <h2>Events</h2>
+    	           <p>
+    	               Shows a list of all the Zend Framework 2 events that were triggered during execution, with information on the event name, the source file path and line of code in the file, consumed memory, and time duration for the event.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-modules.png"; ?>">
+    	           <h2>Modules</h2>
+    	           <p>
+    	               Shows a list of all the Zend Framework 2 modules loaded on the page, with information on the module configuration and the location of the source file.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-request.png"; ?>">
+    	           <h2>Request</h2>
+    	           <p>
+    	               Displays general information on the request, including the request method, the HTTP response, the request path, the request action nand controller, and the used template.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-response.png"; ?>">
+    	           <h2>Response</h2>
+    	           <p>
+    	               Provides information on the response, including the response header, metadata, and response content.
+    	               
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-version.png"; ?>">
+    	           <h2>Version</h2>
+    	           <p>
+    	               Provides basic information on the Zend Framework 2 version.
+    	           </p>
+    	       </div>
+    	       <div class="section">
+    	           <img src="<?php echo "{$this->basePath()}/images/welcome/plugins/zf2/zf2-view-helpers.png"; ?>">
+    	           <h2>View Helpers</h2>
+    	           <p>
+    	               Shows a list of all the Zend Framework 2 view helpers used on the page, including a count and properties.
+    	           </p>
+    	       </div>
+    	   </div>
+    	   <div id="section-dots"></div>
+    </div>
+</div>
+
+<?php endif; ?>

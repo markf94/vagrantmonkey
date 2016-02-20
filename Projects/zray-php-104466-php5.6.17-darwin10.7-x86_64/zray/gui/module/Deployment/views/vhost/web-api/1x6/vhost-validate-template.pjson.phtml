@@ -1,0 +1,4 @@
+"responseData":{"validation": <?php echo $this->json(array(
+		'success' => $this->replymessages()->success($reply),
+		'message' => $this->replymessages()->message($reply),
+		'data' => $this->replymessages()->rawMessage($reply))); ?>}

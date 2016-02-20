@@ -1,0 +1,125 @@
+<div class="zdb-toolbar-entry zdb-notifications zdb-align-right zdb-toolbar-button" data-name="notifications">
+    <div class="zdb-toolbar-preview">
+    	<span class="zdb-toolbar-notifications">
+        	<div class="zdb-toolbar-icon" title="Zend Server notifications"></div>
+        	<span class="zdb-toolbar-info">&nbsp;</span>
+        </span>
+    </div>
+    <div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+</div>
+
+<script type="text/javascript">
+(function() {
+	var notificationsInit = false;
+	
+	zendDevBar.registerOnUpdateLabel('notifications', function($, data) {
+		if (notificationsInit) {
+			return;
+		}
+		notificationsInit = true;
+		
+		var notificationsCount = 0;
+		var ids = [];
+		$.each(data, function(key, request) {
+			if (typeof request['Notifications'] != 'undefined') {
+			    notificationsCount += request['Notifications'].length;
+			    $.each(request['Notifications'], function(notKey, notification) {
+			    	ids.push(notification['id']);
+			    });
+			}
+		});
+
+		if (notificationsCount > 0) {
+			var notificationsCookie = $.cookie('ZRayNotifications');
+			if (notificationsCookie == undefined) {
+				$('.zdb-toolbar-notifications .zdb-toolbar-icon').addClass('active');
+			} else {
+				try {
+				    notificationsCookie = JSON.parse(notificationsCookie);
+				} catch (e) {
+					notificationsCookie = [];
+				}
+			    var diff = $(ids).not(notificationsCookie).get();
+			    if (diff.length > 0) {
+			        $('.zdb-toolbar-notifications .zdb-toolbar-icon').addClass('active');
+			    }
+			}
+		
+			zendDevBar.updateLabel('notifications', notificationsCount);
+		} else {
+			$('.zdb-toolbar-notifications .zdb-toolbar-icon').removeClass('active');
+			zendDevBar.updateLabel('notifications', '&nbsp;');
+
+			$.removeCookie('ZRayNotifications', { path: '/' });
+		}
+
+		$('.zdb-notifications .zdb-toolbar-notifications').qtip({
+			style: {
+		        classes: 'zendDevBarQtip'
+		    },
+			content: {
+		       	text: function(event, api) {
+		       		var buttons = $('<div id="zdb-notifications-wrapper"></div>');
+					var buttonsList = $('<ul></ul>');
+
+					if (notificationsCount > 0) {
+    					var delim = $('<li class="zdb-delim"></li>');
+    
+    					var initFlag = true;
+    					$.each(data, function(key, request) {
+    						$.each(request['Notifications'], function(notKey, notification) {
+    							if (! initFlag) {
+    								buttonsList.append(delim.clone());
+    							} else {
+    								initFlag = false;
+    							}
+
+    							var btn = $('<li><div class="notification-title">' + notification.title + '</div><div class="notification-desc">' + notification.description + '</div></li>');
+    							if (notification.type !== 600) { // 600 = Rss feed
+        							btn.click(function(event){
+        		 						$('.zdb-notifications .zdb-toolbar-notifications').qtip('api').hide();
+        		 						var win = window.open(zendDevBar.baseUrl + notification.url, '_blank');
+        		    					win.focus();
+        		 		       		});
+    							}
+    							buttonsList.append(btn);
+    						});
+    					});
+					} else {
+						var btn = $('<li>No notifications, hurray!</li>');
+						buttonsList.append(btn);
+					}
+
+					buttons.append('<div class="zdb-notifications-wrapper-title">Zend Server Notifications</div>');
+					buttons.append(buttonsList);
+	                
+	                return buttons;
+	            }
+	        },
+	        show: {
+	            event: 'click'
+	        },
+	        hide: {
+	        	event: 'click unfocus'
+	           },
+	        position: {
+	            my: 'bottom center',
+	            at: 'top center',
+	            effect: false
+	        },
+	        events: {
+		    	show: function(event, api) {
+			    	setTimeout(function() {
+				    	zendDevBar.postMessage('resize', Math.max(zendDevBar.getHeight(), $('#zdb-notifications-wrapper').height()));
+				    	$('.zdb-toolbar-notifications .zdb-toolbar-icon').removeClass('active');
+				    	$.cookie('ZRayNotifications', JSON.stringify(ids), {path: '/'});
+			    	}, 10);
+		    	},
+		    	hide: function(event, api) {
+		    		zendDevBar.postMessage('resize', zendDevBar.getHeight());
+		    	}
+	        }
+	    });
+	});
+})();
+</script>

@@ -1,0 +1,18 @@
+<responseData>
+	<roleGroups>
+<?php foreach ($roleGroups as $role => $group): ?>
+		<parameter>
+			<name><![CDATA[<?php echo $role ?>]]></name>
+			<value><![CDATA[<?php echo $group ?>]]></value>
+		</parameter>
+<?php endforeach ?>
+	</roleGroups>
+	<applicationGroups>
+<?php foreach ($applicationGroups as $appId => $group): ?>
+		<parameter>
+			<name><![CDATA[<?php echo $appId ?>]]></name>
+			<value><![CDATA[<?php echo $group ?>]]></value>
+		</parameter>
+<?php endforeach ?>
+	</applicationGroups>
+</responseData>

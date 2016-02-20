@@ -1,0 +1,381 @@
+<div class="zdb-toolbar-entry zdb-issues-details" data-name="events">
+    <div class="zdb-toolbar-preview" title="Monitor Events">
+        <div class="zdb-toolbar-icon"></div>
+        <span class="zdb-toolbar-info">&nbsp;</span>
+    </div>
+    <div class="zdb-toolbar-detail zsb-monitor-events-detail-wrapper">
+    	<div class="zdb-row zdb-toolbar-detail-header">
+    		<div class="zdb-col-1-narrow">
+				<h1>Monitor Events</h1>
+			</div>
+			<div class="zdb-col-3-wide">
+				<div class="zdb-pull-left">
+					<?php echo $this->devBarPager(); ?>
+				</div>
+    			<div class="zdb-pull-right">
+    				<ul class="zdb-toolbar-items zdb-horizontal">
+    					<li>
+    						<span class="zdb-expand-all hidden" onclick="zendDevBar.expandTableRows(this, '.zsb-events-panel')">Expand all</span>
+    					</li>
+    					<li class="zdb-toolbar-filter">
+    						<label for="zdb-toolbar-input-filter-text">Filter by</label>
+    						<select>
+    							<option value="">Parameter</option>
+    						</select>
+    						<input type="text" name="zdb-toolbar-input-filter-text" id="zdb-toolbar-input-filter-text" size="6" class="zdb-toolbar-input zdb-toolbar-input-filter-parameter" />
+    					</li> 
+    					<li class="zdb-toolbar-search">
+    						<?php echo $this->devBarSearch(); ?>
+    					</li>
+    					<li>
+							<div class="zdb-export-results-btn" title="Show Report"></div>
+						</li>
+    					<li class="zdb-toolbar-pin">
+    						<div class="zdb-popup-pin" onclick="zendDevBar.unpin()"></div>
+    					</li>
+    				</ul>
+    			</div>
+    		</div>
+    	</div>
+    	
+        <div class="zdb-row zdb-panel zsb-events-panel">
+	        
+        	<!-- Summary table  -->
+    		<div class="zdb-col-1-narrow zdb-adaptive-height zdb-summary-table-wrapper"></div>
+    		
+			<div class="zdb-col-3-wide zdb-adaptive-height zdb-entries-table-wrapper zsb-monitor-events-table-wrapper"></div>
+		</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+(function() {
+	var producerEnabled = <?php echo $producerEnabled ? '1' : '0'; ?>;
+	if (!producerEnabled) {
+		zendDevBar.devBar.find('.zdb-issues-details .zdb-toolbar-preview').attr('title', 'Monitoring events tracking is disabled. You can enable it from the Zend Server UI (Configurations | Components | Z-Ray)');
+	}
+	
+	var tools = {	
+		// get the logs panel wrapper
+		getContainer: (function() {
+			var $container = null;
+			return function() {
+				return $container || ($container = $zendDevBar('.zdb-issues-details')); 
+			}
+		})()
+	};
+
+	// change the bottom label color if one of the queries is not successful
+	var updateLabelColor = function(data) {
+		var highestSeverity = 'info';
+		data.every(function(monitorEvent) {
+			var eventType = monitorEvent.severity.toLowerCase();
+			if (eventType == 'critical') {
+				highestSeverity = eventType;
+				return false; 
+			}
+			
+			if (eventType == 'warning') {
+				highestSeverity = eventType; 
+			}
+			
+			return true;
+		});
+
+		var $toolbarPreview = tools.getContainer().find('.zdb-toolbar-preview')
+		$toolbarPreview.removeClass('zdb-toolbar-preview-critical')
+		$toolbarPreview.removeClass('zdb-toolbar-preview-warning');
+		if (highestSeverity == 'critical' || highestSeverity == 'warning') {
+			$toolbarPreview.addClass('zdb-toolbar-preview-' + highestSeverity);
+		}
+	};
+	
+	// define the main table
+	$zendDevBar(function() {
+		zendDevBar.getStorage('events').setSorter('issue', function(data) {
+			return data.sort(function(a,b) { 
+				var a = zendDevBar.expendedText(whatHappened(a)).toLowerCase(); 
+				var b = zendDevBar.expendedText(whatHappened(b)).toLowerCase(); 
+				if (a == b) return 0; return (a > b) ? 1 : -1; 
+			});
+		});
+		zendDevBar.getStorage('events').setSorter('severity', function(data) {
+			// define the order for the severity column
+			var severityOrder = ['critical', 'warning', 'info'];
+			return data.sort(function(a,b) {
+				var a = severityOrder.indexOf(a.severity.toLowerCase()); 
+				var b = severityOrder.indexOf(b.severity.toLowerCase());  
+				if (a == b) return 0; return (a > b) ? 1 : -1; });
+		});
+		zendDevBar.getStorage('events').setSearch('whatHappenedDetails', function(term, data) { return whatHappened(data); });
+		// add custom search by whatHappend
+		
+		var mainTable = zendDevBar.createTable(zendDevBar.getStorage('events'), $zendDevBar('.zsb-monitor-events-table-wrapper'));
+		mainTable.setColumns([{
+			label: 'Severity',
+			tooltip: 'Event severity',
+			propertyName: 'severity',
+			sortable: true,
+			defaultSort: 'asc',
+			width: '100',
+			getHtml: function(val, rec) {
+				var eventType = val;
+				switch (eventType.toLowerCase()) {
+				case 'warning':
+					eventType = '<span class="zdb-severity-indication zdb-badge-warning"></span>' + eventType;
+					break;
+				case 'critical':
+					eventType = '<span class="zdb-severity-indication zdb-badge-critical"></span>' + eventType;
+					break;
+				default:
+					eventType = '<span class="zdb-severity-indication zdb-badge-info"></span> Notice';
+					break;
+				}; 
+				return eventType;
+			}
+				
+		}, {
+			label: 'Name',
+			tooltip: 'Event name',
+			propertyName: 'rule',
+			width: '50%',
+			sortable: true,
+		}, {
+			label: 'Summary',
+			tooltip: 'Event description',
+			propertyName: 'generalDetails',
+			width: '50%',
+			sortable: true,
+			getHtml: function(val, rec) {
+				return zendDevBar.expendedText(whatHappened(rec));
+			}
+		}, {
+			label: 'Occurrence',
+			tooltip: 'Time of occurrence',
+			propertyName: 'lastOccuranceTimestamp',
+			sortable: true,
+			width: '100',
+			getHtml: function(val) {
+				var entryTimeObject = new Date(val * 1000);
+				return entryTimeObject.toLocaleTimeString(entryTimeObject);
+			}
+		},
+		{
+			label: 'Actions',
+			tooltip: 'Event actions',
+			propertyName: 'ruleId',
+			width: '78',
+			getHtml: function(val, rec) {
+				var actionsWrapper = $zendDevBar('<div></div>');
+
+				
+				var elem = $zendDevBar('<div class="zdb-table-action zdb-ta-event zdb-pull-left" title="Show event in Zend Server"></div>'); 
+				elem.click(function() {
+					 var w = window.open(zendDevBar.baseUrl + '/Issue?issueId=' + rec.id, '_blank');
+				     w.focus();
+				});
+				actionsWrapper.append(elem);
+
+				if (zendDevBar.zendDebuggerEnabled && rec.generalDetails && rec.generalDetails.sourceFile && parseInt(rec.generalDetails.sourceLine)) {
+    				var showInIdeElem = $zendDevBar('<div class="zdb-table-action zdb-pull-left zdb-show-in-ide" title="Show in IDE"></div>'); 
+    				showInIdeElem.click(function() {
+    					zendDevBar.spinner.show($zendDevBar(this).get(0));
+    					zendDevBar.showInIde(this, rec.generalDetails.sourceFile, parseInt(rec.generalDetails.sourceLine));
+    				});
+    				actionsWrapper.append(showInIdeElem);
+				}
+				if (zendDevBar.zendCodeTracingEnabled) {
+    				var codetrace = '';
+    				if (rec.codeTracingEventGroupId != '') {
+    					codetrace = $zendDevBar('<div class="zdb-table-action zdb-ta-codetrace zdb-pull-left" title="Show code trace in Zend Server"></div>');
+    					codetrace.click(function() {
+    						var w = window.open(zendDevBar.baseUrl + '/CodeTracing/details/?eventsGroupId=' + rec.codeTracingEventGroupId, '_blank');
+    					    w.focus();
+    					});
+    				}
+    				actionsWrapper.append(codetrace);
+				}
+				
+				return actionsWrapper;
+			}
+		}]);
+
+		// bind search
+		new $zendDevBar.zdbSearch(zendDevBar.getStorage('events'), $zendDevBar('.zsb-monitor-events-detail-wrapper .zdb-toolbar-input-search').first(), mainTable);
+		
+		// define the summary table
+		var table = zendDevBar.createSummaryTable(zendDevBar.getStorage('events'), $zendDevBar('.zsb-events-panel .zdb-summary-table-wrapper'));
+		table.setFilterColumn('rule');
+		table.setUpdateCallback(function(data) {
+			// collect all the rules
+			rules = {};
+			var totalRows = data ? data.length : 0;
+			data.forEach(function(eventEntry) {
+				if (typeof rules[eventEntry.rule] == 'undefined') {
+					rules[eventEntry.rule] = {'rule': eventEntry.rule, 'count': 1};
+				} else {
+					rules[eventEntry.rule]['count']++;
+				}
+			});
+
+			// sort
+			rules = zendDevBar.sortByKeys(rules);
+
+			// prepare the data (rows) for the table
+			var rows = [];
+			if (Object.keys(rules).length > 0) {
+				rows.push({'rule': 'All', 'count': totalRows});
+				var dataRows = $zendDevBar.map(rules, function(value, index) { return value; });
+				rows = rows.concat(dataRows);
+			}
+			
+			return rows;
+		});
+		table.setTableHeaderHtml('<th colspan="100%">Show</th>');
+		table.setColumns([{
+			label: 'rules',
+			propertyName: 'rule',
+			width: '10%',
+			getHtml: function(val, rec) { return table.createCheckboxColumn(val, rec); }
+		},
+		{
+			label: 'Rule',
+			propertyName: 'rule',
+			width: '70%'
+		},
+		{
+			label: 'Count',
+			propertyName: 'count',
+			attributes: {'class': 'zdb-numerical'},
+			width: '20%'
+		}]);
+
+		// bind to save button
+		$zendDevBar('.zsb-monitor-events-detail-wrapper .zdb-export-results-btn').click(function() { mainTable.exportResults('Monitor Events', table); });
+	});
+	
+	var eventsCount = 0;
+	var eventsCountLabel = function(eventsCount) {
+		var $countElement = zendDevBar.devBar.find('.zdb-issues-details .zdb-toolbar-preview .zdb-toolbar-info');
+		return {
+			get: function() {
+				return $countElement.text();
+			},
+			set: function(eventsCount) {
+				$countElement.text(producerEnabled ? eventsCount : 'N/A');
+			}
+		};
+	};
+
+	zendDevBar.registerOnUpdateLabel('events', function($, requests) {
+		// check parameter
+		if (!requests) return;
+		if (!(requests instanceof Array)) requests = [requests];
+
+		var totalEvents = 0;
+		$.each(requests, function(i, reqObj) {
+			totalEvents+= (reqObj.MonitorEvents ? reqObj.MonitorEvents.length : 0);
+		});
+		
+		// set issues count
+		eventsCountLabel().set(Number(eventsCountLabel().get()) + totalEvents);
+
+		// update colors
+		if (requests && requests.length > 0) {
+			updateLabelColor(requests[0].MonitorEvents);
+		}
+	});
+	
+	zendDevBar.registerResetHandler('events', function($, data) {
+		zendDevBar.getStorage('events').reset();
+		
+		var container = zendDevBar.devBar.find('.zdb-issues-details').first();
+		eventsCount = 0;
+		eventsCountLabel().set(0);
+
+		updateLabelColor([]);
+	});
+	
+	zendDevBar.registerHandler('events', function($, data) {
+		if (!data) {
+			zendDevBar.finishLoading('events');
+			return;
+		}
+
+		
+		var allData = [];
+		$.each(data, function(key, request) {
+			var issues = request.MonitorEvents;
+			allData = allData.concat(issues);
+		});
+		
+		zendDevBar.getStorage('events').addData(allData);
+		zendDevBar.finishLoading('events');
+	});
+	
+	function whatHappened(issue) {
+		var eventType = issue.eventType;
+		var generalDetails = issue.generalDetails;
+		var value = issue.whatHappenedDetails;
+	
+		if (generalDetails.errorString.trim() != '') {
+			return generalDetails.errorString.trim();
+		}
+		
+		switch (parseInt(eventType)) {
+			case 0: // ZM_TYPE_CUSTOM
+				return 'Custom event triggered from ' + generalDetails.sourceFile;
+			case 1: // ZM_TYPE_FUNCTION_SLOW_EXEC
+				if (issue.routeDetails) {
+					return 'Request with route: ' + issue.routeDetails + ' took ' + value.execTime + 'ms'; 
+				}
+				return 'Function ' + generalDetails.function + '() took ' + value.execTime + 'ms';
+			case 2: // ZM_TYPE_FUNCTION_ERROR
+				return 'Function ' + generalDetails.function + '() returned false';
+			case 3: // ZM_TYPE_REQUEST_RELATIVE_SLOW_EXEC, ZM_TYPE_REQUEST_SLOW_EXEC
+				var prefix = 'Request to ' + generalDetails.url + ' took ';
+				if (issue.routeDetails) {
+					prefix = 'Request with route: ' + issue.routeDetails + ' took '; 
+				}
+				if (value.relExecTime > 0) {// REL
+	  				return prefix + Math.round(value.relExecTime) + '% more than normal';
+				}else { // ABS
+	  				return prefix + value.execTime + 'ms';
+				}  							
+			case 4: // ZM_TYPE_REQUEST_RELATIVE_LARGE_MEM_USAGE, ZM_TYPE_REQUEST_LARGE_MEM_USAGE
+
+				var prefix = 'Request to ' + generalDetails.url + ' consumed ';
+				if (issue.routeDetails) {
+					prefix = 'Request with route: ' + issue.routeDetails + ' consumed '; 
+				}
+				if (value.relMemUsage > 0) {// REL
+	  				return prefix + ' consumed ' + Math.round(value.relMemUsage) + '% more than normal';
+				}else { // ABS
+	  				return prefix + ' consumed ' + value.memUsage + 'KB';
+				}  	
+			case 5: // ZM_TYPE_REQUEST_RELATIVE_LARGE_OUT_SIZE
+				var prefix = 'Request to ' + generalDetails.url + ' generated output of ';
+				if (issue.routeDetails) {
+					prefix = 'Request with route: ' + issue.routeDetails + ' generated output of '; 
+				}
+				return prefix + Math.round(value.relOutputSize) + '% more than normal';
+			case 6: // ZM_TYPE_ZEND_ERROR
+				return 'Function ' + generalDetails.function + '() caused a ' + generalDetails.errorType + ' PHP error';
+			case 7: // ZM_TYPE_JAVA_EXCEPTION
+				return 'Function ' + generalDetails.function + '() caused a Java Exception';
+			case 8: // ZM_TYPE_JQ_JOB_EXEC_ERROR
+				return 'Job execution of ' + generalDetails.url + ' ended with error';
+			case 9: // ZM_TYPE_JQ_JOB_LOGICAL_FAILURE
+				return 'Job execution of ' + generalDetails.url + ' ended with logical error';
+			case 10: // ZM_TYPE_JQ_JOB_EXEC_DELAY
+				return 'Job execution of ' + generalDetails.url + ' is delayed';
+			case 12: // ZM_TYPE_TRACER_FILE_WRITE_FAIL
+				return 'Failed to write codetrace';// would have been nice to show related data (filename and error), but we don't have this data here 
+			default:
+				return "Unknown event type '" + eventType + "'";
+		}
+	}
+})();
+
+new $zendDevBar.zdbPager(zendDevBar.getStorage('events'), $zendDevBar('.zsb-monitor-events-detail-wrapper .zdb-pager').first());
+</script>

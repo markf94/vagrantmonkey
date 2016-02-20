@@ -1,0 +1,108 @@
+<ul id="backtrace-container" class="backtrace-panels">
+<li><strong><?php echo _t('Backtrace'); ?></strong>
+<?php echo $this->selectAll('backtrace-backtrace'); ?>
+</li>
+<li id="backtrace-backtrace">
+<?php
+$event; /* @var $event EventsGroup\DataContainer */
+$eventsGroup; /* @var $eventsGroup EventsGroup\Container */
+
+$backtrace = $event->getBacktrace();
+$backtraceOutput = '';
+$padding = 1;
+foreach ($backtrace as $k => $line):
+	if ($line[ZM_DATA_BACKTRACE_OBJECT_NAME]) {
+		// Class::method()
+		$function = "{$line[ZM_DATA_BACKTRACE_OBJECT_NAME]}::{$line[ZM_DATA_BACKTRACE_FUNCTION_NAME]}()";
+	} else {
+		// funcname()
+		$function = "{$line[ZM_DATA_BACKTRACE_FUNCTION_NAME]}()";
+	}
+?>
+<?php 
+	$class		= ($padding) ? 'mui-leaf-image' : '';
+?>
+	<div style="margin-left:<?php echo $padding ?>px;" class="mui-leaf <?php echo $class ?>">
+	<strong><?php echo $function ?></strong>
+<?php if ($line[ZM_DATA_BACKTRACE_FILE]) : // display nothing if there is no file data ?>
+	<?php if ($line[ZM_DATA_BACKTRACE_LINE_NUMBER] == 0) : ?>
+		at <?php echo $line[ZM_DATA_BACKTRACE_FILE] ?>
+	<?php else : ?>
+		at <a href="<?php echo $this->url('default', array('controller' => 'EventsGroup', 'action' => 'HighlightFile')) ?>?eventsGroupId=<?php echo $eventsGroup->getEventsGroupId(); ?>&backtraceNum=<?php echo $k;?>&line=<?php echo $line[ZM_DATA_BACKTRACE_LINE_NUMBER]?>">
+		 <?php echo $line[ZM_DATA_BACKTRACE_FILE] ?>: <?php echo $line[ZM_DATA_BACKTRACE_LINE_NUMBER] ?>
+		 </a>
+	 <?php endif; ?>
+<?php endif;?>
+	</div>
+<?php endforeach; ?>
+</li>
+</ul>
+<div id="backtrace-showfile" class="backtrace-panels"></div>
+
+<script type="text/javascript">
+window.addEvent('resize', function() {
+	// detect scrollbar size
+	
+	var size = $('event-details-backtrace').getComputedSize({styles: ['margin', 'border', 'padding']});
+	var scrollsSize = window.detectScrollbarWidth();
+
+	var backtraceContainerHeight = (Math.floor((size.height) / 2));
+	$('issue-details-wrapper').setStyle('height',(window.getSize().y  - ($$('.general-details-top').getComputedSize()[0].totalHeight*1 + $$('.general-details-top').getPosition()[0].y) - 50 ) + 'px');
+});
+
+var elements = $$('.mui-leaf a');
+
+function showFile(href) {
+    var request = new Request({url: href});
+	request.addEvent("success", function(response){
+		window.fireEvent('resize');
+		$('backtrace-showfile').set('html', response);
+		$('backtrace-showfile').show();
+		$('backtrace-showfile').scrollTo(0, 0);
+
+		var size = $("mui-source-file-table").getSize();
+		if ($('highlighter')) {
+			$("highlighter").style.width = (size.x - 10) + "px";
+		}
+
+		Function.from(
+			function () {
+				if ($('highlighter')) {
+					var position = $('highlighter').getPosition($('backtrace-showfile')).y;
+					$('backtrace-showfile').scrollTo(0, position - Math.floor($('backtrace-showfile').getSize().y/2) + 10);
+				}
+		}).delay(800);
+	}) ;
+
+	request.get();
+	return false;
+}
+
+/**
+ * unHighlight all but "href"
+ */
+function unHighlight(href) {
+    elements.each(function(element) {
+        if (element.hasClass("highlight1")) {
+            element.removeClass("highlight1");
+        }
+    });
+}
+
+window.addEvent('detailsLoaded', function() {
+
+	elements = $$('.mui-leaf a');
+
+	elements.addEvent('click', function(event) {
+	    unHighlight(event.target.href);
+	    showFile(event.target.href);
+	    event.target.addClass("highlight1");
+	    return false;
+	});
+    // Open the first file for display immediately
+    showFile(elements[0].href);
+    // Highlight the currently selected file
+    elements[0].addClass("highlight1");
+});
+
+</script>

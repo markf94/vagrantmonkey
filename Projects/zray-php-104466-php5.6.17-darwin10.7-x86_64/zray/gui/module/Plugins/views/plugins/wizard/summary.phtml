@@ -1,0 +1,17 @@
+	<table class="tableDescContentLeft" id="deployment-summary" width="100%">
+		<tbody>
+			<tr>
+				<td align="left"><?php echo _t('Name'); ?></td>
+				<td><?php echo $this->escapeHtml($name); ?></td>
+			</tr>
+			<tr>
+				<td align="left"><?php echo _t('Version'); ?></td>
+				<td><?php echo $this->escapeHtml($version); ?></td>
+			</tr>
+		</tbody>
+	</table>
+
+	<div style="position:absolute; top:0; right:10px;">
+		<?php echo $this->AppLogo($name, $this->logo, 'application-wizard-logo'); ?>	
+	</div>
+	

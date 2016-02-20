@@ -1,0 +1,34 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css") ?>
+
+<?php echo $this->partial('users/index/bar.phtml') ?>
+
+<div class="clear-content" style="position: relative;">
+<?php echo $this->zendForm($groupsMappingForm->setAttribute('id', 'groups_mapping_form')->setAttribute('class','clear')) ?>
+<?php if ($this->isAllowed('route:UsersWebAPI', 'userAuthenticationSettings')): ?>
+	<div class="float-right"><button id="auth_settings_button" title="<?php echo _t('Change authentication method') ?>" onclick="return false"><?php echo _t('Settings') ?></button></div>
+<?php endif ?>
+<input type="button" id="groups_mapping_submit" value="<?php echo _t('Store groups mapping'); ?>"/>
+</div>
+
+<script type="text/javascript">
+window.addEvent('load', function() {
+	<?php if ($this->isAllowed('route:UsersWebAPI', 'userAuthenticationSettings')): ?>
+	new Element('<div class="float-right"><button id="auth_settings_button" title="<?php echo _t('Change authentication method') ?>"><?php echo _t('Settings') ?></button></div>').inject($$('#groups_mapping_form legend')[0], 'after');
+    <?php endif ?>
+	
+	$('groups_mapping_submit').addEvent('click', function(){
+		var url = '<?php echo $this->basePath() ?>/Api/aclSetGroups';
+		var request = new Request.WebAPI({url: url, data:$('groups_mapping_form').toObj(),
+			onSuccess: function(response) {
+				document.fireEvent('toastNotification', {'message': "<?php echo _t("Mapping was successfully updated for access control groups"); ?>"});
+			},
+			onFailure: function(response) {
+				var errorData = this.decodeResponse(response, true).errorData.errorMessage;
+				document.fireEvent('toastAlert', {'message': "<?php echo _t("Failed to update mapping for access control groups: {errorMessage}"); ?>".substitute({errorMessage: errorData})});
+			}}).send();
+	});
+});
+</script>
+<?php if ($this->isAllowed('route:UsersWebAPI', 'userAuthenticationSettings')): ?>
+<?php echo $this->partial('users/index/authentication-settings', array('authSource' => $authSource, 'ldapPropertiesForm' => $ldapPropertiesForm)) ?>
+<?php endif ?>

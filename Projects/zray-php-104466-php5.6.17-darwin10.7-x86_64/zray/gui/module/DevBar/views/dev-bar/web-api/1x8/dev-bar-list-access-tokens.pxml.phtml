@@ -1,0 +1,15 @@
+<responseData>
+	<accessTokens>
+<?php 	if ($tokens && count($tokens)) foreach ($tokens as $token) { ?>
+		<accessToken>
+			<tokenId><?php echo $token->getId(); ?></tokenId>
+			<hash><?php echo $token->getToken(); ?></hash>
+			<iprange><![CDATA[<?php echo $token->getAllowedHosts(); ?>]]></iprange>
+			<baseUrl><![CDATA[<?php echo $token->getBaseUrl(); ?>]]></baseUrl>
+			<ttl><?php echo $token->getTtl(); ?></ttl>
+			<title><![CDATA[<?php echo $token->getTitle(); ?>]]></title>
+		</accessToken>
+<?php 	} ?>
+	</accessTokens>
+	<totalCount><?php echo $totalCount ?></totalCount>
+</responseData>

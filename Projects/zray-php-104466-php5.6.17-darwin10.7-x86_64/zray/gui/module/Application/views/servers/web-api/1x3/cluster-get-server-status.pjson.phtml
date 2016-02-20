@@ -1,0 +1,14 @@
+<?php 
+// Atthention:
+// The both restartPHP and ClusterGetServersStatus use this view
+?>
+
+"responseData":{"serversList": [
+<?php 
+	$serversInfo = array();
+	foreach ($servers as $server) {
+		$serversInfo[] = $this->serverInfoJson($server);
+	}
+	echo implode(',', $serversInfo);
+?>
+]}

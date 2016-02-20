@@ -1,0 +1,10 @@
+<?php $libraries = $libraries ?: new \ZendServer\Set(array()); ?>
+<?php if (! isset($servers)) $servers = array(); ?>
+<?php if (! isset($prerequisites)) $prerequisites = null; ?>
+<responseData>
+<libraryList>
+<?php foreach($libraries as $library) : /* @var $library \DeploymentLibrary\Container */?>
+<?php   echo $this->LibraryInfoXml($library, $prerequisites);?>
+<?php endforeach ?>
+</libraryList>
+</responseData>

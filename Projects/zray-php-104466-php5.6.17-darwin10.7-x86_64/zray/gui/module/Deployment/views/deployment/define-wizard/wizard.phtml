@@ -1,0 +1,81 @@
+<?php
+$uploaderUrl = $this->url('default', array('controller' => 'DefineWizard', 'action' => 'Uploader')); 
+?>
+<script type="text/javascript">
+	window.addEvent('domready',function() {
+		wizard = new defineWizard({
+			url: '<?php echo $this->basePath() . '/Api/applicationDefine'; ?>',
+			defaultServer: '<?php echo \Application\Module::config('deployment' ,'defaultServer'); ?>'
+		});
+
+
+		setTimeout(function() { 
+			var input = $('baseUrl'); // Or other means of getting a DOM element.
+			input.addEvent('click', function() {
+				if (this.get('value') == '') {
+					dataSource(this, 'h');
+				}
+			});
+
+		    var options = { 'source': dataSource, 'minLength': 1 };
+		    input.autocompleter(options);
+
+		    input.autocompleter('option', 'onChange', function(ui) {
+            	changeBaseUrl();
+            }
+        	);
+			
+		}, 200);
+
+		$$('.define-save').addClass('disabled');
+ 	});
+
+	function dataSource(ui, term) {
+		var result = [];
+		defineData.each(function(item) {
+			var content = item.base_url.replace('<default-server>', '<?php echo \Application\Module::config('deployment' ,'defaultServer'); ?>');
+			var content = item.base_url.replace('<default-server>', '[default-server]');
+			if (content.contains(term)) {
+				result.push({value: item.app_id, label: content, html: content, data: item});
+			}
+		});
+		
+		$('baseUrl').autocompleter('suggest', result);  
+		return true;
+	}
+</script>
+
+
+	<fieldset id="settingsSet">
+			<div class="message-box error hidden"></div>
+			<div class="message-box ok hidden"></div>
+			<h2><?php echo _t('Define Application Settings') ?></h2>
+			<p>
+			<?php echo _t('To integrate your existing applications into the Zend Server management user interface and define a new application, configure the following settings:'); ?>
+			</p>
+			<div id="defineError"></div>
+			<?php /* @var $defineApplicationForm RequiredContentForm */
+				echo $this->form()->openTag($defineApplicationForm); ?>
+				
+			<dl class="zend_form">
+				<?php echo $this->zendFormTable()->openTag(); ?>
+				<?php
+					foreach ($defineApplicationForm->getElements() as $element) {
+						echo $this->zendFormTable()->element($element);
+					} 
+				?>
+				<?php echo $this->zendFormTable()->closeTag(); ?>
+				<iframe src="<?php echo $uploaderUrl; ?>" scrolling="no" style="width: 100%; height: 105px; margin-top: -8px;" frameborder="0"></iframe>
+				</dl>
+			<?php echo $this->form()->closeTag() ?>
+	</fieldset>
+	
+<style>
+/* Override the hide for ajax (wizard) modal*/
+.simple-modal.hide-header .simple-modal-header {
+	display: block;
+}	
+.simple-modal.hide-footer .simple-modal-footer {
+	display: block;
+}
+</style>

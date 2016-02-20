@@ -1,0 +1,9 @@
+@CHARSET "UTF-8";
+
+#bread-wrp {
+	display: none;
+}
+
+.logo-placeholder {
+	top: 4px;
+}

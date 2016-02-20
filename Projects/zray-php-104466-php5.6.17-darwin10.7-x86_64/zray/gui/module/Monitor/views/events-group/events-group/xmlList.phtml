@@ -1,0 +1,16 @@
+<?php
+$xmlData = $event->getExtraData();
+try {
+	$xml = new SimpleXMLElement($xmlData);
+} catch (\Exception $e) {
+	\ZendServer\Log\Log::err('Could not parse Extra Data: %s', array($e->getMessage()));
+}
+
+$items = $xml->items->item;
+if (count($items) > 0): ?>
+<ul>
+<?php 	foreach ($items as $item): ?>
+	<li><strong><?php echo $this->escapeHtml((string)$item->label) ?></strong><?php echo $this->escapeHtml((string)$item->value) ?></li>
+<?php 	endforeach; ?>
+</ul>
+<?php endif;?>

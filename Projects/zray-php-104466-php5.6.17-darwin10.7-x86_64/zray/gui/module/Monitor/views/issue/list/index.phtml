@@ -1,0 +1,250 @@
+<?php
+$this->headLink()->appendStylesheet($this->basePath() . '/css/zmenu.css');
+$this->headScript()->appendFile($this->basePath () . '/js/ToolTip.js');
+$this->headScript()->appendFile($this->basePath () . '/js/FragmentManager.js');
+$this->headScript()->appendFile($this->basePath () . '/js/monitor/issue/list.js');
+
+$marketingLink = $this->contactZend('server-6-upgrade-dashboard');
+
+// date picker params
+$datePickerParams = array(
+		'timerpicker'	=> 'true',
+		'xoffset'       => '5',
+		'yoffset'       => '0',
+		'format'		=> '%d/%b/%Y %H:%M',
+);
+
+// zgrid options
+$zgridOptions = array (
+		'sortedBy' => 'lastOccuranceTimestamp',
+		'direction' => 'desc',
+		'idColumn' => 'id',
+		'menu' => 'menu',
+		'limit' => $perPage,
+		'totalContainer' => 'grid-count-bar',
+		'multiSelect' => true,
+		'allowedDelete' => $this->isAllowed('route:IssueWebApi', 'monitorDeleteIssues'),
+    
+        'actionsColumnLabel' => 'IDE Actions',
+        'actionsColumnTooltip' => 'IDE Actions',
+);
+
+if (! $this->isAllowed('dataRentention:timelimit', '2weeks')) {
+	$externalFilters[0]['allowedRange'] = '2hour';
+} elseif (! $this->isAllowed('dataRentention:timelimit', '3month')) {
+	$externalFilters[0]['allowedRange'] = '2weeks';
+} elseif (! $this->isAllowed('dataRentention:timelimit', 'unlimited')) {
+	$externalFilters[0]['allowedRange'] = '3months';
+} else {
+	$externalFilters[0]['allowedRange'] = 'unlimited';
+}
+?>
+
+<div id="bread-wrp">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t( 'An event is a collection of runtime-related information collected by Zend Server monitoring. This information is collected when an event is triggered, according to the conditions defined by the Monitoring Rules. An event indicates that your environment is displaying uncharacteristic behavior and that something occurred that exceeded your definitions and the standards of how you want your PHP code to run. Each individual event includes specific information about the occurrence, such as when it happened, how many times it happened and other details that can assist a developer in diagnosing the event.<br/>
+                            %sread more%s', array("<a href=\"{$this->helplink('events_concept')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-events-embed?ecat=breadcrumbs&amp;eaction=Working with Events">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/events-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('home/dashboard') ?>"><?php echo _t("Monitoring"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<?php if (! $this->isAllowedEdition('dataRentention:timelimit', '2weeks')): ?>
+<div>
+<h2 class="limitedTopMessage"><?php echo _t('Currently showing data from the previous two hours.  Want long-term data trending? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-events') . '">', '</a>'));?></h2>
+</div>
+<?php elseif (! $this->isAllowedEdition('dataRentention:timelimit', '3month')): ?>
+<div>
+<h2 class="limitedTopMessage"><?php echo _t('Currently showing data from the previous two weeks.  Want long-term data trending? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-events') . '">', '</a>'));?></h2>
+</div>
+<?php endif; ?>
+
+<div id="filter_details"></div>
+
+<script type="text/javascript">
+var menu;
+var filterWidget;
+var eventInfo;
+var datePicker;
+var pager;
+var zgrid2;
+var issueList;
+var rowsChecked= 0;
+var selectedFilters ={};
+
+window.addEvent("load", function(){
+	persistantHeaders.addHeader('mytable_tableHead');
+	
+	menu = new zMenu();
+	menu.timeout = <?php echo $timeout ?>;
+	filterWidget = <?php echo $this->filter('filter_details', $internalFilters, $externalFilters, $existingFilters, 'issue', array('severities'), 'All Issues'); ?>
+	eventInfo = <?php echo $this->zGridEventDetails($this->basePath('/Api/monitorGetIssueDetails')); ?>;
+	datePicker = <?php echo $this->datePicker('.datePicker', $datePickerParams); ?>
+	datePicker.addEvent('select', function(){
+		filterWidget.selectedFilters.from = new Date(this.inputs[0].value).getTime()/1000;
+		// to add 60sec to include in the filters all issues that happened in the last minute
+		filterWidget.selectedFilters.to = (new Date(this.inputs[1].value).getTime()/1000) + 60;
+	});
+	
+	pager = <?php echo $this->zPager('mypager', $perPage); ?>
+	
+	var cmu2 = [
+		{
+			'title': '!',
+			'tooltip' : _t('Severity'),
+			'dataIndex': 'severity',
+			'parser': monitorIssueList.prototype.eventSeverity,
+			'width': '3%',
+			'center': true,
+			'sortable': true,
+			'sortBy': 'severity',
+			'ellipsis': false
+		},
+		{
+			'title': _t('Count'),
+			'dataIndex': 'count',
+			'parser': monitorIssueList.prototype.eventCount,
+			'width': '5%',
+			'ellipsis': false,
+			'sortable': true,
+			'sortBy': 'repeats'
+		},
+		{
+			'title': _t('Event ID'),
+			'dataIndex': 'id',
+			'parser': monitorIssueList.prototype.eventId,
+			'width': '6%',
+			'sortable': true,
+			'sortBy': 'id',
+			'ellipsis': false
+		},
+		{
+			'title': _t('Name'),
+			'dataIndex': 'rule',
+			'parser': zGrid2.prototype.string,
+			'width': '16%',
+			'sortable': true,
+			'sortBy': 'name'
+		},
+		{
+			'title': _t('Last Occurred'),
+			'dataIndex': 'lastOccuranceTimestamp',
+			'parser': zGrid2.prototype.timestamp,
+			'width': '13%',
+			'sortable': true,
+			'sortBy': 'date'
+		},
+		{
+			'title': _t('Application'),
+			'dataIndex': 'appName',
+			'parser': monitorIssueList.prototype.eventAppName,
+			'width': '12%'
+		},
+		{
+			'title': _t('Summary'),
+			'dataIndex': 'whatHappenedDetails',
+			'parser': monitorIssueList.prototype.summary,
+			'width': '38%'
+		},
+		{
+			'title': _t('Code Trace'),
+			<?php if(! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+			<?php //MARKETING ?>
+				'tooltip' : "<?php echo _t('Want to view line-by-line execution for this PHP request? <a href=\''. $marketingLink .'\' target=\'_blank\' >Contact Zend</a> to upgrade') ?>",
+				'useTooltipWidget': true,
+			<?php endif; ?>	    
+			'dataIndex': 'codeTracingEventGroupId',
+			'parser': monitorIssueList.prototype.codeTracingLink,
+			'width': '7%',
+			'ellipsis': false
+		}
+	];
+	    	
+	zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $zgridOptions); ?>
+	
+	issueList = new monitorIssueList({
+		'eventInfo': eventInfo,
+		'pager': pager,
+		'isCollectEventsCodeTraceAllowed': <?php echo (($this->isAllowed('data:collectEventsCodeTrace')) ? 1 : 0);  ?>,
+		'allowedDelete': <?php echo (($this->isAllowed('route:IssueWebApi', 'monitorDeleteIssues')) ? 'true' : 'false');  ?>
+	});
+	<?php if(! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+	<?php //MARKETING ?>
+			$$('.zgrid_header-codeTracingEventGroupId').addClass('zgrid_header-disabled');
+			zgrid2.addEvent('updateComplete', function(){
+				$$('.zgrid_td-codeTracingEventGroupId').addClass('zgrid_td-disabled');
+			});
+	<?php endif; ?>	
+
+	createUnsupportedTooltip();
+});
+
+function createUnsupportedTooltip() {
+	var tip = new FloatingTips('.unsupported-tip', {
+		html: true,
+		showDelay: 500,
+		hideDelay: 100,
+		content: 'title',
+		position: 'bottom',
+		center: false, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		distance: -20,
+		hideOn: 'null'
+	});
+
+	tip.addEvent('show', function() {
+		$$('.floating-tip-wrapper').each(function(item) {
+	    	item.addEvent('mouseleave', function() {
+	    		tip._animate(item, 'out');
+	        });
+		});
+	});
+}
+
+function changeLimitedMessageColor(count) {
+	if (count % 2 == 0) {
+		$$('.limitedMessage').removeClass('odd');
+	} else {
+		$$('.limitedMessage').addClass('odd');
+	}
+
+	$$('.limitedMessage').removeClass('hidden');
+}
+</script>
+
+<div id="action-buttons-bar" class="grid-action-bar">
+	<button class="remove_2" id="delete" title="<?php echo _t("Delete all selected issues");  ?> " onclick="issueList.deleteSelected()" disabled><i></i> <?php echo _t('Delete Selected');?><span class="count"></span></button>
+    <button class="remove_2" id="delete-filtered" title="<?php echo _t("Delete all currently filtered issues");  ?> " onclick="issueList.deleteFiltered()" disabled><i></i><?php echo _t('Delete Filtered'); ?><span class="count"></span></button>
+</div>
+<div id="mytable"></div>
+<?php if (! $this->isAllowed('dataRentention:timelimit', '2weeks')) : ?>
+<div>
+<?php // MARKETING ?>
+<h2 class="limitedMessage hidden"><?php echo _t('Currently showing data from the previous two hours.  Want long-term data trending? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-events') . '">', '</a>'));?></h2>
+</div>
+<?php endif; ?>
+	
+<div id="grid-count-bar">
+	
+</div>
+	
+<div id="mypager"></div>

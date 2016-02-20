@@ -1,0 +1,7 @@
+<responseData>
+   <directives>
+   	<?php foreach ($directives as $directive) : // @var $directives \ZendServer\Set @var $directive DirectiveContainer?>
+     <?php echo $this->directiveXml($directive); ?>
+     <?php endforeach; ?>
+  </directives>
+</responseData>

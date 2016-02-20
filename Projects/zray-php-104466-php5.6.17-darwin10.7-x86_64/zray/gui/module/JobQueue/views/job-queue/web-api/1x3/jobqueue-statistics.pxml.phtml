@@ -1,0 +1,17 @@
+<responseData>
+	<jobqueueStatistics>
+		<waiting><?php echo $statistics['waiting'] ?></waiting>
+		<waitingPredecessor><?php echo $statistics['waiting_predecessor'] ?></waitingPredecessor>
+		<inProgress><?php echo $statistics['in_progress'] ?></inProgress>
+		<completed><?php echo $statistics['completed'] ?></completed>
+		<failed><?php echo $statistics['failed'] ?></failed>
+		<logicallyFailed><?php echo $statistics['logically_failed'] ?></logicallyFailed>
+		<scheduled><?php echo $statistics['scheduled'] ?></scheduled>
+		<avgWait><?php echo $statistics['avg_wait'] ?></avgWait>
+		<avgRun><?php echo $statistics['avg_run'] ?></avgRun>
+		<added><?php echo $statistics['added'] ?></added>
+		<served><?php echo $statistics['served'] ?></served>
+		<startupTime><?php echo $this->webapidate(strtotime($statistics['startup_time'])) ?></startupTime>
+		<startupTimestamp><?php echo strtotime($statistics['startup_time']) ?></startupTimestamp>
+	</jobqueueStatistics>
+</responseData>

@@ -1,0 +1,108 @@
+<?php 
+	$response = array();
+	$response['eventsCount'] = $requestSummary['events-count'];
+	$response['codeTracing'] = ($trace && (strlen($trace) > 0)) ? $trace : '';
+	$response['events'] = array();
+	foreach ($requestSummary['events'] as $event) {
+		$eventItem = array();
+		$eventItem['eventsGroupId'] = $event['event-group-id'];
+		$eventItem['type'] = $event['type'];
+		$eventItem['description'] = isset($event['description']) ? $event['description'] : '';
+		
+		// super globals
+		$eventItem['superGlobals'] = array();
+		$eventItem['superGlobals']['get'] = array();
+		$eventItem['superGlobals']['post'] = array();
+		$eventItem['superGlobals']['cookie'] = array();
+		$eventItem['superGlobals']['session'] = array();
+		$eventItem['superGlobals']['server'] = array();
+		
+		// super globals - get
+		if (is_array($event['super-globals']['get'])) {
+			foreach ($event['super-globals']['get'] as $get) {
+				$eventItem['superGlobals']['get'][] = array(
+					'parameter' => array(
+						'name' => $get['key'],
+						'value' => $get['value']
+					)
+				);
+			}
+		}
+		
+		// super globals - post
+		if (is_array($event['super-globals']['post'])) {
+			foreach ($event['super-globals']['post'] as $post) {
+				$eventItem['superGlobals']['post'][] = array(
+						'parameter' => array(
+								'name' => $post['key'],
+								'value' => $post['value']
+						)
+				);
+			}
+		}
+		
+		// super globals - post
+		if (is_array($event['super-globals']['cookie'])) {
+			foreach ($event['super-globals']['cookie'] as $cookie) {
+				$eventItem['superGlobals']['cookie'][] = array(
+						'parameter' => array(
+								'name' => $cookie['key'],
+								'value' => $cookie['value']
+						)
+				);
+			}
+		}
+		
+		// super globals - post
+		if (is_array($event['super-globals']['session'])) {
+			foreach ($event['super-globals']['session'] as $session) {
+				$eventItem['superGlobals']['session'][] = array(
+						'parameter' => array(
+								'name' => $session['key'],
+								'value' => $session['value']
+						)
+				);
+			}
+		}
+		
+		// super globals - post
+		if (is_array($event['super-globals']['server'])) {
+			foreach ($event['super-globals']['server'] as $server) {
+				$eventItem['superGlobals']['server'][] = array(
+						'parameter' => array(
+								'name' => $server['key'],
+								'value' => $server['value']
+						)
+				);
+			}
+		}
+		
+		
+		$eventItem['severity'] = $event['severity'];
+		$eventItem['type'] = $event['type'];
+		
+		$eventItem['backtrace'] = array();
+		if (is_array($event['backtrace'])) {
+			foreach ($event['backtrace'] as $key => $value) {
+				$eventItem['backtrace'][] = array(
+					'step' => array(
+						'number' => $key,
+						'object' => $value['object'],
+						'class' => $value['class'],
+						'function' => $value['function'],
+						'file' => $value['file'],
+						'line' => $value['line'],
+					)
+				);
+			}
+		}
+		
+		$response['events'][] = $eventItem;
+	}
+?>
+
+"responseData": {
+"requestSummary": 
+	<?php echo $this->json ( $response ); ?>
+	
+}

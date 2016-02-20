@@ -1,0 +1,861 @@
+<?php
+use Application\Module;
+use ZendServer\Log\Log;
+
+
+$wizardUrl = $this->url ( 'default', array (
+		'controller' => 'Wizard',
+		'action' => 'Wizard' 
+) );
+$wizardDefineUrl = $this->url ( 'default', array (
+		'controller' => 'DefineWizard',
+		'action' => 'Wizard' 
+) );
+
+$prerequisitesUrl = $this->url ( 'default', array (
+		'controller' => 'Deployment',
+		'action' => 'Get-Application-Prerequisites'
+) );
+
+// add the custom css tags for this page
+// TODO the blue tab design is in other places? if so maybe add it to a generic
+// tabs css files?
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/appList.css' );
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/prereq.css' );
+
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/defineWizard.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/deploymentWizard.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/mootools-autocompleter-1.2.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/zgridPolling.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/FragmentManager.js' );
+?>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+        <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Zend Server allows you to fully automate the deployment process of packaged applications. Once deployed, applications can be centrally managed, updated, or rolled back to a previous version. If you already have applications that you would like to manage with Zend Server, you can integrate them into the Zend Server management UI by defining a new application.<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('zend_deployment')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/deploying-applications-embed?ecat=breadcrumbs&amp;eaction=Deploying Applications">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/deploy-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Deployment')) ?>"><?php echo _t("Applications"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<script type="text/javascript">
+var allowAutoPolling = false;
+
+var wizard = null;
+var simpleModel = null;
+var wizardAction = null;
+var lastPageId = 5;
+
+var editTipShow = [];
+
+var defineData = <?php echo $this->json($appsData); ?>;
+
+var supportedByWebserver = <?php echo $supportedByWebserver ? 'true' : 'false' ?>;
+
+var appsDataPolling = new tasksPolling();
+appsDataPolling.options.params = {};
+
+function tasksFailedMessages(appId, task) {
+	var message = '';
+					
+	switch (task) {
+		case 'remove':
+			message = _t('Failed to remove the application'); 
+			break;
+		case 'redeploy':
+			message = _t('Failed to redeploy the application'); 
+			break;
+		case 'deploy':
+			message = _t('Deployment stopped due to an error'); 
+			break;
+		case 'update':
+			message = _t('Failed to update the application'); 
+			break;
+		case 'rollback':
+			message = _t('Failed to roll back the application'); 
+			break;
+	}
+
+	return message;
+}
+
+function tasksMessages(appId, task) {
+	var message = '';
+					
+	switch (task) {
+		case 'remove':
+			message = _t('Application was successfully removed'); 
+			break;
+		case 'redeploy':
+			message = _t('Application was successfully redeployed');
+			break;
+		case 'deploy':
+			message = _t('Application was successfully deployed');
+			break;
+		case 'update':
+			message = _t('Application was successfully updated');
+			break;
+		case 'rollback':
+			message = _t('Application was successfully rolled back');
+			break;
+	}
+
+	return message;
+}
+
+var url = '<?php echo $this->basepath('/Api/applicationGetStatus') ?>';
+var pollingRequest = new Request.WebAPI({
+	method: 'get',
+	url:url
+});
+
+pollingRequest.addEvent('complete', function(response) {
+	this.next();
+}.bind(appsDataPolling));
+
+pollingRequest.addEvent('success', function(response) {
+	appsCount = response.responseData.applicationsList.length;
+	zgrid2.overrideData(response.responseData.applicationsList, 'top', appsCount);
+
+	response.responseData.applicationsList.each(function(application){
+		var task = this.getTask(application.id);
+		if (task && (! rowEligible(application.status))) {
+			var message = '';
+			if (['uploadError', 'stageError', 'activateError', 'deactivateError', 'unstageError'].contains(application.status)) {
+				message = tasksFailedMessages(application.id, task);
+				if (message) {
+					document.fireEvent('toastAlert', {'message': message});
+				}
+			} else {
+				message = tasksMessages(application.id, task);
+				if (message) {
+					document.fireEvent('toastNotification', {'message': message});
+				}
+			}
+			
+			if (task == 'redeploy') {
+				/// cause servers list items to stop spinning
+				appInfo.endRedeploy(application.id, zgrid2.getRowData(application.id));
+			}
+			this.removeTask(application.id);
+		}
+	}.bind(this));
+
+	var removedApps = this.hasTask('remove');
+	Object.each(removedApps, function(task, id) {
+		var application = zgrid2.getRowData(id);
+		if (application == null || (task && (! rowEligible(application.status)))) {
+			var message = tasksMessages(id, task);
+			if (message) {
+				document.fireEvent('toastNotification', {'message': message});
+			}
+			this.removeTask(id);
+		}
+	}.bind(this));
+
+	
+	
+}.bind(appsDataPolling));
+
+pollingRequest.addEvent('failure', function(response) {
+	if (response.responseData) {
+		document.fireEvent('toastAlert', {'message': response.responseData.errorData.errorMessage})
+	}
+}.bind(appsDataPolling));
+
+appsDataPolling.addEvent('poll', function(polling) {
+	pollingRequest.get(polling.params);
+});
+
+var fragmentManager = new FragmentManager();
+
+window.addEvent("domready", function() {
+
+	persistantHeaders.addHeader('grid-action-bar');
+	persistantHeaders.addHeader('mytable_tableHead');
+
+	if (fragmentManager.getFragmentValue('Deploy') != null) {
+		fragmentManager.removeUriFragment('Deploy')
+		openWizard();
+	} else if (fragmentManager.getFragmentValue('Define') != null) {
+		fragmentManager.removeUriFragment('Define')
+		openDefineWizard();
+	}
+	
+});
+
+function getApplicationPrerequisites(appId) {
+	if ($('prerequisites_' + appId).get('html') == '') {
+		$('prerequisites_' + appId).set('html', 'Loading... <img src="<?php echo $this->basePath('/images/preload-16.gif')?>" style="margin-top: 7px;" />');
+
+		//make the request
+		var prerequisitesUrl = '<?php echo $prerequisitesUrl; ?>';
+		var request = new Request.HTML({
+			method: 'post',
+			url: prerequisitesUrl,
+			data: {"app_id" : appId}, 
+			onSuccess: function(responseTree, responseElements, responseHTML, responseJavaScript) {
+				$('prerequisites_' + appId).set('html', responseHTML);
+			},
+			onFailure: function(response) {
+				var decoded = this.decodeResponse(response);
+				document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			}
+		}).send();
+	}
+}
+
+<?php if ($supportedByWebserver && $this->isAllowed('route:Wizard', 'index')) : ?>
+function openWizard(action, options) {
+	var wizardUrl = '<?php echo $wizardUrl . '?wizardId=' . mt_rand(100000,999999); ?>';
+	wizardAction = action;
+	if(wizardAction == 'update') {
+		wizardUrl += '&action=update&applicationId=' + options.applicationId;
+		lastPageId = 4;
+	} else if (wizardAction == 'download') {
+		wizardUrl += '&action=download&url=' + options.url + '&name=' + options.name + '&version=' + options.version;
+	}
+	 //window.diabox = new Diabox({iframe: {width: 672, height: 476}, overlay: {click_to_close: false}, controls: {show_close: false}, box: {classes: 'overflow-hidden'} });
+	 //diabox.reveal("<?php echo $wizardUrl; ?>");
+	simpleModel = new SimpleModal({width: 673, closeButton: false, hideHeader: true, hideFooter: true, draggable: false, draggableContainer: 'wizard-title', overlayClick: false,
+		template: "<div class=\"contents\">{_CONTENTS_}</div>"});
+	simpleModel.show({
+      "model":"modal-ajax",
+      "param":{
+        "url":wizardUrl,
+        "onRequestComplete": function(){ /* Action on request complete */ }
+      }
+    });
+}
+<?php else : ?>
+function openWizard(action, options) {
+	document.fireEvent('toastAlert', {'message': '<?php echo _t("You do not have the correct permissions for deploy applications"); ?>'});
+}
+<?php endif; ?>
+
+function closeAppName(id) {
+	editTip.hide($(id));
+	zgrid2.deactivateRow(id.substring(7));
+}
+
+function updateAppName(id){
+	//call to the api function to change name
+	var url = '<?php echo $this->basepath('/Api/changeApplicationName'); ?>';
+
+	//the correct id of the element that holds the server's id
+	var inputId = id + '_txtinput';
+
+	//close the tooltip
+	editTip.hide($(id));	
+	zgrid2.deactivateRow(id.substring(7));			
+
+	//make the request
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {"application" : id.substring(7) , "name" : $(inputId).value}, 
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+}
+
+var addTips = function() {
+	editTip = new FloatingTips('.rename', {
+		// Content can also be a function of the target element!
+		content: function(e) {
+			var rowNum = e.get('id').substring(7);
+			var appName = zgrid2.getRowData(rowNum).userAppName;
+			
+			var rowId = e.get('id') + '_txtinput';
+			return '<input name="' + rowId + '" id="' 
+			+ rowId + '" type="text" class="rename-field" value="'+ appName.htmlEntities(true) +'"' 
+			+'" ><br/><button onclick="updateAppName(\'' 
+			+ e.get('id') + '\');" style="margin-top:5px;">Save</button><button onclick="closeAppName(\'' 
+			+ e.get('id') + '\');" style="margin-left: 5px; margin-top:5px;">Cancel</button>'; 
+		},
+		html: true,
+		position: 'bottom', // Bottom positioned
+		center: true, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		showOn: 'click',
+		hideOn: 'null'
+	});
+	
+	editTip.addEvent('show', function(tip, element) {
+		editTipShow.push(element.get('id').replace('rename_', ''));
+	});
+
+	editTip.addEvent('hide', function(tip, element) {
+		delete editTipShow[element.get('id').replace('rename_', '')];
+	});
+
+	zgrid2.addEvent('rowLeave', function(params) {
+		//check if tooltip is open
+		if (editTipShow.contains(params.rowId)) {
+			zgrid2.activateRow(params.rowId);
+		}
+	});	
+
+}
+
+function changeAppName() {
+	if ($('baseUrl').get('value') != '' && $('name').get('value')) {
+		$$('.define-save').removeClass('disabled');
+		$$('.define-save').set('disabled', false);
+	} else {
+		$$('.define-save').addClass('disabled');
+		$$('.define-save').set('disabled', true);
+	}
+}
+
+function changeBaseUrl() {
+	var baseUrl = $('baseUrl').get('value');
+	baseUrl = baseUrl.replace('<?php echo \Application\Module::config('deployment' , 'defaultServer'); ?>', '<default-server>');
+	baseUrl = baseUrl.replace('[default-server]', '<default-server>');	
+	
+    defineData.each(function(application) {
+		if(application.base_url == baseUrl) {
+			$('name').set('value', application.name);
+	        $('version').set('value', application.version);
+	        $('healthCheck').set('value', application.health_check_path);
+	        $$('.define-save').removeClass('disabled');
+	        $$('.define-save').set('disabled', false);
+	        return;
+        }
+	});
+
+    if ($('name').get('value') != '' && $('baseUrl').get('value') != '') {
+        $$('.define-save').removeClass('disabled');
+        $$('.define-save').set('disabled', false);
+    } else {
+        $$('.define-save').addClass('disabled');
+        $$('.define-save').set('disabled', true);
+    }
+}
+
+<?php if ($this->isAllowed('route:DefineWizard')): ?>
+function openDefineWizard() {
+	var wizardUrl = '<?php echo $wizardDefineUrl; ?>';
+	
+	simpleModal = new SimpleModal({width: 673, closeButton: false, hideHeader: true, hideFooter: true, draggable: false, draggableContainer: 'wizard-title', overlayClick: false,
+		template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+			<div class=\"simple-modal-toast\"></div>\
+			<div class=\"simple-modal-body contents\">{_CONTENTS_}</div>\
+			<div class=\"simple-modal-footer\"></div></div>"});
+
+	simpleModal.addButton("<?php echo _t("Cancel") ?>", "btn define-cancel");
+	simpleModal.addButton("<?php echo _t("Define") ?>", "btn primary define-save", function(){
+		var disabledFlag = $$('.define-save').hasClass('disabled');
+		
+		if(!disabledFlag[0]){
+			wizard.wizardComplete();
+			var errorMsgPane = $$('#settingsSet .message-box.error')[0];
+			if (errorMsgPane.hasClass('hidden')) {
+				simpleModal.hide();
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+    }.bind(simpleModal));
+    
+	simpleModal.show({
+      "model":"modal-ajax",
+      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('defining_applications'); ?>"></a>',
+      "param":{
+        "url":wizardUrl,
+        "onRequestComplete": function(){ /* Action on request complete */ }
+      }
+    });
+
+	$$('.define-save').set('disabled', true);
+}
+<?php else : ?>
+function openDefineWizard() {
+	document.fireEvent('toastAlert', {'message': '<?php echo _t("You do not have the correct permissions for define applications"); ?>'});
+}
+<?php endif; ?>
+
+function cancelDialog() {
+	simpleModel.hide();
+	wizard.wizardClosed();
+}
+
+function closeDialog() {
+	simpleModel.hide();
+}
+
+function createUnsupportedTooltip() {
+	var tip = new FloatingTips('.unsupported-tip', {
+		html: true,
+		showDelay: 500,
+		hideDelay: 100,
+		content: 'title',
+		position: 'bottom',
+		center: false, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		distance: -20,
+		hideOn: 'null'
+	});
+
+	tip.addEvent('show', function() {
+		$$('.floating-tip-wrapper').each(function(item) {
+	    	item.addEvent('mouseleave', function() {
+	    		tip._animate(item, 'out');
+	        });
+		});
+	});
+}
+
+var appInfo;
+
+window.addEvent("load", function(){	
+    	appInfo = <?php echo $this->ZGridApplicationInfo($this->basePath() . '/Api/applicationGetDetails'); ?>
+    	<?php if (! $this->isAllowed('route:Wizard', 'index')): ?>
+    		appInfo.hideUserParams();
+    	<?php endif; ?>
+
+
+    	
+        var rollbackButton = function(value, data) {
+        	if (window.confirm("<?php echo _t('Rolling back the application causes the application to revert to its previous version.\\n\\nAre you sure you wish to proceed?');    ?>")) {
+	        	var params = {
+	        		    appId: data.id
+	        	};
+	
+    			appsDataPolling.stop();
+	        	var actionUrl = "<?php echo $this->basePath('/Api/applicationRollback'); ?>";
+	
+	        	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+	    		onSuccess: function(response) {
+	    			appsDataPolling.setTask(data.id, 'rollback');
+	    			document.fireEvent('toastNotification', {'message': '<?php echo _t("Rolling back application..."); ?>'});
+	        	},
+	        	onFailure: function() {
+	        		
+	        		var errorText = '<div class="errorMsg"><?php echo _t("Failed to rollback the application"); ?></div>';
+	        		$('messageList_' + data.id).set('html', errorText);
+	        		document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to rollback the application"); ?>'});
+	        	},
+	        	onComplete: function() {
+	        		appsDataPolling.start();
+	        	}});
+	        			
+	            request.post();
+        	}
+        }
+        		
+        var redeployButton = function(value, data) {
+            if (window.confirm("<?php echo _t('Redeploying an application will remove and deploy it again. During this process, the application may be unavailable.\\n\\nAre you sure you wish to proceed?'); ?>")) {
+	        	// Synchronize application
+	           	var params = {
+	           		    appId: data.id
+	           	};
+    			appsDataPolling.stop();
+	           	var actionUrl = "<?php echo $this->basePath() . '/Api/applicationSynchronize'; ?>";
+	
+	        	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+	        	onSuccess: function(response) {
+	        		document.fireEvent('toastNotification', {'message': '<?php echo _t("Redeploying application..."); ?>'});
+	        		appsDataPolling.setTask(data.id, 'redeploy');
+	        		appInfo.redeployStartForApplication(data.id);
+	    		},
+	    		onFailure: function() {
+	    			var errorText = '<div class="errorMsg"><?php echo _t("Failed to synchronize the application"); ?></div>';
+	    			$('messageList_' + data.id).set('html', errorText);
+	    			document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to synchronize the application"); ?>'});
+	    		},
+	    		onComplete: function() {
+	        		appsDataPolling.start();
+	        	}});
+	    			
+	            request.post();
+            }
+        }
+        		
+        var deleteButton = function(value, data) {
+            	//Remove all jobs related to app flag
+        		var params = {
+        			appId: data.id,
+        			removeApplicationData: 1
+        		};
+
+        		var actionUrl = "<?php echo $this->basePath() . '/Api/applicationRemove'; ?>";
+        		appsDataPolling.stop();
+        		var request = new Request.WebAPI({
+            		url: actionUrl, 
+            		data:params, 
+            		method: 'post', 
+	        		onSuccess: function(response) {
+	        			document.fireEvent('toastNotification', {'message': '<?php echo _t("Removing application..."); ?>'});
+	        			appsDataPolling.setTask(data.id, 'remove');
+	    			},
+	    			onFailure: function() {
+	    				var errorText = '<div class="errorMsg"><?php echo _t("Failed to remove the application"); ?></div>';
+	    				$('messageList_' + data.id).set('html', errorText);
+	    				document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to remove the application"); ?>'});
+		    		},
+		    		onComplete: function() {
+		        		appsDataPolling.start();
+		        	}
+    			});
+    			
+        		request.post();
+        		//startPoll.delay(1000);
+        	    return '';
+        }
+            	
+		////////////// GRID CALLBACKS //////////////
+        var applicationStatus = function(value, data) {
+        	if (rowEligible(value) || appsDataPolling.getTask(data.id.toInt())) {
+				return "<img src='<?php echo $this->basePath('/images/preload-16.gif')?>'/>";
+			}
+            
+        	var result = '';
+        	if (value == 'deployed' && data.healthCheck == 'ok') {
+        		result = "<img src='<?php echo $this->basePath()?>/images/apps-status-ok.png' title=\"" + _t('OK') + '" />';
+        	} else {
+        		result = "<img src='<?php echo $this->basePath()?>/images/apps-status-warning.png' title=\"" + _t('Warning') + '" />';
+        	}
+    		
+    		return result;
+        }
+
+        var DefinedApplication = function(value) {
+			if (value) {
+				return "<img src='<?php echo $this->basePath()?>/images/apps-define-button.png' title=\"" + _t('Defined application') + '" />';
+			} else {
+				return "<img src='<?php echo $this->basePath()?>/images/apps-deploy-button.png' title=\"" + _t('Deployed application') + '" />';
+			}
+        }        
+        
+        var applicationMessageList = function(value, data) {
+	       	var result = data.status;
+	        if (data.status != 'deployed' && data.messageList == '') {
+	            result = data.status;
+	        } else if(data.messageList == null){
+	 			result = '';
+	 		} else {
+	 			//If the message is an error we do not display it on grid
+	 			if(data.status.test('error', ['i'])) {
+	 				return '<div id=messageList_' + data.id + '>There was an error with this application.</div>';
+	 			}
+	 		}
+	 		
+	 		return '<div id=messageList_' + data.id + '>' + result + '</div>';
+        }
+
+        var deployedVersions = function(value, data) {
+        	return value.deployedVersion;
+        }
+        
+        var cmu2 = [
+			{
+				'title': '',
+				'tooltip' : _t('Status'),
+				'dataIndex': 'status',
+				'parser': applicationStatus,
+				'width': '3%',
+				'center': true,
+				'ellipsis': false
+			},
+			{
+				'title': _t('Name'),
+				'dataIndex': 'userAppName',
+				'parser': zGrid2.prototype.string,
+				'width': '20%',
+				'sortable': true,
+				'sortBy': 'userAppName'
+			},
+			{
+				'title': _t('Version'),
+				'dataIndex': 'deployedVersions',
+				'parser': deployedVersions,
+				'width': '6%',
+				'sortable': false,
+				'ellipsis': false
+			},
+			{
+				'title': _t('Type'),
+				'dataIndex': 'isDefinedApplication',
+				'parser': DefinedApplication,
+				'width': '5%',
+				'sortable': false,
+				'ellipsis': false
+			},
+			{
+				'title': _t('Messages'),
+				'dataIndex': 'messageList',
+				'parser': applicationMessageList,
+				'width': '30%',
+				'sortable': false
+			},
+			{
+				'title': _t('Base URL'),
+				'dataIndex': 'baseUrl',
+				'parser': function(value, data) {
+					var parser = new URI(value);
+					
+					<?php if (! $defaultServerIsSet) : ?>
+					if (parser.get('host') == '<default-server>') {
+	            		parser.set('host', '<?php echo $currentHost; ?>');
+					}
+					<?php endif; ?>
+
+					if (parser.get('port') == 80) {
+						parser.set('port', '');
+					}
+					
+					return zGrid2.prototype.string(parser.toString());
+					
+				},
+				'width': '31%'
+			},
+			{
+				'title': _t('Remove'),
+				'dataIndex': 'delete',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('Rename'),
+				'dataIndex': 'rename',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('Redeploy'),
+				'dataIndex': 'redeploy',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('Update'),
+				'dataIndex': 'update',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('Rollback'),
+				'dataIndex': 'rollback',
+				'parser': zGrid2.prototype.button
+			}
+    	];
+
+        <?php
+								$options = array (
+										'idColumn' => 'id',
+										'totalContainer' => 'grid-count-bar' 
+								);
+								?>
+        zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $options); ?>    
+
+		zgrid2.addEvent('buttonClick', function(params) {
+			if ($(params.type + '_' + params.rowId) && $(params.type + '_' + params.rowId).get('disabled')) {
+				// MARKETING
+    			document.fireEvent('toastAlert', {'message': 'This action is not available in this edition of Zend Server. Contact Zend to upgrade.'});
+				return;
+			}
+			
+			// update spinner on the row immediately
+			switch (params.type) {
+				case 'rename':
+					editButton(params.rowId, params.data);
+					break;
+				case 'redeploy':
+					redeployButton(params.rowId, params.data);
+					break;
+				case 'delete':
+					var modelMessage = '';
+					if(params.data.isDefinedApplication){
+						modelMessage = _t("The application will be deleted from the list but not from your server.<br/>Are you sure you wish to proceed?");
+					} else {
+						modelMessage = _t("The application will be deleted from the list and your server.<br/>Are you sure you wish to proceed?");
+					}
+					
+					deleteAppDialog = new SimpleModal({width: 673, closeButton: false,
+						hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+						template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+								   <div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+								   <div class=\"simple-modal-footer\"></div></div>"
+					});
+
+					deleteAppDialog.addButton(_t("Cancel"), "btn");
+					deleteAppDialog.addButton(_t("Remove"), "btn primary", function(btn){
+						// create the actual delete
+						deleteButton(params.rowId, params.data);
+						deleteAppDialog.hide();
+					}.bind(this));
+
+					deleteAppDialog.show({
+					      "model":	"modal",
+					      "title": _t('Remove Application'), 
+					      "contents": '<?php echo _t('Removing the application will result in a loss of all the associated<br/>Caching, Monitoring and Job Queue rules.<br/><br/>'); ?> \
+				      			   <div id="modal-msg" style="font-weight:bold;">' + modelMessage + '</div>'
+					});
+
+					return;
+					break;
+				case 'rollback':
+					<?php if (! $this->isAllowed('route:DeploymentWebAPI', 'applicationRollback')): ?>
+						// MARKETING
+            			document.fireEvent('toastAlert', {'message': 'This action is not available in this edition of Zend Server. Contact Zend to upgrade.'});
+            			return;
+					<?php endif; ?>
+					rollbackButton(params.rowId, params.data);
+					break;
+				case 'update':
+					if (supportedByWebserver) {
+						openWizard('update', {applicationId : params.rowId});
+					}
+					break;
+			}
+		});
+
+		var url = '<?php echo "{$this->basePath()}/Api/applicationGetStatus"; ?>';
+    	zgrid2.loadRequest = new Request.WebAPI({
+			method: 'get',
+			url:url,
+			link:'cancel',
+			onComplete: function(response) {
+				zgrid2.setData(response.responseData.applicationsList);
+				appsDataPolling.start();
+			}
+		});
+		
+    	zgrid2.addEvent('loadData', function(params) {
+    		appsDataPolling.options.params = params;
+        	if (params.sort) {
+        		appsDataPolling.stop();
+        		zgrid2.loadRequest.get(params);
+        	}
+    	});
+
+    	zgrid2.addEvent('descriptionOpen',function(params) {
+    		appInfo.loadData(params);
+    	});
+
+    	zgrid2.addEvent('rowUpdated', function(params) {
+        	if (params.data.isDefinedApplication || ! params.data.isRedeployable) {
+        		$('redeploy_' + params.id).addClass('disabled');
+            } else {            	
+            	$('redeploy_' + params.id).removeClass('disabled');
+            }
+
+        	if (params.data.isDefinedApplication || ! params.data.isRollbackable) {
+            	$('rollback_' + params.id).addClass('disabled');
+            } else {
+            	$('rollback_' + params.id).removeClass('disabled');
+            }
+
+        	if (params.data.isDefinedApplication) {
+            	$('update_' + params.id).addClass('disabled');
+            	$('delete_' + params.id).title = 'Remove from List';
+            } else {
+            	$('update_' + params.id).removeClass('disabled');
+            }
+
+<?php if (! $this->isAllowed('route:DeploymentWebAPI', 'applicationRedeploy')): ?>
+            	$('redeploy_' + params.id).addClass('disabled');
+<?php endif ?>
+			
+<?php if (! $this->isAllowed('route:DeploymentWebAPI', 'applicationRollback')): ?>
+<?php 	if ($this->isAllowed('route:DeploymentWebAPI', 'applicationUpdate')): /// if we can't rollback but can update, explain to the user ?>
+	            $('rollback_' + params.id).set('title', "<?php echo _t('Want to roll back to a previous application state? <a href=\'' . $this->contactZend('server-6-upgrade-apps') . '\' target=\'_blank\' >Contact Zend</a> to upgrade.') ?>");
+				$('rollback_' + params.id).set('disabled', true);
+				$('rollback_' + params.id).addClass('unsupported-tip');
+<?php 	else: ?>
+				$('rollback_' + params.id).addClass('disabled');
+<?php 	endif ?>
+<?php endif ?>
+
+<?php if (! $this->isAllowed('route:DeploymentWebAPI', 'applicationUpdate')): ?>
+            	$('update_' + params.id).addClass('disabled');
+<?php endif ?>
+
+<?php if (! $this->isAllowed('route:DeploymentWebAPI', 'applicationDelete')): ?>
+            	$('delete_' + params.id).addClass('disabled');
+<?php endif ?>
+
+    	});
+
+    	zgrid2.addEvent('updateComplete', function(data) {
+    		addTips();
+    		createUnsupportedTooltip();
+    		addTips();
+    	});
+
+    	// last line
+    	appsDataPolling.start();
+    	
+    	document.addEvent('wizardComplete', function(options) {
+    		appsDataPolling.setTask(options.applicationId, options.type);
+    	});
+    	
+    });
+
+    function rowEligible(status) {
+        EligibleStates = ['deployed', 'error', 'uploadError', 'stageError', 'activateError', 'deactivateError', 'unstageError', 'unknown', 'notExists'];
+        return ! EligibleStates.contains(status);
+    }
+
+    function editButton(rowId, data) {
+		/* */
+	}
+
+    window.addEvent('resize', function() {
+    	$$('.ellipsis').each(function(item) {
+    		item.ellipsis();
+    	});
+    });
+
+    // called when the wizard is closed
+    function cancelWizard() {
+    	allowAutoPolling = false;
+    }
+</script>
+
+<?php if (! $this->isAllowedEdition('route:DeploymentWebAPI', 'applicationRollback')): ?>
+<div>
+<h2 class="limitedTopMessage"><?php echo _t('Want to roll back your applications to a previous state? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-apps') . '">', '</a>'));?></h2>
+</div>
+<?php endif ?>
+
+<div id="grid-action-bar" class="grid-action-bar">
+	<?php if ($supportedByWebserver && $this->isAllowed('route:Wizard', 'index')): ?>
+	<button class="deploy-btn" onclick="openWizard()" title="<?php echo _t('Deploy an application'); ?>"><?php echo _t('Deploy Application'); ?></button>
+	<?php endif ?>
+	<?php if ($this->isAllowed('route:DefineWizard')): ?>
+	<button class="define-btn" onclick="openDefineWizard()" title="<?php echo _t('Define an application'); ?>"><?php echo _t('Define Application'); ?></button>
+	<?php endif ?>
+	<?php if ($this->isAllowed('route:Settings', 'import') && !$defaultServerIsSet): ?>
+	<button onclick="window.location='<?php echo $this->basePath('/Settings')?>';" title="<?php echo _t('Define a default application URL');?>"><?php echo _t('Define default application URL');?></button>
+	<?php endif?>
+</div>
+
+<div id="mytable2"></div>
+
+<div id="mytable"></div>
+
+<div id="grid-count-bar"></div>
+
+<div id="mypager"></div>

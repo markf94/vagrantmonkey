@@ -1,0 +1,10 @@
+<responseData>
+	<series>
+	<?php foreach ($statsContainer as $data) :?>
+		<data>
+			<id><?php echo $data[0]?></id>
+			<value><?php echo $data[1]?></value>
+		</data>
+	<?php endforeach; ?>
+	</series>
+</responseData>

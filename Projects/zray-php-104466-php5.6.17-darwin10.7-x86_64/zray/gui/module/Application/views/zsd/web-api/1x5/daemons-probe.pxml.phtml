@@ -1,0 +1,7 @@
+<responseData>
+	<daemonMessages>
+		<?php foreach ($daemonMessages as $message) : /* @var $message \Messages\MessageContainer */ ?>
+		<?php echo $this->daemonMessageXml($message) ?>
+		<?php endforeach; ?>
+	</daemonMessages>
+</responseData>

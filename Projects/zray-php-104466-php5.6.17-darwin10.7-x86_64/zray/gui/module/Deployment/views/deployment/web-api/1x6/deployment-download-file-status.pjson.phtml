@@ -1,0 +1,12 @@
+<?php 
+$data = array(
+	'url' => $download['url'],
+	'status' => $this->downloadStatus($download['status']),
+	'path' => $download['path'],
+	'message' => $download['message'],
+	'size' => $download['total'],
+	'downloaded' => $download['downloaded']
+);
+?>
+
+"responseData": <?php echo $this->json($data); ?>

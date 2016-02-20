@@ -1,0 +1,421 @@
+<div class="zdb-toolbar-entry zdb-studio-integration zdb-align-right zdb-toolbar-button">
+    <div class="zdb-toolbar-preview">
+    	<span class="zdb-toolbar-studio-debug">
+        	<div class="zdb-toolbar-icon" title="Debug/Profile in IDE"></div>
+        	<span class="zdb-toolbar-info">&nbsp;</span>
+        </span>
+    </div>
+    <div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+</div>
+
+<script type="text/javascript">
+(function() {
+	var jquery;
+	var settings = {};
+	var cookies = [];
+	var debuggerConfig = <?php echo json_encode($studioConfig) ?>;
+	var zendStudioSettingsPollTimer = 0;
+	var zendStudioSettingsPollStart = null;
+	var jquery = zendDevBar.getJquery();
+
+	var debug = {
+		resetIcon: function() {
+			return jquery('.zdb-studio-integration .zdb-toolbar-icon')
+			   .removeClass('zdb-toolbar-icon-debug-next')
+			   .removeClass('zdb-toolbar-icon-debug-post')
+			   .removeClass('zdb-toolbar-icon-debug-all');
+		},
+		changeIcon: function() {
+			var $icon = debug.resetIcon();
+    	    if (debug.next.isEnabled()) {
+				$icon.addClass('zdb-toolbar-icon-debug-next');
+    	    } else if (debug.post.isEnabled()) {
+				$icon.addClass('zdb-toolbar-icon-debug-post');
+    	    } else if (debug.all.isEnabled()) {
+				$icon.addClass('zdb-toolbar-icon-debug-all');
+    	    }
+		},
+		
+		clearAllCookies: function() {
+			// clear stud.integ. cookies
+			jquery.removeCookie('zs-debug-post');
+			jquery.removeCookie('zs-debug-all');
+			
+			zendClearDebugCookies(); 
+		},
+		// clear all debug modes
+	    reset: function() {
+		    debug.next.disable();
+		    debug.post.disable();
+		    debug.all.disable();
+	    },
+	    // debug next
+        next: {
+     		flag: false,
+    	    isEnabled: function() {
+        	    return debug.next.flag;
+    	    },
+    	    enable: function() {
+    	    	loadSettings(function() {
+            	    debug.reset()
+    	    	    debug.next.flag = (zendSetCookies() === true);
+					if (debug.next.flag) {
+						zendDevBar.postMessage('debugnext', cookies);
+					}
+					debug.changeIcon();
+       			});
+       		},
+    	    disable: function() {
+    	    	debug.clearAllCookies();
+				debug.next.flag = false;
+				debug.changeIcon();
+    	    },
+        },
+        // debug forms (post)
+        post: {
+    	    isEnabled: function() {
+        	    return jquery.cookie('zs-debug-post');
+    	    },
+    	    enable: function() {
+    	    	loadSettings(function() {
+    	    		debug.reset();
+    	    		var setCookieSuccessfully = zendSetCookies('post');
+    				if (setCookieSuccessfully) {
+    					zendDevBar.postMessage('debugnext', cookies);
+    					
+    				    // set "debug all" cookie
+        				jquery.cookie('zs-debug-post', 1);
+    				}
+    				
+    				debug.changeIcon();
+       			});
+       		},
+    	    disable: function() {
+    	    	debug.clearAllCookies();
+				debug.changeIcon();
+    	    },
+        },
+        all: {
+    	    isEnabled: function() {
+        	    return jquery.cookie('zs-debug-all');
+    	    },
+    	    enable: function() {
+    	    	loadSettings(function() {
+    	    		debug.reset();
+    	    		var setCookieSuccessfully = zendSetCookies('all');
+    				if (setCookieSuccessfully) {
+    					zendDevBar.postMessage('debugnext', cookies);
+    					
+    				    // set "debug all" cookie
+        				jquery.cookie('zs-debug-all', 1);
+    				}
+    				
+    				debug.changeIcon();
+       			});
+       		},
+    	    disable: function() {
+    	    	debug.clearAllCookies()
+				debug.changeIcon();
+    	    },
+        }
+	};
+
+	if (!debug.all.isEnabled() && !debug.post.isEnabled()) {
+		zendClearDebugCookies();
+	} else {
+		debug.changeIcon();
+	}
+	
+	jquery('.zdb-studio-integration .zdb-toolbar-studio-debug').qtip({ // Grab some elements to apply the tooltip to
+		style: {
+	        classes: 'zendDevBarQtip'
+	    },
+		content: {
+	       	text: function(event, api) {
+				var debugBtn = jquery('<li>Debug current page</li>');
+				debugBtn.click(function(event){
+					jquery('.zdb-toolbar-studio-debug').qtip('api').hide();
+	       			loadSettings(function() {
+	       				if (zendSetCookies()) {
+	       					zendDevBar.postMessage('debug', cookies);
+	       				}
+	       			});
+	       		});
+
+	       		var delim = jquery('<li class="zdb-delim"></li>');
+
+				var profileBtn = jquery('<li>Profile current page</li>');
+				profileBtn.click(function(event){
+					jquery('.zdb-toolbar-studio-debug').qtip('api').hide();
+					loadSettings(function() {
+						settings.isProfiling = true;
+						if (zendSetCookies()) {
+							zendDevBar.postMessage('debug', cookies);
+						}
+					});
+				});
+
+				var debugNextBtnLabel = debug.next.isEnabled() ? 'Cancel debug next page' : 'Debug next page'; 
+				var debugNextBtn = jquery('<li>'+debugNextBtnLabel+'</li>');
+				debugNextBtn.click(function(event){
+					jquery('.zdb-toolbar-studio-debug').qtip('api').hide();
+					
+					if (debug.next.isEnabled()) {
+						debug.next.disable();
+					} else {
+						debug.next.enable();
+					}
+	       		});
+
+				var debugPostBtnLabel = debug.post.isEnabled() ? 'Cancel debug all forms (POST)' : 'Debug all forms (POST)';
+				var debugPostBtn = jquery('<li>' + debugPostBtnLabel + '</li>');
+				debugPostBtn.click(function(event) {
+					jquery('.zdb-toolbar-studio-debug').qtip('api').hide();
+
+					if (debug.post.isEnabled()) {
+						debug.post.disable();
+					} else {
+						debug.post.enable();
+					}
+	       		});
+				
+				var debugAllBtnLabel = debug.all.isEnabled() ? 'Cancel debug all pages' : 'Debug all pages';
+				var debugAllBtn = jquery('<li>' + debugAllBtnLabel + '</li>');
+				debugAllBtn.click(function(event) {
+					jquery('.zdb-toolbar-studio-debug').qtip('api').hide();
+
+					if (debug.all.isEnabled()) {
+						debug.all.disable();
+					} else {
+						debug.all.enable();
+					}
+	       		});
+				
+				var debugButtons = jquery('<div></div>');
+				var debugButtonsList = jquery('<ul></ul>');
+				debugButtonsList.append(debugBtn);
+				debugButtonsList.append(delim.clone());
+				debugButtonsList.append(debugNextBtn);
+				debugButtonsList.append(debugPostBtn);
+				debugButtonsList.append(debugAllBtn);
+				debugButtonsList.append(delim.clone());
+				debugButtonsList.append(profileBtn);
+				debugButtons.append(debugButtonsList);
+                
+                return debugButtons;
+            }
+        },
+        show: {
+            event: 'click'
+        },
+        hide: {
+        	event: 'click unfocus'
+           },
+        position: {
+            my: 'bottom center',
+            at: 'top center',
+            effect: false
+        },
+        events: {
+	    	show: function(event, api) {
+	    		zendDevBar.postMessage('resize', Math.max(zendDevBar.getHeight(), 185));
+	    	},
+	    	hide: function(event, api) {
+	    		zendDevBar.postMessage('resize', zendDevBar.getHeight());
+	    	}
+        }
+    });
+
+	// load IDE settings
+	function loadSettings(callback, failureCallback) {
+		zendDevBar.loadIdeSettings(function(ideSettings) {
+			debuggerConfig.settingsString = ideSettings;
+			callback(ideSettings);
+		}, function() {
+			alert('cannot detect IDE settings');
+		});
+	}
+
+	// clear all cookies locally and on the main frame
+	function zendClearDebugCookies() {
+		if (!cookiesEnabled()) return;
+		
+		var cookiesNames = [
+        	'_bm', 'debug_line_bp', 'debug_file_bp', 'debug_port',
+        	'send_debug_header', 'debug_host', 'start_debug', 'debug_stop',
+        	'start_profile', 'debug_coverage', 'send_sess_end', 'debug_jit',
+        	'debug_start_session', 'original_url', 'ZendDebuggerCookie', 'use_ssl',
+        	'debug_fastfile', 'debug_protocol', 'debug_session_id', 'no_remote', 'use_remote'
+        ];
+
+		cookies = [];
+        for (var i=0, totalCookies = cookiesNames.length; i < totalCookies; i++) {
+            // clear the cookies locally
+            jquery.removeCookie(cookiesNames[i]);
+            setCookie(cookiesNames[i], '1');
+        }
+        // clear cookies on the main frame
+        zendDevBar.postMessage('cleardebug', cookies);
+        
+        cookies = [];
+	}
+
+	function zendSetCookies(debugType, skipIdeCheck) {		
+		if (!debuggerConfig.debuggerEnabled) {
+			alert("To start a debugging session, the Zend Debugger needs to be enabled.");
+			return false;
+		}
+		
+		if (!cookiesEnabled()) {
+			alert("To use the IDE toolbar, enable cookie support in your browser.");
+			return false;
+		}
+
+		if (!skipIdeCheck && (!verifyZdeRunning() || !getZdeSettings())) {
+			return false;
+		}
+
+		if (settings.zendSettingsIP != null && settings.zendSettingsIP != "") {
+			setCookie('debug_host', settings.zendSettingsIP);
+		}
+	
+		if (zendUseSSL()) {
+			setCookie('use_ssl', '1');
+		}
+	
+		if(settings.zendSettingFastFile){
+			setCookie('debug_fastfile', '1');
+		}
+
+		setCookie('debug_port', settings.zendSettingsPort);
+		setCookie('start_debug', '1');
+		setCookie('send_debug_header', '1');
+		setCookie('send_sess_end', '1');
+		setCookie('debug_jit', '1');
+		setCookie('debug_fastfile', '1');
+
+		if (typeof settings.isProfiling != 'undefined' && settings.isProfiling) {
+			setCookie('start_profile', '1');
+			setCookie('debug_coverage', '1');
+		} else {
+			if( zendGetZDEFirstLine() ) {
+				setCookie('debug_stop', '1');
+			}
+			if( zendUseLocalCopyIfAvailable() ){
+				setCookie('use_remote', '1');
+			} else {
+				setCookie('no_remote', '1');
+			}
+		}
+	
+		if(settings.zendSettingProtocol != null){
+			setCookie('debug_protocol', settings.zendSettingProtocol);
+		}
+
+		setCookie('debug_session_id', (Math.floor(Math.random() * 147483648) + 2000));
+
+	    if (debugType && debugType.toLowerCase() == 'all') {
+	    	setCookie('debug_start_session', '1');
+	    } else if (debugType && debugType.toLowerCase() == 'post') {
+	    	setCookie('debug_start_session', 'POST');
+	    }
+
+		return true;
+	}
+
+	function setCookie(key, value) {
+		var t = new Date();
+		t.setSeconds(t.getSeconds() + 2);
+		cookies.push({'key': key, 'value': value, 'options': 'expires=' + t.toGMTString() + ';'});
+	}
+
+	function zendGetZDEFirstLine() {
+		return (zendDevBar.ideSettings && parseInt(zendDevBar.ideSettings.studioBreakOnFirstLine));
+	}
+
+	function zendUseLocalCopyIfAvailable() {
+		return (zendDevBar.ideSettings && parseInt(zendDevBar.ideSettings.studioUseRemote));
+	}
+
+	function zendUseSSL() {
+		return (zendDevBar.ideSettings && parseInt(zendDevBar.ideSettings.studioUseSsl));
+	}
+
+	function cookiesEnabled() {
+		document.cookie = '__test__cookie__=1'
+		if ( document.cookie.indexOf('__test__cookie__') != -1) {
+		document.cookie = "__test__cookie__=; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	function getZdeSettingString(){
+		var settingsString = debuggerConfig.settingsString;
+		return (settingsString == '') ? false : settingsString;
+	}
+
+	function verifyZdeRunning() {
+		if (!getZdeSettingString()) {
+			alert('Cannot detect running IDE.');
+			return false;
+		}
+		
+		return true;
+	}
+
+	function getZdeSettings() {
+		try {
+			var settingsString = getZdeSettingString();
+			if(! settingsString) {
+				alert("Cannot auto detect IDE settings at port: 20080.\n\n" +
+					  "Make sure that IDE is running on this computer\n" +
+					  "and is configured to work on this port. If you have an older version,\n" +
+					  "use the settings dialog to disable auto detection and manually configure\n" +
+					  "the IDE settings.");
+				return false;
+			} else {
+				var ZDE_IP = null;
+				var ZDE_Port = "10000";
+				var ZDE_UseSSL = false;
+				var ZDE_FastFile = false;
+				var ZDE_Protocol = null;
+				var settingsArray = settingsString;
+				var i;
+
+				$zendDevBar.each(settingsArray, function(key, item){
+					if( key == "debug_port" ) ZDE_Port = item;
+					else if( key == "debug_host" ) ZDE_IP = item;
+					else if( key == "use_ssl" ) ZDE_UseSSL = item;
+					else if( key == "debug_fastfile" ) ZDE_FastFile = item;
+					else if( key == "debug_protocol" ) ZDE_Protocol = item;
+				});
+
+				if( ZDE_IP == null ) return false;
+
+				settings.zendSettingsPort = ZDE_Port;
+				settings.zendSettingsUseSSL = ZDE_UseSSL;
+
+				// replace 127.0.0.1 order to be last in case it exists
+				if (ZDE_IP.indexOf('127.0.0.1') > -1) {
+					var exploded = ZDE_IP.split(',');
+					var localIndex = exploded.indexOf('127.0.0.1');
+					if (localIndex > -1) {
+						exploded.splice(localIndex, 1);
+					}
+					exploded.push('127.0.0.1');
+					ZDE_IP = exploded.join(',');
+				}
+				settings.zendSettingsIP = ZDE_IP.replace("%2C", ",");
+				settings.zendSettingFastFile = ZDE_FastFile;
+				settings.zendSettingProtocol = ZDE_Protocol;
+				
+				return true;
+			}
+
+		} catch(e) { alert(e); }
+	}
+
+})();
+</script>

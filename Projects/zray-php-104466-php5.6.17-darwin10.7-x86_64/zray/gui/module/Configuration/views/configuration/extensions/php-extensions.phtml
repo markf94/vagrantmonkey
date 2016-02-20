@@ -1,0 +1,251 @@
+<?php $this->headScript()->appendFile($this->basePath() . '/js/ToolTip.js'); ?>
+<?php $this->headScript()->appendFile($this->basePath() . '/js/FragmentManager.js'); ?>
+
+<?php echo $this->SearchField(); ?>
+<?php $page = 'extensions'; ?>
+<?php
+use Application\Module;
+Module::isCluster() ? $serverString = 'Servers' : $serverString = 'Server';
+?>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Extensions', 'action' => 'phpExtensions')) ?>"><?php echo _t("PHP"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<script type="text/javascript">
+	var highlighted;
+	var highlightWordFlag = false;	
+    var rowsChecked = 0;
+	var rowsOpened = '';
+	var directiveInfo;
+	
+	var initData = {<?php echo $this->partial('configuration/web-api/1x3/configuration-extensions-list.pjson.phtml',
+		array('extensions' => $extensions));
+	?>};
+
+	window.addEvent("load", function(){
+		persistantHeaders.addHeader('grid-action-bar');
+		
+		directiveInfo = <?php echo $this->zGridDirectives($this->basePath() . '/Api/configurationDirectivesList', $this->basePath() . '/Api/configurationValidateDirectives', $isAllowedToSaveDirectives ? 'true' : 'false'); ?>
+
+		var searchField = new SearchField();
+		searchField.addEvent('searchClicked', function(data, element) {
+			runSearch();
+		});
+		//////////////GRID CALLBACKS //////////////
+		var extensionStatus = function(value, data) {
+			if (data.dummy === 'true') {
+				return '<div></div>';
+			}
+			
+			switch (value) {
+				case "Loaded":
+					if (data.builtIn === 'true') {
+						value = 'Built-in';
+						divClass = 'extension-builtin';
+						title = 'Extension is built-in';
+					}
+					else {
+						divClass = 'extension-loaded';
+						title = 'Extension is loaded';
+					}
+					break;
+				case "Off":
+					divClass = 'extension-off';
+					title = 'Extension is turned off';
+					break;
+				case "Warning":
+					divClass = 'extension-warning';
+					title = 'Extension is in Warning state';
+					break;
+				default:
+					divClass = 'extension-error';
+					value = 'Error';
+					title = 'Extension is in Error state';
+					break;
+			}
+			
+			if (value != 'Error' && value != 'Warning' && data.restartRequired == 'true') {
+				divClass = 'extension-pending';
+				value = 'Pending';
+				title = 'Extension is pending restart';
+			}			
+
+			return '<div id="' + divClass + '" class="zgrid-clickable" title="' + title + '">' + value + '</div>';
+		}
+		
+		var getVersion = function(value) {
+			if (!value || value == 'null') {
+				return '<div></div>';
+			}
+
+			return value;
+		}
+		
+		var messageList = function(value, data) {
+			if (data.name == 'PDO_OCI') {
+				return '<b>Info: </b>This extension is not supported by Zend';
+			}
+			
+			msgsSize = Object.keys(value).length;
+			if (msgsSize == 0) {
+				return '';
+			}
+
+			if (msgsSize == 1) {
+				var key = Object.keys(value)[0];
+
+				if (<?php echo Module::isCluster() ? 'true' : 'false'; ?>) {
+					return _t('<div><b>' + value[key].type + ' in server ' + value[key].nodeName + ':</b> ' + value[key].message + '</div>');
+				} else {
+					return _t('<div><b>' + value[key].type + ':</b> ' + value[key].message + '</div>');
+				}				
+			}
+			return _t('<div>There are ' + msgsSize + ' messages</div>');	
+		}
+		
+		var cmu2 = [
+					{
+						'title': 'Name',
+						'dataIndex': 'name',
+						'parser': zGrid2.prototype.string,
+						'width': '18%',
+						'sortable': true,
+						'sortBy': 'name'
+					},
+					{
+						'title': 'Status',
+						'dataIndex': 'status',
+						'parser': extensionStatus,
+						'width': '9%',
+						'sortable': true,
+						'sortBy': 'status',
+						'ellipsis': false
+					},
+					{
+						'title': 'Version',
+						'dataIndex': 'version',
+						'parser': getVersion,
+						'width': '8%',
+						'sortable': false
+					},
+					{
+						'title': 'Description',
+						'dataIndex': 'shortDescription',
+						'parser': zGrid2.prototype.string,
+						'width': '30%',
+						'sortable': false
+					},
+					{
+						'title': 'Messages',
+						'dataIndex': 'messageList',
+						'parser': messageList,
+						'width': '35%',
+						'sortable': false
+					},
+				];
+
+		<?php 
+			$options = array(
+				'sortedBy'		=> 'name',
+				'multiSelect'	=> ($isAllowedToSaveDirectives || $isAllowedToEnable || $isAllowedToDisable),
+				'idColumn' 		=> 'name',
+			);
+		?>
+		zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $options); ?>
+
+
+		var url = '<?php echo "{$this->basePath()}/Api/configurationExtensionsList"; ?>';
+    	zgrid2.loadRequest = new Request.WebAPI({
+			method: 'get',
+			url:url,
+			link:'cancel',
+			data: {type: 'PHP'},
+			onComplete: function(response) {
+				
+				zgrid2.setData(response.responseData.extensions);
+				// if the search result is less than 3 rows - expand the rows
+				if (Object.keys(zgrid2.getRowsData()).length < 3) {
+					Object.keys(zgrid2.getRowsData()).each(
+							function(row) { 
+								if (!zgrid2.isDescriptionOpen(row)) {
+									zgrid2.expandRow(row, zgrid2.getRowData(row));
+								}
+							});
+				}
+
+				// fix for ZSRV-5875 and ZSRV-7484
+				var fragment = new FragmentManager();
+				fragment.removeUriFragment('grid');
+				highlightWordFlag = false;
+				highlighted = undefined;
+				
+				if ($('search_input').value) {
+					// highlight only if search term was entered - fix for ZSRV-7485
+					if ($('search_input').value.trim() != "") {
+						highlightWordFlag = true;
+						highlighted = $('search_input').value;
+					}
+				}
+				
+			}
+		});
+		
+		////////////// GRID EVENTS //////////////		
+		zgrid2.addEvent('loadData', function(params) {
+			zgrid2.preLoad();
+			zgrid2.loadRequest.get(Object.append(zgrid2.loadRequest.options.data, {filter: $('search_input').value, direction: params.direction, order: params.order}));
+		});
+
+		zgrid2.addEvent('rowUpdated', function(params) {
+			if (params.data.builtIn === 'true' || params.data.dummy === 'true') {
+				zgrid2.removeCheckbox(params.id);
+			}
+		});
+
+		zgrid2.addEvent('updateComplete', function(params) {
+			updateComplete();
+		});
+	});
+	
+	function saveExtensionsClick() {
+		if (! directiveInfo.deploymentValidate) {
+			var answer = confirm(_t('Saving this settings may break deployed applications/plugins due to prerequisites requirment. Do you wish to proceed ?'));
+			if (! answer){
+				return;
+			}
+		}
+
+		$$('.tableDescRow.tableDescRowOver').each(function(item) {
+			zgrid2.expandRow(item.get('id').replace('tableDescRow_', ''));
+		});
+		
+	  	saveClick();
+		rowsOpened = window.location.hash; // saving the open rows data
+  		window.location.hash = rowsOpened.substr(1); // restoring the open rows
+	}
+
+</script>
+				
+<div id="grid-action-bar" class="grid-action-bar">
+	<?php if ($isAllowedToSaveDirectives): ?>
+	<button id="save_directives" disabled title="<?php echo _t("Save changes"); ?>" onclick="saveExtensionsClick()"><?php echo _t('Save'); ?></button>
+	<?php endif ?>
+	<?php if ($isAllowedToEnable): ?>
+	<button id="enable" title="<?php echo _t("Enable extension");  ?> " onclick="enable()" disabled><?php echo _t('Enable');?></button>
+	<?php endif ?>
+	<?php if ($isAllowedToDisable): ?>
+	<button id="disable" title="<?php echo _t("Disable extension"); ?>" onclick="disable()" disabled><?php echo _t('Disable'); ?></button>
+	<?php endif ?>
+	<div style="float: right">
+		<div class="searchField" id="search" placeholder="<?php echo _t("Search..."); ?>"></div>
+	</div>
+</div>
+	
+<div id="mytable"></div>
+
+<?php require_once realpath(dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'extensions.phtml'); ?>

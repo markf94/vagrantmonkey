@@ -1,0 +1,59 @@
+<style>
+body {
+	background: #FCFCFC;
+}
+</style>
+
+<script type="text/javascript">
+var uploading = false;
+var uploadStatus = false;
+
+window.addEvent('domready', function(){	
+	upload = new Form.Upload('url', {
+		onComplete: function(response){
+			if ($('url')) {
+				$('url').set('disabled', false);
+			}
+		}
+	});
+
+	if (upload.isModern()) {
+		$('url').set('onchange', "setTimeout('uploadFile()',100)");
+	} else {
+		$('_submit').setStyle('display', 'block');
+		$('_submit').set('disabled', true);
+		$('url').addEvent('change', function() {
+			$('_submit').set('disabled', false);
+		});
+		// Use something like
+	}
+});
+
+function uploadFile() {
+	if (! uploading) {
+		uploading = true;
+		parent.wizard.uploadStarted();
+		if ($('url')) {
+			$('url').set('disabled', true);
+		}	
+		$('_submit').click();
+	}
+}
+</script>
+
+<?php 
+$uploadUrl = $this->url('default', array('controller' => $controller, 'action' => $action));
+
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/uploader.css' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath () . '/js/uploader/Request.File.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath () . '/js/uploader/Form.MultipleFileInput.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath () . '/js/uploader/Form.Upload.js' );
+?>
+
+<div id="uploader" class="uploader">
+	<form method="post" action="<?php echo $uploadUrl; ?>?wizardId=<?php echo $wizardId; ?>" enctype="multipart/form-data">
+		<input type="file" id="url" name="url[]" class="file" accept=".zpk,.zip" style="border:none;background:#fcfcfc;"><br>
+		<input type="submit" id="_submit" name="_submit" value="Upload" style="display: none;">
+		
+	</form>
+</div>

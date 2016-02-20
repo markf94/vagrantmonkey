@@ -1,0 +1,1179 @@
+<?php
+$pageCounter = 0;
+$edition = $edition ?  : 'zs';
+$eulaForm = $eulaForm ?  : new \Zend\Form\Form ();
+$passwordForm = $passwordForm ?  : new \Zend\Form\Form ();
+$passwordDeveloperForm = isset($passwordDeveloperForm) ?  $passwordDeveloperForm : new \Zend\Form\Form ();
+$dbForm = $dbForm ?  : new \Zend\Form\Form ();
+
+$this->headScript ()->appendFile ( $this->basePath () . '/js/FormWizard.js' );
+$this->headScript ()->appendFile ( $this->basePath () . '/js/zgridPolling.js' );
+$this->headLink ()->appendStylesheet ( $this->basePath () . '/css/wizard.css' );
+$this->headLink ()->appendStylesheet ( $this->basePath () . '/css/login.css' );
+$this->headLink ()->appendStylesheet ( $this->basePath () . '/css/bootstrap.css' );
+
+$doneUrl = ($edition == 'zs') ? $this->url ( 'home' ) : $this->url ( 'default', array (
+		'controller' => 'Servers' 
+) );
+
+?>
+
+<style>
+#bootstrapWizard{
+	height:450px;
+	background: #FFF;
+}
+.wizard .side-legend {
+	height: 404px;
+}
+.wizard .wizard-page{
+	height: 381px;
+}
+.wizard-page .wizard-content-pane {
+	height: 342px;
+}
+.wizard .wizard-page .page-wrapper {
+	height: 429px;
+}
+</style>
+
+<script type="text/javascript">
+var globalResponse;
+var singleServerFlag = true;
+var firstServerFlag = false;
+
+var useEula = <?php echo $useEula ? 'true' : 'false' ?>;
+var isCluster = <?php echo $isCluster ? 'true' : 'false' ?>;
+
+var BootstrapWizard = new Class({
+	"Extends": FormWizard,
+	initialize: function (form, options, pageFlow) {
+		this.parent(form, options, pageFlow);
+		this.pages.each(function(page){
+			page.pageReady = false;
+			page.wizard = this;
+			page.spinner = new Spinner(page.domElement, {'class': 'spinner-large'});
+			page.storePayload = pageFlow[page.domElement.id].storePayload;
+			page.domElement.getElements('input,select').each(
+				function(item){
+					item.addEvent('change', function(event){
+						this.pageReady = false;
+					}.bind(this));
+				}.bind(page)
+			);
+		}.bind(this));
+
+	},
+    'resetForm': function(message) {
+        this.pages[this.currentPageIndex].spinner.hide();
+        $('wizard-control-submit').set('disabled', false);
+        $('wizard-control-backward').set('disabled', false);
+
+        $('summaryError').set('html', message);
+    }
+});
+
+var Slideshow = new Class({
+	'Implements': [Events],
+	progressTimer: 0,
+	progressValue: 0,
+	currentLib: null,
+	libs: [],
+	completed: false,
+	initialize: function(libDivs){
+		this.addEvent('startSlideshow', function(){
+			this.nextLib();
+		}.bind(this));
+		
+		this.addEvent('libComplete', this.libComplete.bind(this));
+
+		this.libs = libDivs;
+		if (! ['object','function'].contains(typeof HTMLProgressElement)) {
+			this.libs.each(function(item){
+				var progressWrapper = item.getElement('.progress_bar');
+				var progress = progressWrapper.getElement('.progress_bar-display');
+				progress.dispose();
+				var standin = new Element('input', {'value': 0, 'max': 0, 'type': 'hidden', 'class': 'progress_bar-display'});
+				standin.set('max', 100);
+				progressWrapper.adopt(standin);
+			});
+		}
+	},
+	start: function(){
+		if (! this.completed) {
+			this.fireEvent('startSlideshow',{});
+		}
+	},
+	nextLib: function(){
+		this.currentLib = this.libs.shift();
+		if (this.currentLib) {
+			this.currentLib.getElement('.progress_indicator-waiting').hide();
+			this.currentLib.getElement('.progress_indicator-inprogress').show();
+			
+			this.progressTimer = this.incProgress.periodical(15, this);
+		} else {
+			this.fireEvent('slideshowComplete',{});
+			this.completed = true;
+		}
+	},
+	libComplete: function() {
+		this.currentLib.getElement('.progress_indicator-inprogress').hide();
+		this.currentLib.getElement('.progress_indicator-done').show();
+		this.nextLib();
+	},
+	incProgress: function() {
+		this.fireEvent('progressTick',{});
+		var progress = this.currentLib.getElement('.progress_bar .progress_bar-display');
+		this.progressValue = this.progressValue + 1;
+
+		if (this.progressValue % 4 == 0) {
+			progress.value = this.progressValue;
+		}
+		
+		this.currentLib.getElement('.progress_bar span').set('html', this.progressValue + '%');
+		
+		if (this.progressValue == progress.get('max')) {
+			progress.value = 100;
+			this.progressValue = 0;
+			clearInterval(this.progressTimer);
+			this.fireEvent('libComplete', {});
+		}
+	}
+});
+
+function sleep(milliseconds) {
+	  var start = new Date().getTime();
+	  for (var i = 0; i < 1e7; i++) {
+	    if ((new Date().getTime() - start) > milliseconds){
+	      break;
+	    }
+	  }
+	}
+
+
+window.addEvent('domready',function() {
+
+	$('libraries-header-help').addEvent('click', function(){
+		window.open('<?php echo $this->helpLink('libraries') ?>');
+	});
+	
+	var slideshow = new Slideshow($$('.deploy_library_entry'));
+	slideshow.addEvent('slideshowComplete', function(){
+		$('wizard-control-backward').set('disabled', false);
+		$('wizard-control-forward').set('disabled', false);
+	});
+
+	
+	<?php if ($edition == 'cm') : ?>	
+	$('wizard-continue').addEvent('click', function(){
+		dbCredeintialsModal.hide();
+		return false;
+	});	
+	<?php else: ?>
+	$('wizard-continue').addEvent('click', function(){
+		window.location = '<?php echo $doneUrl ?>';
+	});	
+	<?php endif; ?>
+	
+	$('clusterRadio').addEvent('click', function(){
+		var cluster = $$('.cluster-list')[0];
+		if(cluster.hasClass('disabled')){
+			cluster.removeClass('disabled');
+		}		
+	});
+	$('developmentRadio').addEvent('click', function(){
+		var cluster = $$('.cluster-list')[0];
+		if(cluster && !cluster.hasClass('disabled')){
+			cluster.addClass('disabled');
+		}		
+		unlockSetupStages();
+	});
+	$('productionRadio').addEvent('click', function(){
+		var cluster = $$('.cluster-list')[0];
+		if(cluster && !cluster.hasClass('disabled')){
+			cluster.addClass('disabled');
+		}	
+		unlockSetupStages();
+	});
+
+<?php if (! $isClusterSupport): ?>
+	$('clusterRadioWrapper').dispose();
+<?php elseif($isCluster) : ?>
+	$('clusterRadio').addClass('disabled');
+	$('clusterRadio').set('checked', true);
+<?php endif; ?>
+	
+	dbCredeintialsModal = new SimpleModal({width: 300, closeButton: false, hideHeader: true, hideFooter: true, draggable: false, draggableContainer: 'wizard-title', overlayClick: false,
+		template: "<div class=\"contents\">{_CONTENTS_}</div>"});
+
+	var wizard = new BootstrapWizard('bootstrapWizard',
+			{
+				"createControlArea": true,
+				"wizardControls": ["submit", "forward", "backward"],
+				/// if eula is not displayed and we're connected to a cluster display the user passwords page only
+				'firstPage': useEula ? 1 : (isCluster ? 4 : 2),
+				'controls': {'submit': {'title': '<?php echo _t('Launch') ?>'}}
+			}, {
+				"licenseAgreementPage": {
+					"onEnter": function(target, current) {
+						<?php $pageCounter++?>
+						if ($('accept-terms')) {
+							$('wizard-control-forward').set('disabled', ! $('accept-terms').checked);
+						}
+						return true;
+					},
+					"onExit": function(target, current) {		
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								if ($('sl' + (target+1)).hasClass('disabled')) {
+									if (target > current) {
+										return target + 2;
+									}
+									return target - 1;
+								}
+								return target + 1;
+							}
+							return target - 1;
+						}						
+						return true;
+					}
+				},				
+				"bootstrapTypePage": {
+					"onEnter": function(target, current) {
+						<?php $pageCounter++?>
+
+						var isSelected = $$('input[name="mode"]').some(function(item, index){
+						    return item.get('checked');
+						});
+						
+						$('wizard-control-forward').set('disabled', ! isSelected);
+						return true;
+					},
+					"onExit": function(target, current) {
+
+						var selectedProfiles = $$('input[name="mode"]').filter(function(item, index) {
+							return item.get('checked');
+						});
+						
+						if (Object.getLength(selectedProfiles) > 0) {
+							singleServerFlag = (selectedProfiles.pick().get('value') != 'cluster');
+						}
+						
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}						
+						return true;
+					}
+				},
+<?php if ($isClusterSupport): ?>
+				"joinClusterPage": {
+					"onEnter": function(target, current) {
+						<?php $pageCounter++?>
+						lockSetupStages();
+						$('wizard-control-forward').set('disabled', false);
+						
+						return true;
+					},
+					"onExit": function(target, current) {
+						if(target > current){
+
+							databaseValidator.start();
+							databaseValidator.enforceAll();
+							if (! databaseValidator.validate()) {
+								return false;
+							}
+							
+							this.spinner.show();
+							singleServerFlag = false;
+							var url = '<?php echo "{$this->basePath()}/Api/clusterIsInitialized"; ?>';
+							var request = new Request.WebAPI({
+								method: 'post',
+								url: url,
+								async: false,
+								data: $('join-cluster-form').toObj(), 
+								onSuccess: function(response) {
+									var newCreds = response.responseData.newCredentials;
+									if (newCreds['new']) {
+										unlockSetupStages();
+										firstServerFlag = true;
+									}
+									return true;
+								},
+								onFailure: function(response) {
+									var decoded = this.decodeResponse(response);
+									document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+									return false;
+								}
+							}).send();
+							this.spinner.hide();
+							if(typeof request.response.json != 'undefined' && request.response.json.responseData){ //ISSET IN JS HAHA!
+								var newCreds = request.response.json.responseData.newCredentials;
+								if (!newCreds['new']) {
+									return target + 1; //skip admin/dev password entry
+								}
+								return target;							
+							}
+						} else if (target < current) {
+							if ($('sl' + target).hasClass('disabled')) {
+								if ($('sl' + (target-1)).hasClass('disabled')) {
+									return target - 2;
+								}
+								return target - 1;
+							}
+							return true;
+						} else {
+							//if we are going backwards - np.
+							singleServerFlag = true;
+							return target;
+						}
+						return false;
+					}
+				},
+<?php endif ?>			
+<?php if ($edition == 'cm') : ?>
+			"dbCredentialsPage": { 
+					"onEnter": function(target, current) {
+						if (target == <?php echo $pageCounter++?> && target > current) {
+							$('wizard-control-forward').set('disabled', false);
+						}
+							$('wizard-control-forward').set('disabled', false);
+						return true;
+					},
+					"onExit": function(target, current) {
+						if (!this.pageReady && target > current) {
+							$('wizard-control-forward').set('disabled', true);
+							$('wizard-control-backward').set('disabled', true);
+							if (typeof this.storePayload == 'function') {
+								this.spinner.show();
+								this.storePayload.attempt([target, current], this);
+							} else {
+								this.pageReady = true;
+							}
+						} else if (target < current) {
+							if ($('sl' + target).hasClass('disabled')) {
+								if ($('sl' + (target-1)).hasClass('disabled')) {
+									return target - 2;
+								}
+								return target - 1;
+							}
+							return true;
+						} else {
+							this.spinner.hide();
+						}
+						return this.pageReady;
+					},
+					"storePayload": function(targetPage, stayPage) {
+						var params = $('dbCredentialsContent').getFirst('form').toObj();
+						$('dbCredentialsContent').setStyle('height',
+								($('dbCredentialsContent').getCoordinates().height +
+								$('dbCredentialsError').getCoordinates().height) + 'px'
+							);
+						$('dbCredentialsError').set('html', '');
+						new Request.JSON({
+							url: '<?php echo "{$this->basePath()}/Bootstrap/createDatabase" ?>',
+							onComplete: function(response) {
+								if (response && response.success) {
+									this.pageReady = true;
+									this.wizard.changePage(targetPage);
+									
+									$('dbUsername').set('html', response.credentials.username);
+									$('dbPassword').set('html', response.credentials.password);
+									
+									dbCredeintialsModal.show({
+								          "model":"modal",
+								          "contents": $("dbCredeintialsPopUp").get('html')
+								        });									
+									
+								} else {
+									this.spinner.hide();
+									$('dbCredentialsError').set('html', response.message);
+									$('dbCredentialsContent').setStyle('height',
+											($('dbCredentialsContent').getCoordinates().height -
+											$('dbCredentialsError').getCoordinates().height) + 'px'
+										);
+									$('wizard-control-forward').set('disabled', false);
+									$('wizard-control-backward').set('disabled', false);
+								}
+							}.bind(this)
+						}).post(params);
+						return true;
+					}
+				},
+<?php endif ?>
+				"passwordSetPage": {
+					"onEnter": function(target, current) {
+						<?php $pageCounter++ // strange dependency on this page counter for js functionality in later pages ... ?>
+						$('wizard-control-backward').set('disabled', false);
+						passwordsValidator.stop();
+						return true;
+					},
+					"onExit": function(target, current) {
+						
+						if (target < current) {
+							if ($('sl' + target).hasClass('disabled')) {
+								if ($('sl' + (target-1)).hasClass('disabled')) {
+									return target - 2;
+								}
+								return target - 1;
+							}
+							// no validation on Back
+							return target;
+						}
+						
+						passwordsValidator.start();
+						if (! passwordsValidator.validate()) {
+							return false;
+						}
+						
+					    if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						return true;
+					}
+				},
+				
+				"deployPackages": {
+					"onEnter": function(target, current) {
+						<?php $pageCounter++ // strange dependency on this page counter for js functionality in later pages ... ?>
+						if (! slideshow.completed) {
+							$('wizard-control-backward').set('disabled', true);
+							$('wizard-control-forward').set('disabled', true);
+							$$('.progress_indicator-inprogress,.progress_indicator-done').hide();
+							
+							slideshow.start();
+						}
+						return true;
+					},
+					"onExit": function(target, current) {
+						
+// 						if (target < current) {
+// 							if ($('sl' + target).hasClass('disabled')) {
+// 								if ($('sl' + (target-1)).hasClass('disabled')) {
+// 									return target - 2;
+// 								}
+// 								return target - 1;
+// 							}	
+// 						}
+						
+					    if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						return true;
+					}
+				},
+				
+				"summaryPage": {
+					"onEnter": function(target, current) {
+						if (target > current) {
+							$('wizard-control-submit').set('disabled', true);
+							$('wizard-control-backward').set('disabled', false);
+							$('wizard-control-submit').show();
+						}
+						$('summaryError').set('html', '');
+
+						var params = {};
+						$$('#passwordSetPage').each(function(group){
+							var inputs = group.getElements('input');
+							inputs.each(function(input){
+								this[input.name] = input.value;
+							}.bind(this));
+						}.bind(params));
+
+						params.singleServerFlag = singleServerFlag;
+						params.firstServerFlag = firstServerFlag;
+
+						params.profile = $('launch-type-form').toObj().mode;
+						$('summaryContent').empty();
+						
+						new Request.HTML({
+							url: '<?php echo "{$this->basePath()}/Bootstrap/renderSummary" ?>',
+							onComplete: function(response) {
+								$('summaryContent').adopt(response);
+								$('wizard-control-submit').set('disabled', false);
+							}.bind(this)
+						}).post(params);
+						
+						return true;
+					},
+					"onExit": function(target, current) {
+						$('wizard-control-submit').set('disabled', true);
+						if (target < current) {
+							$('wizard-control-backward').set('disabled', false);
+						} else {
+							$('wizard-control-backward').set('disabled', true);
+						}
+						if (target != current) {
+							$('wizard-control-submit').hide();
+						}
+						while ($('sl' + target).hasClass('disabled') && target < current) { //go backwards
+							target--;
+						}
+						return target;
+					}
+				}
+			}
+	);
+	
+	$('wizard-control-submit').removeEvents();
+
+	/// end of wizard handling
+	$('wizard-control-submit').addEvent('click', function(){
+		$('wizard-control-submit').set('disabled', true);
+		$('wizard-control-backward').set('disabled', true);
+		this.pages[this.currentPageIndex].spinner.show({'message': '<?php echo _t('Storing configuration...') ?>'});
+		$('summaryError').set('html', '');
+
+		var params = {};
+		$$('#passwordSetPage').each(function(group){
+			var inputs = group.getElements('input');
+			inputs.each(function(input){
+				this[input.name] = input.value;
+			}.bind(this));
+		}.bind(params));
+
+		params.singleServerFlag = singleServerFlag;
+		params.firstServerFlag = firstServerFlag;
+		//params.clusterFormObj = clusterFormObj;
+		params.mode = $('launch-type-form').toObj().mode;
+
+        var completePolling = new zGridPolling({'maxIterations': 100});
+
+        var pollingRequest = new Request.WebAPI({
+            url: '<?php echo $this->basePath('/Api/tasksComplete') ?>'
+        });
+
+        pollingRequest.addEvent('success', function(response) {
+            if (response.responseData.tasksComplete == true) {
+                completePolling.stop();
+
+                // Set the delay at the end of Summary (before rederect to the gui or all addToCluster webAPI),
+                // because in IIS the restart php kills the PHP
+                if(singleServerFlag){
+                    var t = setTimeout(function(){window.location = '<?php echo $doneUrl ?>';}, 5000)
+                } else {
+                    addToCluster.delay(5000, null, wizard);
+                }
+                Cookie.write('ZS6Bootstrapped', true, {'path': '/', 'duration': 1});
+            } else {
+            	completePolling.next();
+            }
+        });
+
+        pollingRequest.addEvent('failure', function(response) {
+        	var responseData = this.decodeResponse(response);
+        	if (responseData && (typeof responseData.errorData == 'object')) {
+        		completePolling.next();
+        	} else {
+            	wizard.resetForm('<?php echo _t('Bootstrap was not completed: Zend Server could not store its configuration due to a fatal error') ?>');
+        	}
+        });
+
+        completePolling.addEvent('maxIteration', function(event){
+            wizard.resetForm('<?php echo _t('Bootstrap was not completed: Zend Server could complete the bootstrap process due to a fatal error') ?>');
+        });
+
+        completePolling.addEvent('poll', function(event){
+            pollingRequest.get();
+        }.bind(completePolling));
+
+		new Request.JSON({
+			url: '<?php echo $this->basePath('/Bootstrap/save') ?>',
+			onComplete: function(response) {
+				if (response && response.success) {
+                    completePolling.start();
+				} else {
+                    this.resetForm(response.message);
+				}
+			}.bind(this)
+		}).post(params);
+	}.bind(wizard));
+
+	//first screen is not called with onenter so we need this to enable/disable next button
+	$('wizard-control-forward').set('disabled', true);
+
+	if ($('accept-terms')) {
+		$('accept-terms').addEvent('click', function(event) {
+			$('wizard-control-forward').set('disabled', (!event.target.checked));
+		});
+	}
+
+	Form.Validator.Inline.Bootstrap = new Class({
+		'Extends': Form.Validator.Inline,
+		'timer': 0,
+		'initialize': function(form, options) {
+			this.parent(form, options);
+			
+			this.addEvent('formValidate', function(formPass) {
+				$('wizard-control-forward').set('disabled', ! formPass);
+				if (formPass) {
+					this.stop();
+				}
+					
+			});
+			
+			this.addEvent('elementFail', function(element) {
+				element.addClass('invalid');
+				element.removeClass('valid');
+			});
+			
+			this.addEvent('elementPass', function(element) {
+				element.removeClass('invalid');
+				if (element.value.length > 0) {
+					element.addClass('valid');
+				} else {
+					element.removeClass('valid');
+				}
+			});
+
+			form.addEvent('input:relay(input)', function(event) {
+				this.enforceField(event.target);
+			}.bind(this));
+			
+			form.addEvent('input:relay(input)', function(event) {
+				/// if all fields are empty, reset the form and all elements
+				if (form.getElements('input[type!=hidden]').every(function(item){
+						return (item.value.length == 0);
+					})) {
+
+					this.reset();
+					form.getElements('input[type!=hidden]').removeClass('invalid');
+					this.stop();
+				} else {
+					clearTimeout(this.timer);
+					this.timer = 0;
+					if (event.target.hasClass('valid') || event.target.hasClass('invalid')) {
+						this.validate();
+					} else {
+						this.timer = this.validate.delay(700, this);
+					}
+			
+					if (event.target.get('value').length == 0) {
+						event.target.removeClass('valid');
+					}
+				}
+			}.bind(this));
+
+		},
+		ignoreAll: function() {
+			this.fields.each(function(item){
+				this.ignoreField(item);
+			}.bind(this));
+		},
+		enforceAll: function() {
+			this.fields.each(function(item){
+				this.enforceField(item);
+			}.bind(this));
+		}
+	});
+
+<?php if ($isClusterSupport): ?>
+	databaseValidator = new Form.Validator.Inline.Bootstrap($('join-cluster-form'), {});
+	databaseValidator.ignoreAll();
+	databaseValidator.add('validate-ipaddress', {
+		'errorMsg': 'Enter a valid IP address',
+		'test': function(element) {
+				var parts = element.value.split(/\./);
+				if (parts.length != 4) {
+					return false;
+				}
+				
+				return parts.every(function(item){
+					var part = Number.from(item);
+					if (part == null) {
+						return false;
+					}
+					
+					return (part >= 0 && part <= 255);
+				});
+			}
+		});
+<?php endif; ?>
+	passwordsValidator = new Form.Validator.Inline.Bootstrap($('bootstrap-password'), {});
+
+	passwordsValidator.add('validate-password', {
+		errorMsg: _t('Password may contain only alpha numeric and punctuation characters'),
+		test: function(element) {
+			return element.value.test(/^[\w\]\[!"#$%&'()*+,.\/:;<=>?@\^_`{|}~-]+$/);
+		}
+	});
+
+	passwordsValidator.ignoreField($('developer-password'));
+	passwordsValidator.ignoreField($('developer-passwordconfirm'));
+
+	new Elements([$('developer-password'), $('developer-passwordconfirm')]).addEvent('keyup', function(event){
+		if ($('developer-password').get('value').length == 0 && $('developer-passwordconfirm').get('value').length == 0) {
+			passwordsValidator.ignoreField($('developer-password'));
+			passwordsValidator.ignoreField($('developer-passwordconfirm'));
+			passwordsValidator.validate();
+		} else {
+			passwordsValidator.enforceField($('developer-password'));
+			passwordsValidator.enforceField($('developer-passwordconfirm'));
+		}
+	});
+
+	$$('input[name="mode"]').addEvent('click', function(event) {
+		$('wizard-control-forward').set('disabled', false);
+		$('devbar-message').removeClass('hidden');
+		if ($('launch-type-form').toObj().mode == 'development') {
+			$('devbar-message').addClass('enabledStatus');
+			$('devbar-message').set('html', '<?php echo 'Selecting this profile enables Z-Ray.'; ?>');
+		} else {
+			$('devbar-message').removeClass('enabledStatus');
+			$('devbar-message').set('html', '<?php echo 'Selecting this profile disables Z-Ray.<br/>You can enable Z-Ray at any stage from the Z-Ray settings page in the UI.'; ?>');
+		}
+	});
+
+	if (! useEula) {
+		var eulaList = $$('.agreement-list').pick();
+		eulaList.addClass('disabled');
+	}
+
+<?php if ($isUpgrade || $isCluster): ?>
+	var launchList = $$('.launch-list').pick();
+	launchList.addClass('disabled');
+<?php endif ?>
+		
+});
+
+function addToCluster(wizard){
+	var url = '<?php echo "{$this->basePath()}/Api/serverAddToCluster"; ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: $('join-cluster-form').toObj(),
+		onSuccess: function(response) {
+			var newCreds = response.responseData.newCredentials;
+			if (newCreds['new']) {
+
+				dbCredeintialsModal.show({
+			          "model":"modal",
+			          "contents": $("dbCredeintialsPopUp").get('html')
+			     });							
+			} else {
+				window.location = '<?php echo $doneUrl ?>';
+			}
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			wizard.pages[wizard.currentPageIndex].spinner.hide();
+			$('wizard-control-submit').set('disabled', false);
+			$('wizard-control-backward').set('disabled', false);
+		}
+	}).send();	
+}
+//this function locks/unlocks the stages for setting up an admin/developer password and adding license
+function lockSetupStages(){
+	var adminpass = $$('.adminpass-list')[0];
+
+	if(!adminpass.hasClass('disabled')){
+		adminpass.addClass('disabled');
+	}
+}
+
+function unlockSetupStages(){
+	var adminpass = $$('.adminpass-list')[0];
+
+	if(adminpass.hasClass('disabled')){
+		adminpass.removeClass('disabled');
+	}
+}
+
+</script>
+<div id="storer" style="display:none;"></div>
+<?php $pageCounter = 0;?>
+
+
+<div id="bootstrapWizard">
+	<div class="side-legend">
+		<h1><?php echo _t('Launch Zend Server'); ?></h1>
+		<ul>
+			<li id="sl<?php echo $pageCounter++?>" class="agreement-list glyphicons pen">
+				<i></i>
+				<h2><?php echo _t('License Agreement');?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>	
+			<li id="sl<?php echo $pageCounter++?>" class="launch-list glyphicons user">
+				<i></i>
+				<h2><?php echo _t('Profile');?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+	<?php if ($isClusterSupport): ?>
+			<li id="sl<?php echo $pageCounter++?>" class="cluster-list glyphicons adjust_alt disabled">
+				<i></i>
+				<h2><?php echo _t('Cluster Configuration');  ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+	<?php endif ?>		
+	<?php if ($edition == 'cm') : ?>
+			<li id="sl<?php echo $pageCounter++?>" class="clustermanager-list glyphicons edit">
+				<i></i>
+				<h2><?php echo _t('Database Setup'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+	<?php endif ?>
+			<li id="sl<?php echo $pageCounter++?>" class="adminpass-list glyphicons keys">
+				<i></i>
+				<h2><?php echo _t('User Passwords'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="deploylibs-list glyphicons file_import">
+				<i></i>
+				<h2><?php echo _t('Library Packages'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="summary-list glyphicons notes">
+				<i></i>
+				<h2><?php echo _t('Summary'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+		</ul>
+	</div>
+	
+	<?php /************** User license agreenennt page**********************************/?>
+	<fieldset class="wizard-page" id="licenseAgreementPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('End User License Agreement'); ?></h2>
+			<div id="licenseError"></div>
+			<div id="licenseAgreementContent" class="wizard-content-pane">
+<?php
+if ($useEula):
+$eulaForm->prepare ();
+$eulaForm->setAttribute ( 'method', 'post' );
+?>
+				<?php echo $this->form()->openTag($eulaForm); ?>
+					<dl id="accept-terms-form" class="zend_form">
+						<?php echo $this->formElementErrors($eulaForm->get('eula')->get('eulaContent')); ?>
+						<dd><?php echo $this->formTextarea($eulaForm->get('eula')->get('eulaContent')); ?></dd>
+						
+						<?php echo $this->formElementErrors($eulaForm->get('eula')->get('acceptTerms')); ?>
+						<dd><?php echo $this->formCheckbox($eulaForm->get('eula')->get('acceptTerms')); ?></dd>
+						<label><?php echo $this->formLabel($eulaForm->get('eula')->get('acceptTerms')); ?></label>
+					</dl>
+				<?php echo $this->form()->closeTag(); ?>
+<?php endif ?>
+			</div>
+		</div>
+	</fieldset>	
+
+	<?php /************** Choose a development env - Launch/Bootstrap type **********************************/?>
+	<fieldset class="wizard-page" id="bootstrapTypePage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Zend Server Profile Options'); ?></h2>
+			<div id="bootstrapType"></div>
+			<div id="bootstrapTypeContent" class="wizard-content-pane">
+				<p style="margin-top: 0px;"><?php echo _t('Select a working environment to launch Zend Server with optimized system configuration settings.')  ?></p>
+				<form id='launch-type-form'>
+	
+					<div id="developmentRadioWrapper">
+						<input type="radio" name="mode" value="development" id="developmentRadio"> <label for="developmentRadio">
+						<?php echo _t('Development')  ?></label>
+						<p class="help-block"><?php echo _t('Launch Zend Server with server and PHP settings optimized for a development environment. ')  ?></p>
+					</div>
+					
+					<div id="producationRadioWrapper">
+						<input type="radio" name="mode" value="production" id="productionRadio"> <label for="productionRadio">
+						<?php echo _t('Production (Single Server)') ?></label>
+						<p class="help-block"><?php echo _t('Launch Zend Server with server and PHP settings optimized for a production environment.') ?></p>
+					</div>
+	
+					<div id="clusterRadioWrapper">
+						<input type="radio" name="mode" value="cluster" id="clusterRadio"> <label for="clusterRadio">
+						<?php echo _t('Production (Create or Join a Cluster)') ?></label>
+						<p class="help-block"><?php echo _t('Launch Zend Server with server and PHP settings optimized for a clustered production environment.') ?></p>
+					</div>
+				</form>
+				
+				<div id="devbar-message" class="hidden"></div>
+<style>
+.wizard-page .help-block {
+	margin-top: 0px;
+	font-size: 11px;
+	color: #777;
+}
+</style>
+			</div>
+		</div>
+	</fieldset>
+	
+<?php if ($isClusterSupport):
+
+/************** Join cluster page **********************************/
+	$joinCluster->prepare ();
+	$joinCluster->setAttribute ( 'method', 'post' );
+?>
+
+	<fieldset class="wizard-page" id="joinClusterPage">
+		<div class="page-wrapper">
+			<div id="licenseError"></div>
+			<div id="joinClusterContent" class="wizard-content-pane tableDescContent">
+					<form id="join-cluster-form">
+						<h3>Join a Cluster</h3>
+						<p style="margin:0px; padding:0px;">
+						<?php echo _t('Configure your cluster database: If starting a new cluster, please use the database root credentials. If joining an existing cluster, please use your zend user database credentials.') ?></p>
+						<table class="clear">
+								<tbody>
+									<tr>
+										<td>Server Name</td>
+										<td><?php echo $this->formInput($joinCluster->get('serverName')
+										->setAttribute('class', "required validate-nospace")) ?>
+										<?php echo $this->formElementErrors($joinCluster->get('serverName'))?></td>
+									</tr>
+									<tr>
+										<td>Node IP</td>
+										<td><?php echo $this->formInput($joinCluster->get('nodeIp')
+										->setAttribute('class', "required validate-nospace validate-ipaddress"))?>
+										<?php echo $this->formElementErrors($joinCluster->get('nodeIp'))?></td>
+									</tr>
+									<tr>
+										<td>Database Host</td>
+										<td><?php echo $this->formInput($joinCluster->get('dbHost')
+										->setAttribute('class', "required validate-nospace"))?>
+										<?php echo $this->formElementErrors($joinCluster->get('dbHost'))?></td>
+									</tr>	
+									<tr>
+									<td>Database Name</td>
+										<td><?php echo $this->formInput($joinCluster->get('dbName')
+										->setAttribute('class', "required validate-nospace"))?>
+										<?php echo $this->formElementErrors($joinCluster->get('dbName'))?></td>
+									</tr>	
+									<tr>
+									<td>Database Username</td>
+										<td><?php echo $this->formInput($joinCluster->get('dbUsername')
+										->setAttribute('class', "required validate-nospace"))?>
+										<?php echo $this->formElementErrors($joinCluster->get('dbUsername'))?></td>
+									</tr>
+									<tr>
+									<td>Database Password</td>
+										<td><?php echo $this->formInput($joinCluster->get('dbPassword')
+										->setAttribute('class', ""))?>
+										<?php echo $this->formElementErrors($joinCluster->get('dbPassword'))?></td>
+									</tr>
+								</tbody>
+							</table>					
+							<input type="hidden" name="bootstrap" value="0" />					
+					</form>
+<style>
+.wizard-page .help-block {
+	margin-top: 0px;
+	font-size: 11px;
+	color: #777;
+}
+input[type="text"], input[type="password"] {
+	margin:1px 0px;
+}
+.tableDescContent td{
+	padding:3px 0px 2px 0px;
+}
+</style>
+			</div>
+		</div>
+	</fieldset>
+	
+<?php endif; ?>
+<?php if ($edition == 'cm') : ?>
+	<fieldset class="wizard-page" id="dbCredentialsPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Enter your database details'); ?></h2>
+			<div id="dbCredentialsError"></div>
+			<div id="dbCredentialsContent" class="wizard-content-pane">
+<?php
+	$dbForm->prepare ();
+	$dbForm->setAttribute ( 'method', 'post' );
+	?>
+					<?php echo $this->form()->openTag($dbForm); ?>
+					<fieldset>
+					<legend><?php echo _t('Connection Details'); ?></legend>
+					<dl class="zend_form">
+							<?php echo $this->formElementErrors($dbForm->get('location')->get('host')); ?>
+							<dt><?php echo $this->formLabel($dbForm->get('location')->get('host')); ?></dt>
+						<dd><?php echo $this->formInput($dbForm->get('location')->get('host')); ?></dd>
+							<?php echo $this->formElementErrors($dbForm->get('location')->get('port')); ?>
+							<dt><?php echo $this->formLabel($dbForm->get('location')->get('port')); ?></dt>
+						<dd><?php echo $this->formInput($dbForm->get('location')->get('port')); ?></dd>
+							<?php echo $this->formElementErrors($dbForm->get('location')->get('name')); ?>
+							<dt><?php echo $this->formLabel($dbForm->get('location')->get('name')); ?></dt>
+						<dd><?php echo $this->formInput($dbForm->get('location')->get('name')); ?></dd>
+					</dl>
+				</fieldset>
+				<fieldset>
+					<legend><?php echo _t('Credentials'); ?></legend>
+					<dl class="zend_form">
+							<?php echo $this->formElementErrors($dbForm->get('credentials')->get('username')); ?>
+							<dt><?php echo $this->formLabel($dbForm->get('credentials')->get('username')); ?></dt>
+						<dd><?php echo $this->formInput($dbForm->get('credentials')->get('username')); ?></dd>
+							<?php echo $this->formElementErrors($dbForm->get('credentials')->get('password')); ?>
+							<dt><?php echo $this->formLabel($dbForm->get('credentials')->get('password')); ?></dt>
+						<dd><?php echo $this->formInput($dbForm->get('credentials')->get('password')); ?></dd>
+					</dl>
+				</fieldset>
+					<?php echo $this->form()->closeTag(); ?>
+			</div>
+		</div>
+	</fieldset>
+<?php endif ?>
+	<fieldset class="wizard-page" id="passwordSetPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Set the passwords for accessing Zend Server'); ?></h2>
+			<div id="passwordError"></div>
+			<div id="passwordSetContent" class="wizard-content-pane">
+<?php
+$passwordForm->prepare ();
+$passwordForm->setAttribute ( 'method', 'post' );
+?>
+					<?php echo $this->form()->openTag($passwordForm); ?>
+						<table class="clear tableDescContent">
+					<tbody>
+						<tr><td colspan="2"><p>
+					<?php echo _t('Enter password for user \'admin\':');  ?>
+					</p></td></tr>
+						<tr>
+							<td><?php echo $this->formElementErrors($passwordForm->get('administrator')->get('password')); ?>
+								<?php echo $this->formLabel($passwordForm->get('administrator')->get('password')); ?></td>
+							<td><?php echo $this->formInput($passwordForm->get('administrator')->get('password')
+										->setAttribute('class', "required validate-nospace minLength:{$passwordMinimumLength} maxLength:{$passwordMaximumLength} validate-password")); ?></td>
+						</tr>
+						<tr>
+							<td><?php echo $this->formElementErrors($passwordForm->get('administrator')->get('password-confirm')); ?>
+								<?php echo $this->formLabel($passwordForm->get('administrator')->get('password-confirm')); ?></td>
+							<td><?php echo $this->formInput($passwordForm->get('administrator')->get('password-confirm')
+										->setAttribute('class', "required validate-match matchInput:'administrator-password' matchName:'Password'")); ?></td>
+						</tr>
+						<tr><td colspan="2"><p>
+					<?php echo _t('Enter password for user \'developer\' (Optional):'); ?>
+					</p></td></tr>
+						<tr>
+							<td>
+									<?php echo $this->formElementErrors($passwordForm->get('developer')->get('password')); ?>
+									<?php echo $this->formLabel($passwordForm->get('developer')->get('password')); ?></td>
+							<td><?php echo $this->formInput($passwordForm->get('developer')->get('password')
+										->setAttribute('class', "validate-nospace minLength:{$passwordMinimumLength} maxLength:{$passwordMaximumLength} validate-password")); ?></td>
+						</tr>
+						<tr>
+							<td>
+									<?php echo $this->formElementErrors($passwordForm->get('developer')->get('password-confirm')); ?>
+									<?php echo $this->formLabel($passwordForm->get('developer')->get('password-confirm')); ?></td>
+							<td><?php echo $this->formInput($passwordForm->get('developer')->get('password-confirm')
+										->setAttribute('class', "required validate-match matchInput:'developer-password' matchName:'Password'")); ?></td>
+						</tr>
+					</tbody>
+				</table>
+					<?php echo $this->form()->closeTag(); ?>
+			</div>
+		</div>
+	</fieldset>
+
+	<fieldset class="wizard-page" id="deployPackages">
+		<div class="page-wrapper">
+			<div id="libraries-deployment-header" class="clear">
+				<h2 class="float-left"><?php echo _t('Deploying Libraries');?></h2>
+				<div id="libraries-header-help" class="info-icon float-left"></div>
+			</div>
+			<div id="deployContent" class="wizard-content-pane">
+				<div id="deploy_library_entry-zf2" class="deploy_library_entry">
+					<div class="library_banner">
+						<img class="deploy_library_entry-logo" alt="Zend Framework 2" src="<?php echo $this->basepath('/images/marketing/ZF2-logo-210x48px.png') ?>">
+					</div>
+					<div class="progress_indicator progress_indicator-waiting float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/apps-stats-arrow-over.png') ?>">
+						<label class="progress_bar-label"><?php echo _t('Waiting...')?></label>
+					</div>
+					<div class="progress_indicator progress_indicator-inprogress float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/preload-16.gif') ?>">
+						<label class="progress_bar-label"><?php echo _t('Deploying...')?></label>
+					</div>
+					<div class="progress_indicator progress_indicator-done float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/apps-status-ok.png') ?>">
+						<label class="progress_bar-label"><?php echo _t('Deployed!')?></label>
+					</div>
+					<div class="progress_bar float-left">
+						<progress class="progress_bar-display" value="0" max="100"></progress>
+						<span class="progress_bar-value"></span>
+					</div>
+				</div>
+				<div id="deploy_library_entry-zf1" class="deploy_library_entry">
+					<div class="library_banner">
+						<img class="deploy_library_entry-logo" alt="Zend Framework" src="<?php echo $this->basepath('/images/marketing/ZF-logo-178x48px.png') ?>">
+					</div>
+					<div class="progress_indicator progress_indicator-waiting float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/apps-stats-arrow-over.png') ?>">
+						<label class="progress_bar-label"><?php echo _t('Waiting...')?></label>
+					</div>
+					<div class="progress_indicator progress_indicator-inprogress float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/preload-16.gif') ?>">
+						<label class="progress_bar-label"><?php echo _t('Deploying...')?></label>
+					</div>
+					<div class="progress_indicator progress_indicator-done float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/apps-status-ok.png') ?>">
+						<label class="progress_bar-label"><?php echo _t('Deployed!')?></label>
+					</div>
+					<div class="progress_bar float-left">
+						<progress class="progress_bar-display" value="0" max="100"></progress>
+						<span class="progress_bar-value"></span>
+					</div>
+				</div>
+				<div id="deploy_library_entry-symfony" class="deploy_library_entry">
+					<div class="library_banner">
+						<img class="deploy_library_entry-logo" alt="Symfony" src="<?php echo $this->basepath('/images/marketing/symfony_black_01.png') ?>">
+					</div>
+					<div class="progress_indicator progress_indicator-waiting float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/apps-stats-arrow-over.png') ?>">
+						<label class="progress_bar-label"><?php echo _t('Waiting...')?></label>
+					</div>
+					<div class="progress_indicator progress_indicator-inprogress float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/preload-16.gif') ?>">
+						<label class="progress_bar-label"><?php echo _t('Deploying...')?></label>
+					</div>
+					<div class="progress_indicator progress_indicator-done float-left">
+						<img class="progress_bar-icon" src="<?php echo $this->basepath('/images/apps-status-ok.png') ?>">
+						<label class="progress_bar-label"><?php echo _t('Deployed!')?></label>
+					</div>
+					<div class="progress_bar float-left">
+						<progress class="progress_bar-display" value="0" max="100"></progress>
+						<span class="progress_bar-value"></span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="summaryPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Summary'); ?></h2>
+			<div id="summaryError"></div>
+			<div id="summaryContent" class="wizard-content-pane"></div>
+		</div>
+	</fieldset>
+</div>
+
+<div id="dbCredeintialsPopUp" style="display: none">
+	<div class="wizard" style="width: 300px; height: 220px;">
+		<div class="wizard-title" id="wizard-title"><?php echo _t('Database Credentials'); ?></div>
+		<p style="padding-left: 10px;"><?php echo _t('Zend Server has detected that you are the first server in this cluster. The user credentials required for accessing the cluster database have been created, and can be retrieved from: ZendServer/etc/zend_database.ini'); ?></p>
+		<div class="wizard-control-area">
+			<button class="wizard-button" id="wizard-continue"
+				onclick="$('wizard-continue').fireEvent('click');"
+				style="float: left; margin-left: 5px;"><?php echo _t('Continue'); ?></button>
+		</div>
+	</div>
+</div>
+
+<ul class="system_details">
+	<?php if ($authenticationSource != 'simple'): ?>
+		<li><?php echo _t('Extended authentication enabled') ?></li>
+	<?php endif ?>
+	<li><?php echo _t('Zend Server Version: ') . $version; ?></li>
+	<li><?php echo _t('Build: ') . $build; ?></li>
+	<li><?php echo $profile ? _t('Profile: ') . ucfirst($profile) : ''; ?></li>
+	<?php if (! $licenseNeverExpires) : ?>
+	<li><?php echo _t('License Expiry Date: ') . $licenseExpiryDate; ?></li>
+	<?php endif; ?>
+</ul>

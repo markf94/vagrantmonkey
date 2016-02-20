@@ -1,0 +1,789 @@
+<Package version="104466" name="zray-standalone" os="darwin10.7-x86_64">
+	<Component version="7.43.0" name="curl">
+			<Component version="2.1.25" name="cyrus-sasl">
+					<Component version="0.9.8zf" name="openssl">
+							<Source version="0.9.8zf" url="http://www.openssl.org/source/openssl-0.9.8zf.tar.gz" name="openssl"/>
+							<Actions>
+								<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+								<Build>changing directory to openssl-0.9.8zf</Build>
+								<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+								<Build>executing: ./config shared --prefix=/usr/local/openssl-0.9.8zf</Build>
+								<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-0.9.8zf</Build>
+								<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+								<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+								<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-0.9.8zf/include/openssl/; done</Build>
+							</Actions>
+							<Build time="Wed Jul 15 15:00:20 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="1.2.7" name="zlib">
+							<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+							<Actions>
+								<Build>changing directory to zlib-1.2.7</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Module name="zwas" tag="99880"/>
+					<Source version="2.1.25" url="ftp://ftp.andrew.cmu.edu/pub/cyrus-mail/cyrus-sasl-2.1.25.tar.gz" name="cyrus_sasl"/>
+					<Actions>
+						<Build>executing: mkdir -p /usr/local/include /usr/local/lib</Build>
+						<Build>executing: cp -r /openssl-0.9.8zf/usr/local/openssl-0.9.8zf/lib/* /usr/local/lib</Build>
+						<Build>executing: cp -r /openssl-0.9.8zf/usr/local/openssl-0.9.8zf/include/* /usr/local/include</Build>
+						<Build>changing directory to /cyrus_sasl-2.1.25</Build>
+						<Build>executing: ./configure --prefix=/usr/local/zend</Build>
+						<Build>executing: perl -pe 's@echo -bundle \|\| echo -dynamiclib@echo -dynamiclib \|\| echo -dynamiclib@' -i libtool</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Sun Jul 19 16:36:47 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="0.9.8zf" name="openssl">
+					<Source version="0.9.8zf" url="http://www.openssl.org/source/openssl-0.9.8zf.tar.gz" name="openssl"/>
+					<Actions>
+						<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+						<Build>changing directory to openssl-0.9.8zf</Build>
+						<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+						<Build>executing: ./config shared --prefix=/usr/local/openssl-0.9.8zf</Build>
+						<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-0.9.8zf</Build>
+						<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+						<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+						<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-0.9.8zf/include/openssl/; done</Build>
+					</Actions>
+					<Build time="Wed Jul 15 15:00:20 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="1.2.7" name="zlib">
+					<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+					<Actions>
+						<Build>changing directory to zlib-1.2.7</Build>
+						<Build>executing: ./configure --prefix=/usr/local</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Source version="7.43.0" url="http://curl.haxx.se/download/curl-7.43.0.tar.gz" name="curl"/>
+			<Actions>
+				<Build>executing: mkdir -p //usr/local/zend/include //usr/local/zend/lib</Build>
+				<Build>executing: cp -r openssl-0.9.8zf/usr/local/openssl-0.9.8zf /usr/local/</Build>
+				<Build>executing: mv openssl-0.9.8zf/usr/local/openssl-0.9.8zf/lib/* //usr/local/zend/lib/</Build>
+				<Build>executing: mv openssl-0.9.8zf/usr/local/openssl-0.9.8zf/include/* //usr/local/zend/include</Build>
+				<Build>executing: rm -rf /usr/local/libsasl*</Build>
+				<Build>executing: mv /cyrus-sasl-2.1.25//usr/local/zend/lib/* //usr/local/zend/lib/</Build>
+				<Build>executing: mv /cyrus-sasl-2.1.25//usr/local/zend/include/* //usr/local/zend/include/</Build>
+				<Build>changing directory to curl-7.43.0</Build>
+				<Build>executing: ./configure --prefix=/usr/local/curl-7.43.0  --enable-static=yes --disable-dependency-tracking --with-ssl=//usr/local/zend --with-zlib=//usr/local/zend $CONFIGURE_OPTIONS</Build>
+				<Build>executing: perl -pe &quot;s@#define CURL_SIZEOF_LONG 8@#ifdef __LP64__\n#define CURL_SIZEOF_LONG 8\n#else\n#define CURL_SIZEOF_LONG 4\n#endif@&quot; -i include/curl/curlbuild.h</Build>
+				<Build>executing: make $MAKE_OPTIONS</Build>
+				<Build>executing: make install</Build>
+			</Actions>
+			<Build time="Wed Sep 16 12:04:57 2015" machine="users-mac-2.zend.net"/>
+	</Component>
+	<Component version="104466" name="zend-zray">
+			<Component version="2.69" name="autoconf">
+					<Component version="1.4.16" name="m4">
+							<Source version="1.4.16" url="http://ftp.gnu.org/gnu/m4/m4-1.4.16.tar.gz" name="m4"/>
+							<Actions>
+								<Build>changing directory to m4-1.4.16</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Thu Jul 30 01:16:52 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Source version="2.69" name="autoconf"/>
+					<Actions>
+						<Build>changing directory to autoconf-2.69</Build>
+						<Build>executing: ./configure --prefix=/usr/local $CONFIGURE_OPTIONS</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Thu Jul 30 01:21:56 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="ZEND_DRIZZLE_DRIVER_0_0_5_20101227" name="drizzle-driver">
+					<Component version="7_2011.03.13_zend1" name="libdrizzle">
+							<Component version="1.2.7" name="zlib">
+									<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+									<Actions>
+										<Build>changing directory to zlib-1.2.7</Build>
+										<Build>executing: ./configure --prefix=/usr/local</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+									</Actions>
+									<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Module name="libdrizzle" tag="7_2011.03.13_zend1"/>
+							<Module name="zwas" tag="99948"/>
+							<Actions>
+								<Build>changing directory to libdrizzle</Build>
+								<Build>executing: chmod +x config/install-sh</Build>
+								<Build>executing: ./configure --prefix=/usr/local/zend --without-server --enable-static $CONFIGURE_OPTIONS</Build>
+								<Build>executing: make libdrizzle || sed 's@-floop-parallelize-all@@g' -i Makefile</Build>
+								<Build>executing: make libdrizzle</Build>
+								<Build>executing: make install-libdrizzle</Build>
+								<Build>executing: mv /usr/local/zend/include/libdrizzle-*/* /usr/local/zend/include/</Build>
+							</Actions>
+							<Build time="Fri Jul 31 20:39:36 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="4.8.2" name="qt4">
+							<Component version="0.9.8zf" name="openssl">
+									<Source version="0.9.8zf" url="http://www.openssl.org/source/openssl-0.9.8zf.tar.gz" name="openssl"/>
+									<Actions>
+										<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+										<Build>changing directory to openssl-0.9.8zf</Build>
+										<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+										<Build>executing: ./config shared --prefix=/usr/local/openssl-0.9.8zf</Build>
+										<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-0.9.8zf</Build>
+										<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+										<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+										<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-0.9.8zf/include/openssl/; done</Build>
+									</Actions>
+									<Build time="Wed Jul 15 15:00:20 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Module name="zwas" tag="99880"/>
+							<Source version="4.8.2" name="qt-everywhere-commercial-src"/>
+							<Source version="3071300" url="http://www.sqlite.org/sqlite-autoconf-3071300.tar.gz" name="sqlite"/>
+							<Actions>
+								<Build>executing: cp -r /openssl-0.9.8zf/usr/local/openssl-0.9.8zf/* /usr/local/</Build>
+								<Build>changing directory to /sqlite-3071300</Build>
+								<Build>executing: cp shell.c sqlite3.c sqlite3.h /qt-everywhere-commercial-src-4.8.2/src/3rdparty/sqlite/</Build>
+								<Build>setting environment variable LicenseKeyExt=BGKX9-FM5-F4M-2CX-DVTDX-ERYJ-BA02</Build>
+								<Build>changing directory to /qt-everywhere-commercial-src-4.8.2</Build>
+								<Build>setting environment variable PATCHES=/zwas/qt_patches/connections_nubmer-4.8.2.diff</Build>
+								<Build>/zwas/qt_patches/ppc64le-4.8.2.diff</Build>
+								<Build>executing: for i in $PATCHES; do patch -p1 &lt; &quot;$i&quot;; done;</Build>
+								<Build>executing: perl -pi -e 's/read acceptance/acceptance=yes/g' configure</Build>
+								<Build>executing: perl -pi -e 's/COMMERCIAL_USER\=ask/COMMERCIAL_USER\=yes/g' configure</Build>
+								<Build>executing: perl -pi -e 's/QMAKE_CFLAGS_X86_64 \+\= -Xarch_x86_64 -mmacosx-version-min=10.5/QMAKE_CFLAGS_X86_64 \+\= -Xarch_x86_64 -mmacosx-version-min=10.7/g' mkspecs/common/g++-macx.conf</Build>
+								<Build>executing: perl -pi -e 's/QMAKE_CFLAGS_PPC_64 \+\= -Xarch_ppc64 -mmacosx-version-min=10.5/QMAKE_CFLAGS_PPC_64 \+\= -Xarch_ppc64 -mmacosx-version-min=10.7/g' mkspecs/common/g++-macx.conf</Build>
+								<Build>executing: perl -pi -e 's/-mmacosx-version-min\=10.5/-mmacosx-version-min\=10.7/g' configure</Build>
+								<Build>executing: ./configure -v -static -no-exceptions -no-accessibility -stl -no-nis -no-cups -debug-and-release -qt-zlib -prefix /usr/local/qt4-4.8.2 -no-webkit -qt-sql-sqlite -no-framework</Build>
+								<Build>executing: if [ -d src/tools/bootstrap ];then cd src/tools/bootstrap; make &amp;&amp; make install;fi</Build>
+								<Build>changing directory to src/tools/moc</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: make $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../rcc</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: make $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../../corelib</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: make $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../sql</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: make $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../testlib</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: make $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../network</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: make DEFINES+=-DQT_NO_IPV6 $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../xml</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: make $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../../tools/qtestlib</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' updater/Makefile</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' wince/cetcpsync/Makefile</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' wince/cetcpsyncserver/Makefile</Build>
+								<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' wince/cetest/Makefile</Build>
+								<Build>executing: make $MAKE_OPTIONS</Build>
+								<Build>executing: make install</Build>
+								<Build>changing directory to ../..</Build>
+								<Build>executing: mv bin/qmake ../usr/local/qt4-4.8.2/bin/</Build>
+								<Build>executing: mv mkspecs ../usr/local/qt4-4.8.2/</Build>
+								<Build>changing directory to ../usr/local/qt4-4.8.2/lib</Build>
+							</Actions>
+							<Build time="Wed Jul 15 15:27:24 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Module name="drizzle_driver" tag="ZEND_DRIZZLE_DRIVER_0_0_5_20101227"/>
+					<Actions>
+						<Build>executing: mkdir -p /usr/local/include/</Build>
+						<Build>executing: mkdir -p /usr/local/lib</Build>
+						<Build>executing: mv libdrizzle-7_2011.03.13_zend1/usr/local/zend/include/libdrizzle /usr/local/include/</Build>
+						<Build>executing: mv libdrizzle-7_2011.03.13_zend1/usr/local/zend/lib/* /usr/local/lib</Build>
+						<Build>changing directory to /drizzle_driver</Build>
+						<Build>setting environment variable QTDIR=/usr/local/qt4-4.8.2</Build>
+						<Build>setting environment variable PATH=/usr/colorgcc:/usr/local/bin:/bin:/usr/bin:/usr/sbin:/sbin:/usr/X11R6/bin:/usr/local/qt4-4.8.2/bin</Build>
+						<Build>executing: qmake MODULE_BUILD=RELEASE</Build>
+						<Build>executing: make -j5</Build>
+						<Build>executing: mv libsqldrizzle.a /usr/local/lib</Build>
+						<Build>executing: mv drizzle.pri /usr/local/</Build>
+					</Actions>
+					<Build time="Fri Jul 31 20:44:43 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="7_2011.03.13_zend1" name="libdrizzle">
+					<Component version="1.2.7" name="zlib">
+							<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+							<Actions>
+								<Build>changing directory to zlib-1.2.7</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Module name="libdrizzle" tag="7_2011.03.13_zend1"/>
+					<Module name="zwas" tag="99948"/>
+					<Actions>
+						<Build>changing directory to libdrizzle</Build>
+						<Build>executing: chmod +x config/install-sh</Build>
+						<Build>executing: ./configure --prefix=/usr/local/zend --without-server --enable-static $CONFIGURE_OPTIONS</Build>
+						<Build>executing: make libdrizzle || sed 's@-floop-parallelize-all@@g' -i Makefile</Build>
+						<Build>executing: make libdrizzle</Build>
+						<Build>executing: make install-libdrizzle</Build>
+						<Build>executing: mv /usr/local/zend/include/libdrizzle-*/* /usr/local/zend/include/</Build>
+					</Actions>
+					<Build time="Fri Jul 31 20:39:36 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="71897" name="libgeoip">
+					<Component version="1.2.7" name="zlib">
+							<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+							<Actions>
+								<Build>changing directory to zlib-1.2.7</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Module name="ZendServer" tag="71897"/>
+					<Actions>
+						<Build>executing: mkdir -p /usr/local/zend/var/db /libGeoIP/lib</Build>
+						<Build>setting environment variable ZLIB_SRC_DIR=/usr/local</Build>
+						<Build>executing: mv ZendServer /tmp</Build>
+						<Build>changing directory to /tmp/ZendServer</Build>
+						<Build>changing directory to third-party/GeoIP-1.5.1</Build>
+						<Build>executing: chmod +x configure &amp;&amp; ./configure --enable-static --disable-shared  --prefix=/libgeoip-71897 $CONFIGURE_OPTIONS</Build>
+						<Build>executing: perl -pi -e 's@/tmp/ZendServer/third-party/GeoIP-1.5.1@/libgeoip-71897@g' `find . -name Makefile | xargs`  `find . -name libGeoIPUpdate.la | xargs`</Build>
+						<Build>executing: grep -r -i third-party *</Build>
+						<Build>executing: make</Build>
+						<Build>executing: cp libGeoIP/.libs/libGeoIP.a /libGeoIP/lib</Build>
+						<Build>changing directory to /tmp/ZendServer</Build>
+						<Build>executing: cp -Rp /tmp/ZendServer/third-party/GeoIP-1.5.1/* /libGeoIP</Build>
+					</Actions>
+					<Build time="Fri Jul 31 20:57:15 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="2.9.1" name="libxml2">
+					<Component version="1.2.7" name="zlib">
+							<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+							<Actions>
+								<Build>changing directory to zlib-1.2.7</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Module name="zwas" tag="99948"/>
+					<Source version="2.9.1" url="ftp://xmlsoft.org/libxml2/libxml2-2.9.1.tar.gz" name="libxml2"/>
+					<Actions>
+						<Build>changing directory to libxml2-2.9.1</Build>
+						<Build>setting environment variable PATCHES=/zwas/libxml_patches/ppc64le-autotools-2.9.1.diff</Build>
+						<Build>executing: for i in $PATCHES; do patch -p1 &lt; &quot;$i&quot;; done;</Build>
+						<Build>setting environment variable __PIC_OPTION=--with-pic</Build>
+						<Build>executing: ./configure --prefix=/usr/local --enable-shared=no --enable-static=yes --with-zlib --without-threads --disable-ipv6 --without-python $__PIC_OPTION $CONF_DEP_TRACK</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Thu Jul 30 01:35:05 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="1.1.28" name="libxslt">
+					<Component version="2.9.1" name="libxml2">
+							<Component version="1.2.7" name="zlib">
+									<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+									<Actions>
+										<Build>changing directory to zlib-1.2.7</Build>
+										<Build>executing: ./configure --prefix=/usr/local</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+									</Actions>
+									<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Module name="zwas" tag="99948"/>
+							<Source version="2.9.1" url="ftp://xmlsoft.org/libxml2/libxml2-2.9.1.tar.gz" name="libxml2"/>
+							<Actions>
+								<Build>changing directory to libxml2-2.9.1</Build>
+								<Build>setting environment variable PATCHES=/zwas/libxml_patches/ppc64le-autotools-2.9.1.diff</Build>
+								<Build>executing: for i in $PATCHES; do patch -p1 &lt; &quot;$i&quot;; done;</Build>
+								<Build>setting environment variable __PIC_OPTION=--with-pic</Build>
+								<Build>executing: ./configure --prefix=/usr/local --enable-shared=no --enable-static=yes --with-zlib --without-threads --disable-ipv6 --without-python $__PIC_OPTION $CONF_DEP_TRACK</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Thu Jul 30 01:35:05 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="1.2.7" name="zlib">
+							<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+							<Actions>
+								<Build>changing directory to zlib-1.2.7</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Source version="1.1.28" url="ftp://xmlsoft.org/libxslt/libxslt-1.1.28.tar.gz" name="libxslt"/>
+					<Actions>
+						<Build>changing directory to libxslt-1.1.28</Build>
+						<Build>executing: ./configure --prefix=/usr/local --enable-shared=no --enable-static=yes --with-libxml-prefix=/usr/local $CONF_DEP_TRACK</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Fri Jul 31 18:01:59 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="0.11.2" name="libzip">
+					<Component version="1.2.7" name="zlib">
+							<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+							<Actions>
+								<Build>changing directory to zlib-1.2.7</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Source version="0.11.2" url="http://www.nih.at/libzip/libzip-0.11.2.tar.gz" name="libzip"/>
+					<Actions>
+						<Build>changing directory to libzip-0.11.2</Build>
+						<Build>executing: ./configure --disable-shared --prefix=/usr/local/libzip-0.11.2 $CONFIGURE_OPTIONS</Build>
+						<Build>executing: make -j5</Build>
+						<Build>executing: make install</Build>
+						<Build>executing: mv /usr/local/libzip-0.11.2/lib/libzip/include/*.h /usr/local/libzip-0.11.2/include</Build>
+					</Actions>
+					<Build time="Fri Jul 31 21:02:33 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="1.4.16" name="m4">
+					<Source version="1.4.16" url="http://ftp.gnu.org/gnu/m4/m4-1.4.16.tar.gz" name="m4"/>
+					<Actions>
+						<Build>changing directory to m4-1.4.16</Build>
+						<Build>executing: ./configure --prefix=/usr/local</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Thu Jul 30 01:16:52 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="1.0.1p" name="openssl">
+					<Source version="1.0.1p" url="http://www.openssl.org/source/openssl-1.0.1p.tar.gz" name="openssl"/>
+					<Actions>
+						<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+						<Build>changing directory to openssl-1.0.1p</Build>
+						<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+						<Build>executing: ./config shared --prefix=/usr/local/openssl-1.0.1p</Build>
+						<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-1.0.1p</Build>
+						<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+						<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+						<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-1.0.1p/include/openssl/; done</Build>
+					</Actions>
+					<Build time="Wed Sep 16 11:17:55 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="5.6.17" name="patched-php-src">
+					<Component version="2.69" name="autoconf">
+							<Component version="1.4.16" name="m4">
+									<Source version="1.4.16" url="http://ftp.gnu.org/gnu/m4/m4-1.4.16.tar.gz" name="m4"/>
+									<Actions>
+										<Build>changing directory to m4-1.4.16</Build>
+										<Build>executing: ./configure --prefix=/usr/local</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+									</Actions>
+									<Build time="Thu Jul 30 01:16:52 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Source version="2.69" name="autoconf"/>
+							<Actions>
+								<Build>changing directory to autoconf-2.69</Build>
+								<Build>executing: ./configure --prefix=/usr/local $CONFIGURE_OPTIONS</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Thu Jul 30 01:21:56 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="1.4.16" name="m4">
+							<Source version="1.4.16" url="http://ftp.gnu.org/gnu/m4/m4-1.4.16.tar.gz" name="m4"/>
+							<Actions>
+								<Build>changing directory to m4-1.4.16</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Thu Jul 30 01:16:52 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="1.0.1p" name="openssl">
+							<Source version="1.0.1p" url="http://www.openssl.org/source/openssl-1.0.1p.tar.gz" name="openssl"/>
+							<Actions>
+								<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+								<Build>changing directory to openssl-1.0.1p</Build>
+								<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+								<Build>executing: ./config shared --prefix=/usr/local/openssl-1.0.1p</Build>
+								<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-1.0.1p</Build>
+								<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+								<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+								<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-1.0.1p/include/openssl/; done</Build>
+							</Actions>
+							<Build time="Wed Sep 16 11:17:55 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Module name="zwas" tag="103991"/>
+					<Source version="5.6.17" name="php"/>
+					<Actions>
+						<Build>executing: mv zwas/php_patches php-5.6.17/ext/</Build>
+						<Build>executing: mv /openssl-1.0.1p/usr/local/openssl-1.0.1p /usr/local/openssl-1.0.1p</Build>
+						<Build>changing directory to php-5.6.17</Build>
+						<Build>setting environment variable PATCHES=ext/php_patches/am_prog_lex-5.6.17.diff</Build>
+						<Build>ext/php_patches/bug38524_phpt-5.6.17.diff</Build>
+						<Build>ext/php_patches/bug_36103_ftp-5.6.17.diff</Build>
+						<Build>ext/php_patches/fpm_rc-5.6.17.diff</Build>
+						<Build>ext/php_patches/odbc_config-5.6.17.diff</Build>
+						<Build>ext/php_patches/opcache_aliases-5.6.17.diff</Build>
+						<Build>ext/php_patches/opcache_directives-5.6.17.diff</Build>
+						<Build>ext/php_patches/opcache_loader-5.6.17.diff</Build>
+						<Build>ext/php_patches/session-5.6.17.diff</Build>
+						<Build>ext/php_patches/strtr-5.6.17.diff</Build>
+						<Build>ext/php_patches/zray_performance-5.6.17.diff</Build>
+						<Build>setting environment variable PATCHES=ext/php_patches/am_prog_lex-5.6.17.diff</Build>
+						<Build>ext/php_patches/bug38524_phpt-5.6.17.diff</Build>
+						<Build>ext/php_patches/bug_36103_ftp-5.6.17.diff</Build>
+						<Build>ext/php_patches/fpm_rc-5.6.17.diff</Build>
+						<Build>ext/php_patches/odbc_config-5.6.17.diff</Build>
+						<Build>ext/php_patches/opcache_aliases-5.6.17.diff</Build>
+						<Build>ext/php_patches/opcache_directives-5.6.17.diff</Build>
+						<Build>ext/php_patches/opcache_loader-5.6.17.diff</Build>
+						<Build>ext/php_patches/session-5.6.17.diff</Build>
+						<Build>ext/php_patches/strtr-5.6.17.diff</Build>
+						<Build>ext/php_patches/zray_performance-5.6.17.diff ext/php_patches/darwin/dom-5.6.17.diff</Build>
+						<Build>executing: for i in $PATCHES; do patch -p1 &lt; &quot;$i&quot;; done;</Build>
+						<Build>executing: ./buildconf --force</Build>
+						<Build>executing: ./configure --disable-xml --disable-dom --disable-libxml --disable-simplexml --without-pear --disable-xmlreader --disable-xmlwriter --without-iconv  --with-openssl-dir=/usr/local/openssl-1.0.1p</Build>
+					</Actions>
+					<Build time="Mon Jan 25 17:47:09 2016" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="8.30" name="pcre">
+					<Source version="8.30" url="ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre-8.30.tar.gz" name="pcre"/>
+					<Actions>
+						<Build>changing directory to pcre-8.30</Build>
+						<Build>executing: ./configure --prefix=/usr/local/pcre-8.30 --disable-dependency-tracking --enable-shared=no --enable-static=yes --enable-utf8 --enable-unicode-properties --disable-cpp $CONFIGURE_OPTIONS</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Sun Jul 19 16:05:03 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="5.6.17" name="php-ce">
+					<Component version="2.9.1" name="libxml2">
+							<Component version="1.2.7" name="zlib">
+									<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+									<Actions>
+										<Build>changing directory to zlib-1.2.7</Build>
+										<Build>executing: ./configure --prefix=/usr/local</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+									</Actions>
+									<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Module name="zwas" tag="99948"/>
+							<Source version="2.9.1" url="ftp://xmlsoft.org/libxml2/libxml2-2.9.1.tar.gz" name="libxml2"/>
+							<Actions>
+								<Build>changing directory to libxml2-2.9.1</Build>
+								<Build>setting environment variable PATCHES=/zwas/libxml_patches/ppc64le-autotools-2.9.1.diff</Build>
+								<Build>executing: for i in $PATCHES; do patch -p1 &lt; &quot;$i&quot;; done;</Build>
+								<Build>setting environment variable __PIC_OPTION=--with-pic</Build>
+								<Build>executing: ./configure --prefix=/usr/local --enable-shared=no --enable-static=yes --with-zlib --without-threads --disable-ipv6 --without-python $__PIC_OPTION $CONF_DEP_TRACK</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Thu Jul 30 01:35:05 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="1.0.1p" name="openssl">
+							<Source version="1.0.1p" url="http://www.openssl.org/source/openssl-1.0.1p.tar.gz" name="openssl"/>
+							<Actions>
+								<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+								<Build>changing directory to openssl-1.0.1p</Build>
+								<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+								<Build>executing: ./config shared --prefix=/usr/local/openssl-1.0.1p</Build>
+								<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-1.0.1p</Build>
+								<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+								<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+								<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-1.0.1p/include/openssl/; done</Build>
+							</Actions>
+							<Build time="Wed Sep 16 11:17:55 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="5.6.17" name="patched-php-src">
+							<Component version="2.69" name="autoconf">
+									<Component version="1.4.16" name="m4">
+											<Source version="1.4.16" url="http://ftp.gnu.org/gnu/m4/m4-1.4.16.tar.gz" name="m4"/>
+											<Actions>
+												<Build>changing directory to m4-1.4.16</Build>
+												<Build>executing: ./configure --prefix=/usr/local</Build>
+												<Build>executing: make</Build>
+												<Build>executing: make install</Build>
+											</Actions>
+											<Build time="Thu Jul 30 01:16:52 2015" machine="users-mac-2.zend.net"/>
+									</Component>
+									<Source version="2.69" name="autoconf"/>
+									<Actions>
+										<Build>changing directory to autoconf-2.69</Build>
+										<Build>executing: ./configure --prefix=/usr/local $CONFIGURE_OPTIONS</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+									</Actions>
+									<Build time="Thu Jul 30 01:21:56 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Component version="1.4.16" name="m4">
+									<Source version="1.4.16" url="http://ftp.gnu.org/gnu/m4/m4-1.4.16.tar.gz" name="m4"/>
+									<Actions>
+										<Build>changing directory to m4-1.4.16</Build>
+										<Build>executing: ./configure --prefix=/usr/local</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+									</Actions>
+									<Build time="Thu Jul 30 01:16:52 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Component version="1.0.1p" name="openssl">
+									<Source version="1.0.1p" url="http://www.openssl.org/source/openssl-1.0.1p.tar.gz" name="openssl"/>
+									<Actions>
+										<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+										<Build>changing directory to openssl-1.0.1p</Build>
+										<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+										<Build>executing: ./config shared --prefix=/usr/local/openssl-1.0.1p</Build>
+										<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-1.0.1p</Build>
+										<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+										<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+										<Build>executing: make</Build>
+										<Build>executing: make install</Build>
+										<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-1.0.1p/include/openssl/; done</Build>
+									</Actions>
+									<Build time="Wed Sep 16 11:17:55 2015" machine="users-mac-2.zend.net"/>
+							</Component>
+							<Module name="zwas" tag="103991"/>
+							<Source version="5.6.17" name="php"/>
+							<Actions>
+								<Build>executing: mv zwas/php_patches php-5.6.17/ext/</Build>
+								<Build>executing: mv /openssl-1.0.1p/usr/local/openssl-1.0.1p /usr/local/openssl-1.0.1p</Build>
+								<Build>changing directory to php-5.6.17</Build>
+								<Build>setting environment variable PATCHES=ext/php_patches/am_prog_lex-5.6.17.diff</Build>
+								<Build>ext/php_patches/bug38524_phpt-5.6.17.diff</Build>
+								<Build>ext/php_patches/bug_36103_ftp-5.6.17.diff</Build>
+								<Build>ext/php_patches/fpm_rc-5.6.17.diff</Build>
+								<Build>ext/php_patches/odbc_config-5.6.17.diff</Build>
+								<Build>ext/php_patches/opcache_aliases-5.6.17.diff</Build>
+								<Build>ext/php_patches/opcache_directives-5.6.17.diff</Build>
+								<Build>ext/php_patches/opcache_loader-5.6.17.diff</Build>
+								<Build>ext/php_patches/session-5.6.17.diff</Build>
+								<Build>ext/php_patches/strtr-5.6.17.diff</Build>
+								<Build>ext/php_patches/zray_performance-5.6.17.diff</Build>
+								<Build>setting environment variable PATCHES=ext/php_patches/am_prog_lex-5.6.17.diff</Build>
+								<Build>ext/php_patches/bug38524_phpt-5.6.17.diff</Build>
+								<Build>ext/php_patches/bug_36103_ftp-5.6.17.diff</Build>
+								<Build>ext/php_patches/fpm_rc-5.6.17.diff</Build>
+								<Build>ext/php_patches/odbc_config-5.6.17.diff</Build>
+								<Build>ext/php_patches/opcache_aliases-5.6.17.diff</Build>
+								<Build>ext/php_patches/opcache_directives-5.6.17.diff</Build>
+								<Build>ext/php_patches/opcache_loader-5.6.17.diff</Build>
+								<Build>ext/php_patches/session-5.6.17.diff</Build>
+								<Build>ext/php_patches/strtr-5.6.17.diff</Build>
+								<Build>ext/php_patches/zray_performance-5.6.17.diff ext/php_patches/darwin/dom-5.6.17.diff</Build>
+								<Build>executing: for i in $PATCHES; do patch -p1 &lt; &quot;$i&quot;; done;</Build>
+								<Build>executing: ./buildconf --force</Build>
+								<Build>executing: ./configure --disable-xml --disable-dom --disable-libxml --disable-simplexml --without-pear --disable-xmlreader --disable-xmlwriter --without-iconv  --with-openssl-dir=/usr/local/openssl-1.0.1p</Build>
+							</Actions>
+							<Build time="Mon Jan 25 17:47:09 2016" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Component version="1.2.7" name="zlib">
+							<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+							<Actions>
+								<Build>changing directory to zlib-1.2.7</Build>
+								<Build>executing: ./configure --prefix=/usr/local</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+							</Actions>
+							<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Actions>
+						<Build>executing: mv openssl-1.0.1p/usr/local/openssl-1.0.1p /usr/local/</Build>
+						<Build>executing: mv patched-php-src-5.6.17/php-5.6.17 php-5.6.17</Build>
+						<Build>changing directory to php-5.6.17</Build>
+						<Build>executing: ./configure --prefix=/usr/local/zend --with-config-file-path=/usr/local/zend/etc --with-config-file-scan-dir=/usr/local/zend/etc/conf.d --disable-debug --enable-inline-optimization --disable-all --enable-ctype --enable-dom --enable-libxml --with-pcre-regex --enable-session --enable-simplexml --enable-spl --enable-wddx --enable-xml --enable-hash --enable-reflection --enable-json --enable-filter --with-zlib --with-layout=GNU --with-iconv --enable-pdo --with-openssl=/usr/local/openssl-1.0.1p --enable-mysqlnd</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>executing: mv sapi/cli/php /usr/local/zend/bin/php-cli</Build>
+					</Actions>
+					<Build time="Mon Jan 25 17:58:22 2016" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="4.8.2" name="qt4">
+					<Component version="0.9.8zf" name="openssl">
+							<Source version="0.9.8zf" url="http://www.openssl.org/source/openssl-0.9.8zf.tar.gz" name="openssl"/>
+							<Actions>
+								<Build>setting environment variable BUILD_ARCH=build/x86_64</Build>
+								<Build>changing directory to openssl-0.9.8zf</Build>
+								<Build>setting environment variable LDFLAGS= -Wl,-Bsymbolic </Build>
+								<Build>executing: ./config shared --prefix=/usr/local/openssl-0.9.8zf</Build>
+								<Build>executing: ./Configure darwin64-x86_64-cc --prefix=/usr/local/openssl-0.9.8zf</Build>
+								<Build>executing: perl -pi -e 's/^CFLAG\s*\=\s*/CFLAG= \$(CFLAGS) /' Makefile ||true</Build>
+								<Build>executing: perl -pi -e 's/^install\:\s+all\s+install_docs/install: all/' Makefile||true</Build>
+								<Build>executing: make</Build>
+								<Build>executing: make install</Build>
+								<Build>executing: for f in des.h des_old.h; do cp -p include/openssl/$f /usr/local/openssl-0.9.8zf/include/openssl/; done</Build>
+							</Actions>
+							<Build time="Wed Jul 15 15:00:20 2015" machine="users-mac-2.zend.net"/>
+					</Component>
+					<Module name="zwas" tag="99880"/>
+					<Source version="4.8.2" name="qt-everywhere-commercial-src"/>
+					<Source version="3071300" url="http://www.sqlite.org/sqlite-autoconf-3071300.tar.gz" name="sqlite"/>
+					<Actions>
+						<Build>executing: cp -r /openssl-0.9.8zf/usr/local/openssl-0.9.8zf/* /usr/local/</Build>
+						<Build>changing directory to /sqlite-3071300</Build>
+						<Build>executing: cp shell.c sqlite3.c sqlite3.h /qt-everywhere-commercial-src-4.8.2/src/3rdparty/sqlite/</Build>
+						<Build>setting environment variable LicenseKeyExt=BGKX9-FM5-F4M-2CX-DVTDX-ERYJ-BA02</Build>
+						<Build>changing directory to /qt-everywhere-commercial-src-4.8.2</Build>
+						<Build>setting environment variable PATCHES=/zwas/qt_patches/connections_nubmer-4.8.2.diff</Build>
+						<Build>/zwas/qt_patches/ppc64le-4.8.2.diff</Build>
+						<Build>executing: for i in $PATCHES; do patch -p1 &lt; &quot;$i&quot;; done;</Build>
+						<Build>executing: perl -pi -e 's/read acceptance/acceptance=yes/g' configure</Build>
+						<Build>executing: perl -pi -e 's/COMMERCIAL_USER\=ask/COMMERCIAL_USER\=yes/g' configure</Build>
+						<Build>executing: perl -pi -e 's/QMAKE_CFLAGS_X86_64 \+\= -Xarch_x86_64 -mmacosx-version-min=10.5/QMAKE_CFLAGS_X86_64 \+\= -Xarch_x86_64 -mmacosx-version-min=10.7/g' mkspecs/common/g++-macx.conf</Build>
+						<Build>executing: perl -pi -e 's/QMAKE_CFLAGS_PPC_64 \+\= -Xarch_ppc64 -mmacosx-version-min=10.5/QMAKE_CFLAGS_PPC_64 \+\= -Xarch_ppc64 -mmacosx-version-min=10.7/g' mkspecs/common/g++-macx.conf</Build>
+						<Build>executing: perl -pi -e 's/-mmacosx-version-min\=10.5/-mmacosx-version-min\=10.7/g' configure</Build>
+						<Build>executing: ./configure -v -static -no-exceptions -no-accessibility -stl -no-nis -no-cups -debug-and-release -qt-zlib -prefix /usr/local/qt4-4.8.2 -no-webkit -qt-sql-sqlite -no-framework</Build>
+						<Build>executing: if [ -d src/tools/bootstrap ];then cd src/tools/bootstrap; make &amp;&amp; make install;fi</Build>
+						<Build>changing directory to src/tools/moc</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../rcc</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../../corelib</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../sql</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../testlib</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../network</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: make DEFINES+=-DQT_NO_IPV6 $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../xml</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../../tools/qtestlib</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' Makefile</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' updater/Makefile</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' wince/cetcpsync/Makefile</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' wince/cetcpsyncserver/Makefile</Build>
+						<Build>executing: perl -pi -e 's/-arch -all_load/-arch x86_64 -all_load/g' wince/cetest/Makefile</Build>
+						<Build>executing: make $MAKE_OPTIONS</Build>
+						<Build>executing: make install</Build>
+						<Build>changing directory to ../..</Build>
+						<Build>executing: mv bin/qmake ../usr/local/qt4-4.8.2/bin/</Build>
+						<Build>executing: mv mkspecs ../usr/local/qt4-4.8.2/</Build>
+						<Build>changing directory to ../usr/local/qt4-4.8.2/lib</Build>
+					</Actions>
+					<Build time="Wed Jul 15 15:27:24 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="3.1.1" name="xerces">
+					<Source version="3.1.1" url="http://mirror.host4site.co.il/apache//xerces/c/3/sources/xerces-c-3.1.1.tar.gz" name="xerces-c"/>
+					<Actions>
+						<Build>changing directory to /xerces-c-3.1.1</Build>
+						<Build>executing: ./configure --prefix=/usr/local/xerces-3.1.1 --enable-netaccessor-socket --disable-netaccessor-curl --disable-shared</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Fri Jul 31 21:10:09 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Component version="1.2.7" name="zlib">
+					<Source version="1.2.7" url="http://www.zlib.net/zlib-1.2.7.tar.gz" name="zlib"/>
+					<Actions>
+						<Build>changing directory to zlib-1.2.7</Build>
+						<Build>executing: ./configure --prefix=/usr/local</Build>
+						<Build>executing: make</Build>
+						<Build>executing: make install</Build>
+					</Actions>
+					<Build time="Sun Jul 19 16:22:11 2015" machine="users-mac-2.zend.net"/>
+			</Component>
+			<Module name="ZendServer" tag="104466"/>
+			<Actions>
+				<Build>executing: mkdir -p /usr/local/drizzle-driver-ZEND_DRIZZLE_DRIVER_0_0_5_20101227</Build>
+				<Build>executing: mv drizzle-driver-ZEND_DRIZZLE_DRIVER_0_0_5_20101227/usr/local/* /usr/local/drizzle-driver-ZEND_DRIZZLE_DRIVER_0_0_5_20101227</Build>
+				<Build>executing: mv libdrizzle-7_2011.03.13_zend1//usr/local/zend/lib/*.a /usr/local/drizzle-driver-ZEND_DRIZZLE_DRIVER_0_0_5_20101227/lib</Build>
+				<Build>executing: mv libzip-0.11.2/usr/local/libzip-0.11.2/include/* /usr/local/include/</Build>
+				<Build>executing: mv libzip-0.11.2/usr/local/libzip-0.11.2/lib/* /usr/local/lib/</Build>
+				<Build>executing: mv openssl-1.0.1p/usr/local/openssl-1.0.1p /usr/local/</Build>
+				<Build>executing: mv pcre-8.30/usr/local/pcre-8.30/include/* /usr/local/include/</Build>
+				<Build>executing: mv pcre-8.30/usr/local/pcre-8.30/lib/* /usr/local/lib/</Build>
+				<Build>executing: mv patched-php-src-5.6.17/php-5.6.17 /usr/local/php-5.6.17</Build>
+				<Build>executing: mv php-ce-5.6.17/usr/local/zend/bin/php-cli /usr/local/php-5.6.17/php-cli</Build>
+				<Build>setting environment variable LD_LIBRARY_PATH=/usr/local/lib:</Build>
+				<Build>setting environment variable DRIZZLE_DRIVER_DIR=/usr/local/drizzle-driver-ZEND_DRIZZLE_DRIVER_0_0_5_20101227</Build>
+				<Build>setting environment variable LIBZIP_SRC_DIR=/usr/local</Build>
+				<Build>setting environment variable OPENSSL_SRC_DIR=/usr/local/openssl-1.0.1p</Build>
+				<Build>setting environment variable OPENSSL_DIR=/usr/local/openssl-1.0.1p</Build>
+				<Build>setting environment variable LIBPCRE_DIR=/usr/local</Build>
+				<Build>setting environment variable PHP_SRC_DIR=/usr/local/php-5.6.17</Build>
+				<Build>setting environment variable QTDIR=/usr/local/qt4-4.8.2</Build>
+				<Build>setting environment variable PATH=/usr/colorgcc:/usr/local/bin:/bin:/usr/bin:/usr/sbin:/sbin:/usr/X11R6/bin:/usr/local/qt4-4.8.2/bin</Build>
+				<Build>setting environment variable XERCES_SRC_DIR=/usr/local/xerces-3.1.1</Build>
+				<Build>setting environment variable ZLIB_SRC_DIR=/usr/local</Build>
+				<Build>setting environment variable PHP_BIN=/usr/local/php-5.6.17/php-cli</Build>
+				<Build>setting environment variable GEOIP_SRC_DIR=/libgeoip-71897/libGeoIP</Build>
+				<Build>executing: mv ZendServer /tmp</Build>
+				<Build>changing directory to /tmp/ZendServer</Build>
+				<Build>executing: touch user_env</Build>
+				<Build>executing: (. ./Environment; cd ZendLib; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd ZDO; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd SerialNumber; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd ZSDLib; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd DevBarLib; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd ClusterDeployment/src/common; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd StatisticsLib; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd StdExtLib; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd PHPHooks; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd Monitor; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd ClusterDeployment; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd ZSD; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: (. ./Environment; cd Statistics; qmake MODULE_BUILD=RELEASE; make $MAKE_OPTIONS)</Build>
+				<Build>executing: mkdir -p /usr/local/zend/bin /usr/local/zend/lib /usr/local/zend/runtime/etc /usr/local/zend/runtime/var/plugins</Build>
+				<Build>executing: mv ClusterDeployment/bin/zdd /usr/local/zend/bin</Build>
+				<Build>executing: mv DevBarLib/lib/libZendDevBarLib.so /usr/local/zend/lib/</Build>
+				<Build>executing: cp -rp gui /usr/local/zend/</Build>
+				<Build>executing: rm -rf /usr/local/zend/gui/docs</Build>
+				<Build>executing: rm -rf /usr/local/zend/gui/utils</Build>
+				<Build>executing: mv Statistics/bin/libZRayStandalone.so /usr/local/zend/lib/zray.so</Build>
+				<Build>executing: mv Statistics/resources/zray-standalone.ini /usr/local/zend/zray.ini</Build>
+				<Build>executing: mv Statistics/resources/zray-ui.conf /usr/local/zend/</Build>
+				<Build>executing: mv Statistics/resources/zray-ui-osx.conf /usr/local/zend/</Build>
+				<Build>executing: rm -f Plugins/XmltoolKit.zip</Build>
+				<Build>executing: mv Plugins/*.zip /usr/local/zend/runtime/var/plugins/</Build>
+				<Build>executing: xsltproc --stringparam MY_OS darwin-x86_64 --stringparam MY_PRODUCT ZenithPE ZendBuild/ddToIni.xsl ClusterDeployment/src/phplib/resources/DD.xml &gt; /usr/local/zend/runtime/etc/deployment.ini</Build>
+				<Build>executing: echo '[package]'					&gt;&gt; /usr/local/zend/packaging.ini</Build>
+				<Build>executing: echo 'zend_gui.build = 104466'			&gt;&gt; /usr/local/zend/packaging.ini</Build>
+				<Build>executing: echo 'zend_gui.version = 9.0.0'	&gt;&gt; /usr/local/zend/packaging.ini</Build>
+			</Actions>
+			<Build time="Thu Feb  4 14:59:49 2016" machine="users-mac-2.zend.net"/>
+	</Component>
+	<Source version="2.4.7" name="ZendFramework2"/>
+</Package>

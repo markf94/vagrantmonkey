@@ -1,0 +1,7 @@
+<?php $applications = $applications ?: new \ZendServer\Set(array()); ?>
+<responseData>
+<?php foreach($applications as $application) : /* @var $application \Deployment\Application\Container */?>
+<?php $appServers = (isset( $servers[$application->getApplicationId()]) ?  $servers[$application->getApplicationId()] : array())?>
+<?php   echo $this->applicationInfoXml($application, $appServers);?>
+<?php endforeach ?>
+</responseData>

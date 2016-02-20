@@ -1,0 +1,14 @@
+<responseData>
+	<auditMessageDetails>
+		<?php
+		echo $this->auditMessageXml($auditMessage);
+		?>
+		<auditProgressList>
+		<?php
+		foreach ($auditProgressList as $auditProgressMessage) {
+			echo $this->auditMessageProgressXml($auditProgressMessage);
+		}
+		?>
+		</auditProgressList>
+	</auditMessageDetails>
+</responseData>

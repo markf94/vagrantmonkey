@@ -1,0 +1,13 @@
+<?php // set the default values ?>
+<?php $applications = $applications ?: new \ZendServer\Set(array()); ?>
+<?php $respondingServersCount = isset($respondingServersCount) ? $respondingServersCount : null; ?>
+
+<?php if (! isset($servers)) $servers = array(); ?>
+<?php $limitCount = $applications->count(); ?>
+"responseData":{"applicationsList":[
+<?php $counter = 0; foreach($applications as $application) : /* @var $application \Deployment\Application\Container */?>
+<?php   isset($servers[$application->getApplicationId()]) ? $serversData = $servers[$application->getApplicationId()] : $serversData = array();?>
+<?php   echo $this->applicationInfoJson($application, $serversData, $respondingServersCount);?>
+<?php echo (++$counter < $limitCount ? ',' : ''); ?>
+<?php endforeach ?>
+]}

@@ -1,0 +1,7 @@
+<responseData>
+	<?php echo $this->serverInfoXml($server); ?>
+	<newCredentials>
+		<new><?php echo $newCredentials['new'] ? 'Yes' : 'No' ?></new>
+	</newCredentials>
+	<?php echo $this->apiKeyXml($adminKey, 'clusterAdminKey');?>
+</responseData>

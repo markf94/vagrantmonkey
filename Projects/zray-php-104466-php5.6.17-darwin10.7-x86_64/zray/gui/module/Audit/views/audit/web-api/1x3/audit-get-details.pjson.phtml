@@ -1,0 +1,13 @@
+<?php 
+	$message = $this->auditMessageJson($auditMessage);
+	
+	$auditList = array();
+	foreach ($auditProgressList as $auditProgressMessage) {
+		$auditList[] = $this->auditMessageProgressJson($auditProgressMessage);
+	}
+	$auditProgressList = implode(',', $auditList);
+?>
+"responseData":{"auditMessageDetails": {
+"auditMessage": <?php echo $message ?>,
+"auditProgressList": [ <?php echo $auditProgressList ?> ]
+}}

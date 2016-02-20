@@ -1,0 +1,971 @@
+<div class="zdb-toolbar-entry zdb-superglobals-details"
+	data-name="superglobals">
+	<div class="zdb-toolbar-preview" title="Request Info">
+		<div class="zdb-toolbar-icon"></div>
+		<span class="zdb-toolbar-info">Request Info</span>
+	</div>
+	<div class="zdb-toolbar-detail zdb-superglobals-details-wrapper">
+		<div class="zdb-row zdb-toolbar-detail-header">
+			<div class="zdb-col-4">
+				<div class="zdb-pull-right">
+					<ul class="zdb-toolbar-items zdb-horizontal">
+                        <li class="zdb-toolbar-expand">
+                            <span class="zdb-expand-tree" onclick="zendDevBar.expandTreeTableRows(this)">Expand all</span>
+                        </li>
+    					<li class="zdb-toolbar-search">
+    						<?php echo $this->devBarSearch(); ?>
+    					</li>					
+						<li>
+							<div class="zdb-export-results-btn" title="Show Report"></div>
+						</li>
+						<li class="zdb-toolbar-pin">
+							<div class="zdb-popup-pin" onclick="zendDevBar.unpin()"></div>
+						</li>
+					</ul>
+				</div>
+				<h1>Request Info</h1>
+			</div>
+		</div>
+
+		<ul class="tabs">
+			<li><input type="radio" name="tabs" id="tab1-superglobals" checked /> <label
+				for="tab1-superglobals"><?php echo _t('Superglobals'); ?></label>
+				<div id="tab-content1-superglobals" class="tab-content">
+					<div class="zdb-row zdb-superglobals-panel">
+						<!-- Left panel: summary -->
+						<div
+							class="zdb-col-1-narrow zdb-adaptive-height zdb-summary-table-wrapper zdb-superglobals-summary"></div>
+						<div
+							class="zdb-col-3-wide zdb-adaptive-height zdb-superglobals-table-wrapper">
+						</div>
+					</div>
+				</div></li>
+
+			<li><input type="radio" name="tabs" id="tab2-superglobals" /> <label for="tab2-superglobals"><?php echo _t('Request headers'); ?></label>
+				<div id="tab-content2-superglobals" class="tab-content">
+					<div
+						class="zdb-row zdb-request-headers-panel zdb-adaptive-height zdb-scollable-wrapper">
+						<pre class="zdb-monospace"></pre>
+					</div>
+				</div></li>
+
+			<li><input type="radio" name="tabs" id="tab3-superglobals" /> <label for="tab3-superglobals"><?php echo _t('Raw Post Data'); ?></label>
+				<div id="tab-content3-superglobals" class="tab-content">
+					<div
+						class="zdb-row zdb-raw-post-data-panel zdb-adaptive-height zdb-scollable-wrapper">
+						<pre class="zdb-monospace"></pre>
+					</div>
+				</div></li>
+
+			<li><input type="radio" name="tabs" id="tab4-superglobals" /> <label for="tab4-superglobals"><?php echo _t('Response headers'); ?></label>
+				<div id="tab-content4-superglobals" class="tab-content">
+					<div
+						class="zdb-row zdb-response-headers-panel zdb-adaptive-height zdb-scollable-wrapper">
+						<pre class="zdb-monospace"></pre>
+					</div>
+				</div></li>
+
+			<li><input type="radio" name="tabs" id="tab5-superglobals" /> <label for="tab5-superglobals"><?php echo _t('Response body'); ?></label>
+				<div id="tab-content5-superglobals" class="tab-content">
+					<div
+						class="zdb-row zdb-response-body-panel zdb-adaptive-height zdb-scollable-wrapper">
+						<pre class="zdb-monospace"></pre>
+					</div>
+				</div></li>
+		</ul>
+	</div>
+</div>
+
+<script type="text/javascript">
+(function() {
+
+	var INTSIZE = <?php echo PHP_INT_SIZE ?> == Number.MAX_VALUE ? 8 : 4;
+	var producerEnabled = <?php echo $producerEnabled ? '1' : '0'; ?>;
+	if (!producerEnabled) {
+		zendDevBar.devBar.find('.zdb-superglobals-details .zdb-toolbar-preview').attr('title', 'Superglobals data tracking is disabled. You can enable it from the Zend Server UI (Configurations | Components | Z-Ray)');
+	}
+	var aggregates = {};
+	var superglobalsCount = 0;
+	var maxdepth = 8;
+	var maxitems = 200;
+	var globalOrder = ['files', 'session', 'cookie', 'server', 'request', 'post', 'get', 'env'];
+    var selectedTab = 'Superglobals';
+	
+	jQuery('.tabs li label').click(function() {
+		var btn = jQuery(this);
+		selectedTab = btn.text();
+		if (btn.text() != 'Superglobals') {
+			$zendDevBar('.zdb-export-results-btn').addClass('zdb-export-results-disable');
+			$zendDevBar('.zdb-superglobals-details .zdb-toolbar-input-search').first().hide();
+			$zendDevBar('.zdb-superglobals-details .zdb-toolbar-expand').first().hide();
+		} else {
+			$zendDevBar('.zdb-export-results-btn').removeClass('zdb-export-results-disable');
+			$zendDevBar('.zdb-superglobals-details .zdb-toolbar-input-search').first().show();
+			$zendDevBar('.zdb-superglobals-details .zdb-toolbar-expand').first().show();
+		}
+		zendDevBar.applyCookieParams();
+	});
+	
+	///////////////////////////////////////////////////////////////////////////////
+	// tools
+	///////////////////////////////////////////////////////////////////////////////
+	var tools = {	
+		// get the superglobals panel wrapper
+		getContainer: (function() {
+			var $container = null;
+			return function() {
+				return $container || ($container = $zendDevBar('.zdb-superglobals-details')); 
+			}
+		})(),
+		isBinaryString: function(str) {
+			var isBinary = false;
+			// check first 5K
+			for (var i = 0; i < str.length && i < 5120; i++) {
+				// assume that in "normal" string, char codes below 20 would not appear
+				if (str.charCodeAt(i) < 10) {
+					isBinary = true;
+					break;
+				}
+			}
+			return isBinary;
+		},
+		getRequestData: (function() {
+			// store loaded data here
+			var requestsData = {};
+			var responseData = {};
+			// avoid double requests
+			var inProgress = {};
+			
+			return function(requestId, callback) {
+				// check if the data was already loaded
+				if (requestsData[requestId]) {
+					if (typeof (callback) == 'function') {
+						callback(requestsData[requestId], responseData[requestId]);
+					}
+				} else {
+					// if ajax in process, come back later
+					if (inProgress[requestId]) {
+						setTimeout(function() {
+							tools.getRequestData(requestId, callback);
+						}, 10);
+						
+						return;
+					}
+					inProgress[requestId] = true;
+					// load the data and store locally
+					var url = zendDevBar.baseUrl + '/Api/zrayGetRequestEnvironment?requestId=' + requestId;
+					zendDevBar.loadJSON(url, function (response){
+						requestsData[requestId] = response.responseData.requestEnvironment;
+						responseData[requestId] = response.responseData.responseEnvironment;
+						if (typeof (callback) == 'function') {
+							callback(requestsData[requestId], responseData[requestId]);
+						}
+						inProgress[requestId] = false;		
+					}, function(response){
+						if (response.errorData.errorCode == 'malformedRequest') {
+							callback([]);
+						}
+						inProgress[requestId] = false;	
+					});
+				}
+			};
+		})(),
+		calculateKeySize: function(key) {
+			return (isNaN(key) ? key.length : INTSIZE)
+		},
+		calculateSize: function(array, mymaxdepth, depth) {
+
+			if (!array || array < 0) {
+				return 0;
+			}
+
+			if (array.key && array.key == '__ZEND_DEVBAR_SERIALIZE_ERROR' && typeof array.value != 'undefined') {
+				return parseInt(array.value.match(/SESSION_PAYLOAD_TOO_LARGE\-(\d+)/)[1]);
+			}
+			
+			if (typeof array.key != 'undefined' && array.value != 'undefined') {
+				return tools.calculateSize(array.value, mymaxdepth, depth);
+			}
+			
+			mymaxdepth = mymaxdepth == null ? Infinity : mymaxdepth;
+			var mydepth = depth == null ? 0 : depth;
+
+			if (mydepth >= mymaxdepth) {
+				return 0;
+			}
+
+			if ( ! $zendDevBar.isArray(array) && ! $zendDevBar.isPlainObject(array)) {
+				if (typeof array == 'string') {
+					// check if the value is not marked as too big (over 16MB)
+					if (array.indexOf('SESSION_PAYLOAD_TOO_LARGE-') != -1) {
+						// get the size from the string
+						return parseInt(array.replace('SESSION_PAYLOAD_TOO_LARGE-', ''));
+					} else {
+						// trick to expose byte-length for utf-8 characters
+						return unescape(encodeURIComponent(array)).length;
+					}
+				} else if (typeof array == 'boolean') {
+					return 1;
+				}
+				return INTSIZE;
+			} else if ($zendDevBar(array).length == 0) {
+				return 0;
+			}
+
+			var size = 0;
+			
+			$zendDevBar.each(array, function(key, branch){
+				var branchSize = tools.calculateSize(branch, mymaxdepth, mydepth+1);
+				var normalized = tools.sizeNormalize(branchSize);
+				var normalizedFinal = (normalized.size * Math.pow(1024, normalized.denom));
+				var newSize = normalizedFinal + tools.calculateKeySize(key);
+				size += newSize;
+			});
+
+			return size;
+		},
+		sizeNormalize: function(size) {
+			var d = 0;
+			do {
+				if (d < 4 - 1) {
+					d++;
+				} else {
+					break;
+				}
+				size /= 1024;
+			} while(size > 1024);
+			return {'size': size.toFixed(1), 'denom': d}
+		},
+		sizeFormat: function(size) {
+			if (size == 0) {
+				return 0;
+			}
+			
+			if (size < 102) {
+				return 0;
+				
+				// to show sizes lower than 100B
+ 				// return zendDevBar.formatters.formatMemory(size, 0, 0).replace(' ', '');
+			}
+			
+			return zendDevBar.formatters.formatMemory(size, 1, 1).replace(' ', '');
+		},
+		isKnownKeys: function(key) {
+			var ignoreKeys = ['requestId', 'rawPostData', 'rawHeaders'];
+			return (ignoreKeys.indexOf(key) < 0);
+		},
+		countLeafs: function(array, mymaxdepth, depth) {
+			mymaxdepth = mymaxdepth == null ? Infinity : mymaxdepth;
+			var mydepth = depth == null ? 0 : depth;
+
+			if (mydepth >= mymaxdepth) {
+				return 0;
+			}
+
+			if ( ! $zendDevBar.isArray(array) && ! $zendDevBar.isPlainObject(array)) {
+				return 1;
+			} else {
+				if ($zendDevBar(array).length == 0) {
+					return 0;
+				}
+			}
+
+			var count = 0;
+			
+			$zendDevBar.each(array, function(key, branch){
+				
+				if (key == '__object_type') {
+					return false;
+				}
+				
+				count += tools.countLeafs(branch, mymaxdepth, mydepth+1);
+
+			});
+
+			return count;
+		},
+		setRawPostData: function(requestEnvironment) {
+			var rawPostDataElement = $zendDevBar('.zdb-superglobals-details-wrapper .zdb-raw-post-data-panel pre');
+			if (typeof requestEnvironment['rawPostData'] == 'undefined' || requestEnvironment['rawPostData'] == '') {
+				rawPostDataElement.html('No data found');
+			} else {
+				rawPostDataElement.text(atob(requestEnvironment['rawPostData']));
+			}
+		},
+		setRequestHeaders: function(requestEnvironment) {
+			var element = $zendDevBar('.zdb-superglobals-details-wrapper .zdb-request-headers-panel pre');
+			if (typeof requestEnvironment['rawHeaders'] == 'undefined' || requestEnvironment['rawHeaders'] == '') {
+				element.html('No data found');
+			} else {
+				element.text(requestEnvironment['rawHeaders']);
+			}
+		},
+		setResponseHeaders: function(responseEnvironment) {
+			var element = $zendDevBar('.zdb-superglobals-details-wrapper .zdb-response-headers-panel pre');
+			if (typeof responseEnvironment['rawHeaders'] == 'undefined' || responseEnvironment['rawHeaders'] == '') {
+				element.html('No data found');
+			} else {
+				element.text(responseEnvironment['rawHeaders']);
+			}
+		},
+		setResponseBody: function(responseEnvironment) {
+			var element = $zendDevBar('.zdb-superglobals-details-wrapper .zdb-response-body-panel pre');
+			if (typeof responseEnvironment['rawOutput'] == 'undefined' || responseEnvironment['rawOutput'] == '') {
+				element.html('No data found');
+			} else {
+				element.text(atob(responseEnvironment['rawOutput']));
+			}
+		},
+		mapArrayToTables: function(array, tbody, parent, mymaxdepth, depth) {
+		
+			var compounds = {};
+			mymaxdepth = mymaxdepth == null ? Infinity : mymaxdepth;
+			depth = depth == null ? 0 : depth;
+
+			if (depth >= mymaxdepth) {
+				return tbody;
+			}
+
+			var parentBegins = parent.indexOf(':') == -1 ? parent : parent.substring(0, parent.indexOf(':'));
+
+			var currentValue = array;
+			if (typeof array.value != 'undefined' && typeof array.key != 'undefined') {
+				currentValue = array.value;
+			}
+			
+			// leaf object
+			if ((Object.prototype.toString.apply(currentValue) != '[object Array]' && Object.prototype.toString.apply(currentValue) != '[object Object]')) {
+				var leafkey = '';
+				var leafparent = '';
+				if (parent.indexOf(':') == -1) {
+					leafkey = parent;
+					leafparent = '';
+				} else {
+					leafkey = parent.substring(parent.lastIndexOf(':')+1);
+					leafparent = parent.substring(0, parent.indexOf(':'));
+				}
+
+				var size = tools.calculateSize(currentValue) + tools.calculateKeySize(leafkey);
+				tbody.push({parent: leafparent, key: leafkey, value: currentValue, node: parent, leaf: true, level: depth+1, root: parentBegins, diff: 'unchanged', oldvalue: null, childDiff:[], children: 0, size: size});
+				return ;
+			}
+			
+			var childrenCount = {};
+			$zendDevBar.each(currentValue, function(key, branch){
+				var myBranch = branch;
+				if (branch === 'undefined') {
+					return ;
+				}
+				
+				if (typeof branch.value != 'undefined' && typeof branch.key != 'undefined') {
+					myBranch = branch.value;
+				}
+				
+				if (key == '__object_type') {
+					return ;
+				}
+				
+				if ($zendDevBar.isArray(myBranch) || $zendDevBar.isPlainObject(myBranch)) {
+					compounds[key] = myBranch;
+					childrenCount[key] = Object.keys(myBranch).length;
+				} else {
+					var size = tools.calculateSize(myBranch) + tools.calculateKeySize(key);
+					if (key == '__ZEND_DEVBAR_SERIALIZE_ERROR') {
+						///SESSION_PAYLOAD_TOO_LARGE-16777454 
+						key = 'Z-Ray Serialize Error';
+						size = myBranch.match(/SESSION_PAYLOAD_TOO_LARGE\-(\d+)/)[1];
+					}
+
+					tbody.push({parent: parent, key: key, value: myBranch, node: parent +':'+key, leaf: true, level: depth+1, root: parentBegins, diff: 'unchanged', oldvalue: null, childDiff:[], children: 0, size: size});
+				}
+
+			});
+
+			$zendDevBar.each(compounds, function(key, branch){
+				var type = '';
+				var children = 0;
+				var size = tools.calculateSize(branch) + tools.calculateKeySize(key);
+				if (branch['__object_type']) {
+					type = branch['__object_type'].value;
+				} else {
+					type = 'Array['+childrenCount[key]+']';
+				}
+				children = tools.countLeafs(branch);
+				tbody.push({parent: parent, key: key, value: type, node: parent +':'+key, leaf: false, level: depth+1, root: parentBegins, diff: 'unchanged', oldvalue: null, childDiff:[], children: children, size: size});
+
+				if (branch.value) {
+					tools.mapArrayToTables(branch.value, tbody, parent+':'+key, mymaxdepth, depth+1);
+				} else {
+					tools.mapArrayToTables(branch, tbody, parent+':'+key, mymaxdepth, depth+1);
+				}
+			});
+
+			return tbody;
+		},
+		/* @see http://stackoverflow.com/questions/8572826/generic-deep-diff-between-two-objects */
+		deepDiffMapper: (function() {
+		    return {
+		        VALUE_CREATED: 'created',
+		        VALUE_UPDATED: 'updated',
+		        VALUE_DELETED: 'deleted',
+		        VALUE_UNCHANGED: 'unchanged',
+		        map: function(obj1, obj2) {
+
+		        	// normalize values from a key-value pair
+			        var obj1value = obj1 && typeof obj1.value != 'undefined' && typeof obj1.key != 'undefined' ? obj1.value : obj1;
+			        var obj2value = obj2 && typeof obj2.value != 'undefined' && typeof obj2.key != 'undefined' ? obj2.value : obj2;
+			        
+		            if (this.isFunction(obj1value) || this.isFunction(obj2value)) {
+		                throw 'Invalid argument. Function given, object expected.';
+		            }
+		            
+		            if (this.isValue(obj1value) && this.isValue(obj2value)) {
+		                return {type: this.compareValues(obj1value, obj2value), data: obj1value||obj2value, olddata: obj1value};
+		            }
+
+		            var diff = {};
+
+		           
+		            if (this.isValue(obj1value) && ! this.isValue(obj2value)) { /// leaf changed to compound
+			            for (var key in obj2value) {
+			                if (this.isFunction(obj2value[key]) || ('undefined' != typeof(diff[key]))) {
+			                    continue;
+			                }
+
+			                diff[key] = this.map(undefined, obj2value[key]);
+			            }
+			            
+		            } else if (!this.isValue(obj1value) && this.isValue(obj2value)) { /// compound changed to leaf
+			            for (var key in obj1value) {
+			                if (this.isFunction(obj1value[key])) {
+			                    continue;
+			                }
+	
+			                var value2 = undefined;
+			                if (obj2value && 'undefined' != typeof(obj2value[key])) {
+								value2 = obj2value[key];
+			                }
+	
+			                diff[key] = this.map(obj1value[key], value2);
+			            }
+			            
+		            } else {
+			            for (var key in obj1value) {
+			                if (this.isFunction(obj1value[key])) {
+			                    continue;
+			                }
+	
+			                var value2 = undefined;
+			                if (obj2value && 'undefined' != typeof(obj2value[key])) {
+								value2 = obj2value[key];
+			                }
+	
+			                diff[key] = this.map(obj1value[key], value2);
+			            }
+			            for (var key in obj2value) {
+			                if (this.isFunction(obj2value[key]) || ('undefined' != typeof(diff[key]))) {
+			                    continue;
+			                }
+	
+			                diff[key] = this.map(undefined, obj2value[key]);
+			            }
+		            }
+
+		            return diff;
+
+		        },
+		        compareValues: function(value1, value2) {
+		            if (value1 === value2) {
+		                return this.VALUE_UNCHANGED;
+		            }
+		            if ('undefined' == typeof(value1)) {
+		                return this.VALUE_CREATED;
+		            }
+		            if ('undefined' == typeof(value2)) {
+		                return this.VALUE_DELETED;
+		            }
+
+		            return this.VALUE_UPDATED;
+		        },
+		        isFunction: function(obj) {
+		            return Object.prototype.toString.apply(obj) === '[object Function]';
+		        },
+		        isArray: function(obj) {
+		            return Object.prototype.toString.apply(obj) === '[object Array]';
+		        },
+		        isObject: function(obj) {
+		            return Object.prototype.toString.apply(obj) === '[object Object]';
+		        },
+		        isValue: function(obj) {
+		            return !this.isObject(obj) && !this.isArray(obj);
+		        }
+		    }
+		})(),
+		traverseDiff: (function(){
+			return {
+				map: function(relativeDiff, tbody, key) {
+
+					/// use relativeDiff to tag tbody objects
+					if (Object.prototype.toString.apply(relativeDiff) != '[object Array]' && Object.prototype.toString.apply(relativeDiff) != '[object Object]') {
+						return ;
+					}
+
+					if (typeof relativeDiff.data != 'undefined' && typeof relativeDiff.type != 'undefined' && relativeDiff.data == null) {
+						this.markEntriesModified(key, '', relativeDiff, tbody);
+						return ;
+					}
+					
+					$zendDevBar.each(relativeDiff, $zendDevBar.proxy(function(relativekey, item){
+						var currentBranchKey = key+":"+relativekey;
+
+						if (item == null) {
+							return;
+						} else if (item.data) {
+							this.map(item.data, tbody, currentBranchKey);
+						} else if (!item.data && (Object.prototype.toString.apply(item) === '[object Array]' || Object.prototype.toString.apply(item) === '[object Object]')) {
+							this.map(item, tbody, currentBranchKey);
+						}
+						
+						this.markEntriesModified(relativekey, key, item, tbody);
+					}, this));
+				},
+				markBranchModified: function(currentBranchKey, tbody, diff) {
+					/// mark parent path as modified
+					while (true) {
+						
+						/// every matching entry should be marked diff = mod
+						$zendDevBar(tbody).each(function(idx, flatentry) {
+							if (flatentry.node == currentBranchKey) {
+								flatentry.diff = 'mod';
+								if (flatentry.childDiff.indexOf(diff) === -1) {
+									flatentry.childDiff.push(diff);
+								} else {
+									/// if the key is marked as containing modifications, we don't need to continue up the path
+									return false;
+								}
+							}
+						});
+
+						/// map out explicit node path by removing last segments
+						var stepback = currentBranchKey.lastIndexOf(':');
+						if (stepback == -1) {
+							break;
+						}
+						currentBranchKey = currentBranchKey.substring(0, stepback);
+					}
+				},
+				markBranchHasUnchanged: function(currentBranchKey, tbody, diff) {
+					/// mark parent path so it contains unmodified
+					while (true) {
+						/// map out explicit node path by removing last segments
+						var stepback = currentBranchKey.lastIndexOf(':');
+						if (stepback == -1) {
+							break;
+						}
+						currentBranchKey = currentBranchKey.substring(0, stepback);
+						$zendDevBar(tbody).each(function(idx, flatentry) {
+							if (flatentry.node == currentBranchKey) {
+								if (flatentry.childDiff.indexOf('unchanged') === -1) {
+									flatentry.childDiff.push('unchanged');
+								} else {
+									/// if the key is marked as containing unchanged, we don't need to continue up the path
+									return false;
+								}
+							}
+						});
+					}
+				},
+				markEntriesModified: function(itemKey, parent, item, tbody) {
+
+					var currentBranchKey = parent + ':' + itemKey;
+					var foundModified = false;
+					if (item.type == 'created') {
+						$zendDevBar(tbody).each(function(idx, flatentry) {
+							/// escape regex meta characters
+							if (flatentry.node.match("^"+currentBranchKey.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"))) {
+								flatentry.diff = 'new';
+								foundModified = 'new';
+							}
+						});
+	
+					} else if (item.type == 'updated') {
+						$zendDevBar(tbody).each(function(idx, flatentry) {
+							if (flatentry.node == currentBranchKey) {
+								flatentry.diff = 'mod';
+								flatentry.oldvalue = item.olddata;
+							}
+						});
+						foundModified = 'mod';
+					} else if (item.type == 'deleted') {
+						/// copy and parse the old item into tbody
+						var removedEntry = {};
+						removedEntry[itemKey] = {'key': itemKey, 'value': item.data};
+						tools.mapArrayToTables(removedEntry, tbody, parent, maxdepth, parent.split(':').length - 1);
+						$zendDevBar(tbody).each(function(idx, flatentry) {
+							/// escape regex meta characters
+							if (flatentry.node.match("^"+currentBranchKey.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"))) {
+								flatentry.diff = 'rem';
+							}
+						});
+						foundModified = 'rem';
+					}
+
+					if (foundModified) {
+						this.markBranchModified(currentBranchKey, tbody, foundModified);
+					} else if (item.type == 'unchanged') {
+						this.markBranchHasUnchanged(currentBranchKey, tbody, foundModified);
+					}
+				}
+			}
+		})()
+	};
+	
+	// set sorters
+	zendDevBar.getStorage('superglobals').setSorter('node', function(data) {
+		return data.sort(function(a,b){
+
+			var aNodeIdx = globalOrder.indexOf(a.root);
+			var bNodeIdx = globalOrder.indexOf(b.root);
+			if (aNodeIdx == -1 || bNodeIdx == -1 || aNodeIdx == bNodeIdx) {
+				var result = a.node.localeCompare(b.node);
+				return result > 0 ? 1 : result < 0 ? -1 : 0;
+			}
+			return aNodeIdx > bNodeIdx ? 1 : -1;
+		});
+	});
+	
+	// Do not limit the display, no pagination involved
+	zendDevBar.getStorage('superglobals').setLimit(-1);
+	zendDevBar.getStorage('superglobals').setFilter('diff', function(recVal, filterVal, row) {
+		return ( 
+				(row.leaf && recVal == filterVal) || /// if a leaf, compare directly
+				( ! row.leaf && recVal == filterVal && filterVal != 'mod') || // nodes should be displayed for their own value only if it's not modified
+				(row.childDiff.indexOf(filterVal) != -1) /// if this element contains another element of this type
+			);
+	});
+	zendDevBar.getStorage('superglobals').setCountAsHidden('diff', function(row) {
+		return row.leaf;
+	});
+
+    // display formatted value in the table. Used for `value` and `old value` fields
+	var getFormattedText = function(val, row) {
+		var formattedText = val;
+		if (typeof formattedText == 'object' || (typeof formattedText == 'string' && formattedText.trim().length == 0)) {
+			
+			var cushion = $zendDevBar('<div>');
+			cushion.text('[Empty String Value]');
+			cushion.addClass('zdb-tree-table-system-data');
+			return cushion;
+		} else if (typeof formattedText == 'string' && row.children > 0 && (! /^Array\[\d+\]$/.test(formattedText))) {
+			var cushion = $zendDevBar('<div>');
+			cushion.text(formattedText);
+			cushion.addClass('zdb-tree-table-system-data');
+			return cushion;
+		} else if (typeof formattedText  == 'string' && formattedText.indexOf('SESSION_PAYLOAD_TOO_LARGE-') != -1) {
+			formattedText = '[Value is too large]';
+			var cushion = $zendDevBar('<div>');
+			cushion.text(formattedText);
+			cushion.addClass('zdb-tree-table-system-data');
+			return cushion;
+		}
+		// if it's not Array branch in superglobals tree, like Array[x]
+		if (formattedText.indexOf("Array") == -1 && isNaN(formattedText)) {
+			formattedText = window.atob(formattedText);
+			
+			if (tools.isBinaryString(formattedText)) {
+				formattedText = '[Value is binary/unreadable]';
+				var cushion = $zendDevBar('<div>');
+				cushion.text(formattedText);
+				cushion.addClass('zdb-tree-table-system-data');
+				return cushion;
+			}
+		}
+		return zendDevBar.expendedText(formattedText);
+	};
+
+	var mainTable = zendDevBar.createTreeTable(zendDevBar.getStorage('superglobals'), $zendDevBar('.zdb-superglobals-table-wrapper'));
+	mainTable.setColumns([{
+		label: 'Key',
+		propertyName: 'key',
+		width: '25%',
+		attributes: {'class': 'zdb-tree-table-cell-path zdb-monospace'},
+		sortable: true,
+		getHtml: function(val, rec) {
+			var cushion = $zendDevBar('<div>');
+			/// either the node has children or this is an object with properties
+			if (rec.children > 0 || rec.childDiff.length > 0) {
+				cushion.addClass('zdb-tree-table-cell-path-expandable');
+			}
+			cushion.addClass('zdb-tree-table-cell-path-display');
+			
+			if (rec.parent.length > 1) {
+				cushion.css('margin-left', (18 * rec.level) + 'px');
+			}
+
+			cushion.click(function(event){
+				$zendDevBar(event.target).parent('td').click();
+			});
+
+			var formattedText = globalOrder.indexOf(val) != -1 ? "$_" + val.toUpperCase() : val;
+			if (typeof formattedText == 'string' && formattedText.trim().length == 0) {
+				formattedText = '[Empty String Key]';
+				cushion.addClass('zdb-tree-table-system-data');
+			} else if (formattedText.length > 32) {
+				cushion.attr('title', formattedText);
+				formattedText = zendDevBar.shorten(formattedText, 32);
+			}
+
+			return cushion.text(formattedText);
+		}
+	},{
+		label: 'Size',
+		propertyName: 'size',
+		width: '7%',
+		attributes: {'class': ''},
+		sortable: true,
+		getHtml: function(size, rec) {
+			size = tools.sizeFormat(size);
+			if (size != 0) {
+				var cushion = $zendDevBar('<div>');
+				
+				if (rec.warningSign || (rec && rec.value && rec.value.indexOf && rec.value.indexOf('SESSION_PAYLOAD_TOO_LARGE') >= 0)) {
+					cushion.html(size + ' <span class="zdb-supergloval-severity zdb-badge-warning"></span>');
+				} else {
+					cushion.text(size);
+				}
+
+				return cushion;
+			}
+			return '';
+		}
+	},{
+		label: 'Value',
+		propertyName: 'value',
+		width: '35%',
+		sortable: true,
+		attributes: {'class': 'zdb-tree-table-cell-value'},
+		getHtml: getFormattedText
+	},{
+		label: 'Previous Value',
+		propertyName: 'oldvalue',
+		width: '35%',
+		attributes: {'class': 'zdb-tree-table-cell-value'},
+		getHtml: getFormattedText,
+		sortable: true,
+		displayRowField: function(value, rec) {
+			/// display the old value column if this is a modified leaf
+			return (rec.leaf && rec.diff == 'mod');
+		}
+	}]);
+
+	// bind search
+	search = new $zendDevBar.zdbSearch(zendDevBar.getStorage('superglobals'), $zendDevBar('.zdb-superglobals-details .zdb-toolbar-input-search').first(), mainTable);
+	
+	
+	// define the summary table
+	var summarytable = zendDevBar.createSummaryTable(zendDevBar.getStorage('superglobals'), $zendDevBar('.zdb-superglobals-summary'));
+	summarytable.labelNoData = summarytable.labelNoDataSelected = 'No changes';
+	summarytable.setFilterColumn('diff');
+	summarytable.setUpdateCallback(function(data) {
+
+		diff = {};
+		var rowcount = 0;
+		data.forEach(function(entry) {
+			if ( ! entry.diff) {
+				entry.diff = 'unchanged'; 
+			}
+
+			if ( ! entry.leaf) {
+				/// do not count nodes
+				return ;
+			}
+
+			rowcount++;
+			if (typeof diff[entry.diff] == 'undefined') {
+				diff[entry.diff] = {
+					rows: 1,
+				    type: entry.diff
+		    	};
+		    } else {
+		    	diff[entry.diff]['rows']++;
+		    }
+		});
+		diff = zendDevBar.sortByKeys(diff);
+		
+		// build rows
+		var rows = [];
+		if (Object.keys(diff).length > 0) {
+			rows.push({'type': 'All', 'rows': rowcount});
+			$zendDevBar.each(diff, function(index, value) {
+			    rows.push(value);
+			});
+		}
+		
+		return rows;
+	});
+	
+	summarytable.setTableHeaderHtml('<th colspan="100%">Show</th>');
+	summarytable.setColumns([{
+		label: 'Types',
+		propertyName: 'type',
+		width: '10%',
+		getHtml: function(val, rec) { return summarytable.createCheckboxColumn(val, rec); }
+	}, {
+		label: 'Types',
+		propertyName: 'type',
+		width: '80%',
+		attributes: {'class': 'zdb-summary-superglobals-type'},
+		getHtml: function(val, rec) {
+			if (rec.diff === false) {
+				return val;
+			}
+			
+			var className="";
+			var typeName=val;
+
+			switch (rec.type) {
+				case 'new':
+					className = "zdb-summary-superglobals-new";
+					typeName = 'New Entries'
+					break;
+				case 'mod':
+					className = "zdb-summary-superglobals-mod";
+					typeName = 'Changed Entries'
+					break;
+				case 'rem':
+					className = "zdb-summary-superglobals-rem";
+					typeName = 'Removed Entries'
+					break;
+			}
+			return '<span class="' + className +'">' + typeName + '</span>';
+		}
+	}, {
+		label: 'Rows',
+		propertyName: 'rows',
+		width: '10%',
+		attributes: {'class': 'zdb-numerical'},
+		getHtml: function(val) {
+			return '(' + val + ')';
+		}
+	}]);
+
+	
+	// bind to save button
+	$zendDevBar('.zdb-superglobals-details-wrapper .zdb-export-results-btn').click(
+			 function () {
+				 if (selectedTab == "Superglobals") {
+					 mainTable.exportResults('Request Environment', summarytable);
+			     }
+			 });
+
+	var selectedRequestId = null;
+	zendDevBar.registerOnUpdateLabel('superglobals', function($, data) {
+		// add/remove yellow flag (on session oversize)
+		var $toolbarPreview = tools.getContainer().find('.zdb-toolbar-preview');
+		if (data && data[0] && data[0].SuperGlobals && data[0].SuperGlobals.sessionOversized) {
+			$toolbarPreview.addClass('zdb-toolbar-preview-warning');		
+		} else {
+			$toolbarPreview.removeClass('zdb-toolbar-preview-warning');		
+		}
+		
+		selectedRequestId = data && data[0] && data[0].RequestInfo ? data[0].RequestInfo.id : null;
+	});
+	
+	zendDevBar.registerResetHandler('superglobals', function($, data) {
+		zendDevBar.getStorage('superglobals').reset();
+	});
+
+	var loadingInProgress = false;
+	zendDevBar.registerHandler('superglobals', function($, data) {
+		if (!data) {
+			if (!loadingInProgress) {
+				zendDevBar.finishLoading('superglobals');
+			}
+			return;
+		}
+
+		// display `blocker` or superglobals list
+		if (Object.keys(data) && Object.keys(data).length == 1) {
+			loadingInProgress = true;
+ 			tools.getRequestData(Object.keys(data)[0], function(requestEnvironment, responseEnvironment) {
+    			tools.setRawPostData(requestEnvironment);
+    			tools.setRequestHeaders(requestEnvironment);
+    			tools.setResponseHeaders(responseEnvironment);
+    			tools.setResponseBody(responseEnvironment);
+			
+ 				if (Object.keys(requestEnvironment).length > 1) {
+					var finalTbody = [], tbody = [], requestId = null;
+					$.each(requestEnvironment, function(key, item){
+						var lastItem = item[item.length-1];
+						if (tools.isKnownKeys(key) && lastItem) {
+							var children = tools.countLeafs(lastItem);
+							var size = tools.calculateSize(lastItem);
+							var warningSign = (key == 'session' && requestId && data && data[requestId] && data[requestId].SuperGlobals && data[requestId].SuperGlobals.sessionOversized); 
+							tbody.push({key: key, parent: '', value: 'Array['+Object.keys(lastItem.value).length+']', node: key, leaf: false, level: 0, root: key, diff: 'unchanged', oldvalue: null, childDiff:[], children: children, size: size, warningSign: warningSign});
+							tools.mapArrayToTables(lastItem, tbody, key, maxdepth);
+							
+							/// if we have multiple versions of the superglobal
+							if (item.length > 1) {
+								/// use the last one for relative diff
+								var firstItem = item[0];
+								var relativeDiff = tools.deepDiffMapper.map(firstItem, lastItem);
+								/// apply relativeDiff effects
+								tools.traverseDiff.map(relativeDiff, tbody, key);
+							}
+						} else {
+							requestId = item;
+						}
+					});
+
+					var superglobalsStorage = zendDevBar.getStorage('superglobals');
+					superglobalsStorage.reset();
+					superglobalsStorage.addData(tbody);
+					superglobalsStorage.sort('node');
+					
+					// superglobals tree table does not collect a sepcific height on creation, we have to introduce it manually
+					// just set the height as the 'queries' table
+					var queriesTableHeight = tools.getContainer().parent().find('.zsb-queries-table-wrapper').height();
+					
+					// substruct the tabs from the height
+					var maxTabHeight = 0;
+					tools.getContainer().find('ul.tabs > li').each(function(i, tabObj) {
+						var tabObj = $zendDevBar(tabObj);
+						if (tabObj.outerHeight() > maxTabHeight) maxTabHeight = tabObj.outerHeight();
+					});
+					
+					// add the space below the tabs
+					maxTabHeight += 10;
+					queriesTableHeight-= maxTabHeight;
+					
+					// set the height to the tables of the SuperGlobals panels
+					tools.getContainer().find('.zdb-adaptive-height').css('height', queriesTableHeight);
+					
+					
+				}
+ 				loadingInProgress = false;
+				zendDevBar.finishLoading('superglobals');
+ 			});
+		}
+
+	});
+
+	// (pre)load superglobals data when the mouse is over the superglobals button
+	tools.getContainer().find('.zdb-toolbar-preview').on('mouseenter', function() {
+		if (selectedRequestId) {
+			tools.getRequestData(selectedRequestId);
+		}
+	});
+	
+	////enable and disable entry diff type displays according to filter
+	/// diff control styles by attribute
+	zendDevBar.getStorage('superglobals').onChange(function(storage, action){
+		if (action == 'filter') {
+			$zendDevBar(mainTable.getContainer()).find('.zdb-tree-table').attr('zdb-tree-table-active-diffs', summarytable.getActiveFilterValues().join(','));
+		}
+	});
+	
+	/// executing the filter to not filter to generate the active filters correctly for the insertion of diff control styles
+	summarytable.setFilterValues(['All', 'mod', 'new', 'rem', 'unchanged']);
+
+})();
+</script>

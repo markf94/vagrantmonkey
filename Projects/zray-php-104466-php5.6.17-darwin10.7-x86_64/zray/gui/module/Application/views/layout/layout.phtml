@@ -1,0 +1,509 @@
+<?php echo $this->doctype() ?>
+<?php $this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/plugins/updates.js' ); ?>
+<html lang="en" layout="layout">
+  <head>
+  	<meta http-equiv="X-UA-Compatible" content="IE=edge" >
+    <meta charset="utf-8">
+    <?php
+		if (isAzureEnv() || isZrayStandaloneEnv()) {
+			$title = 'Z-Ray Administration';
+		} else {
+			$title = 'Zend Server';
+		}
+		
+		if(!empty($this->viewModel()->getCurrent()->getChildren()[0]->pageTitle)){
+			$title.=' | '.$this->viewModel()->getCurrent()->getChildren()[0]->pageTitle;
+		}
+	echo $this->headTitle($title) ?>
+
+    <?php echo $this->headMeta() ?>
+
+	<?php echo $this->headLink() ?>
+ 
+	<?php echo $this->headScript() ?>
+	
+	<script type="text/javascript">
+		function baseUrl() {
+			return '<?php echo $this->basePath(); ?>';
+		}
+	</script>
+	
+<script type="text/javascript">
+var logoutTimeout = <?php echo $logoutTimeout; ?>;
+<?php if (!$azure && !$zrayStandalone && $logoutTimeout > 0) : ?>
+
+delayUiSessionCookie();
+
+checkTTLCookie();
+function checkTTLCookie(){
+	 var handle = Cookie.read('ZSTTL');
+	 if (handle == null) {
+		 document.fireEvent('onbeforelogout',{});
+		 Cookie.dispose('<?php echo $sessionId; ?>');
+		 location.reload();
+	 }
+	setTimeout("checkTTLCookie()", 60000); // check every minute
+}
+<?php endif; ?>
+
+var notificationCenter;
+var csrf = '<?php 
+		$csrfContainer = new \Zend\Session\Container('zs_csrf');
+		echo $csrfContainer->offsetGet('access_token');
+?>';
+Request.prototype.options.headers['Access-Token'] = csrf;
+		
+window.addEvent("load", function(){
+<?php if (!$azure && !$zrayStandalone) : ?>
+	<?php if ($notificationCenter): ?>
+		<?php if ($notificationCenterLockedRestart): ?>
+			notificationCenter = new NotificationCenterBlocking(<?php echo \Application\Module::config('notifications', 'interval'); ?>, <?php echo ($isAllowedToRestart) ? 'true' : 'false'; ?>, <?php echo ($isAllowedToDismiss) ? 'true' : 'false'; ?>);
+		<?php else: ?>
+			notificationCenter = new NotificationCenter(<?php echo \Application\Module::config('notifications', 'interval'); ?>, <?php echo ($isAllowedToRestart) ? 'true' : 'false'; ?>, <?php echo ($isAllowedToDismiss) ? 'true' : 'false'; ?>);
+		<?php endif ?>
+	<?php endif; ?>
+<?php endif ?>
+	createClock();
+
+	<?php if (!$azure && !$zrayStandalone) : ?>
+	// check libraries updates
+	if (! Browser.ie9){
+		var layoutUpdatesCheck = <?php echo $this->libraryUpdateCheck(); ?>
+	
+		// after lib was updated, remove it from cookie so it wont be checked again
+		layoutUpdatesCheck.addEvent('finishReportNewUpdate', function(params) {
+			var zs6LibsCookie = Cookie.read('ZSLIBRARIES');
+			var libs = JSON.decode(zs6LibsCookie.replace(/\+/gi, ' '));
+			delete libs[params.name];
+			Cookie.write('ZSLIBRARIES', JSON.encode(libs), {duration: 1});
+		});
+	
+		// after lib was processed, remove it from cookie so it wont be checked again
+		layoutUpdatesCheck.addEvent('noUpdateNeeded', function(params) {
+			var zs6LibsCookie = Cookie.read('ZSLIBRARIES');
+			var libs = JSON.decode(zs6LibsCookie.replace(/\+/gi, ' '));
+			delete libs[params.name];
+			Cookie.write('ZSLIBRARIES', JSON.encode(libs), {duration: 1});
+		});
+
+		// after lib was on error state, remove it from cookie so it wont be checked again
+		layoutUpdatesCheck.addEvent('updateError', function(params) {
+			var zs6LibsCookie = Cookie.read('ZSLIBRARIES');
+			var libs = JSON.decode(zs6LibsCookie.replace(/\+/gi, ' '));
+			delete libs[params.name];
+			Cookie.write('ZSLIBRARIES', JSON.encode(libs), {duration: 1});
+		});	
+
+		var saveUpdatesUrl = '<?php echo $this->basepath('/Api/pluginSaveUpdates') ?>';
+		var storeApiUrl = '<?php echo $storeApiUrl ?>';
+		var serverInfo = <?php echo json_encode($this->serverInfo); ?>;
+		var pluginsUpdatesObj = new pluginsUpdates(saveUpdatesUrl, storeApiUrl, serverInfo);
+		var installedPluginsCookie = Cookie.read('ZSPLUGINS');
+		var installedPlugins = '';
+		if (installedPluginsCookie) {
+			installedPlugins = JSON.decode(installedPluginsCookie.replace(/\+/gi, ' '));
+		}
+		pluginsUpdatesObj.runUpdate(installedPlugins, true);	
+	}
+	<?php endif; ?>
+});
+var serverTimezoneOffset = <?php echo isset($timezoneOffset) ? $timezoneOffset : '0' ?>;
+var nd = removeTimezoneOffset(new Date((<?php echo time(); ?> + 3600 * serverTimezoneOffset) * 1000));
+var blinkClock = true;
+function createClock(){
+	  var h, m;
+	  var time = " ";
+	  h = nd.getHours();
+	  m = nd.getMinutes();
+	  if (h <= 9) h = "0" + h;
+	  if (m <= 9) m = "0" + m;
+	  time += h + ":" + m;
+	  $('clock-placeholder').set('html', time);
+	  nd = new Date(nd.valueOf() + 1000);
+	  blinkClock = !blinkClock;
+	  setTimeout("createClock()", 1000);
+}
+
+function setAccountMenu() {
+	var htmlContent = '<div class="account-menu-wrapper">\
+		<div class="logged-user glyphicons user"><i></i><?php echo $role; ?></div>\
+		<div class="logout-btn"><a href="<?php echo $this->url('default', array('controller' => 'Login', 'action' => 'logout')) ?>">Logout</a></div>\
+		<div style="clear:both;"></div></div>';
+	
+	var restartTip = new FloatingTips('main-menu-account-btn', {
+		content: function(e) { return htmlContent; },
+		html: true,
+		position: 'bottom',
+		center: true,
+		arrowSize: 10,
+		distance: 1,
+		showOn: 'null',
+		hideOn: 'mouseleave',
+		className: 'floating-tip',
+		motionOnShow:false,
+		motionOnHide:false
+	});
+
+	if ($('main-menu-account-btn')) {
+    	$('main-menu-account-btn').addEvent('click', function() {
+    		$(this).toggleClass('active');
+    		if ($(this).hasClass('active')) {
+    			restartTip.show({target: $('main-menu-account-btn')});
+    			$$('.floating-tip-wrapper').setStyle('position', 'fixed').setStyle('top', 50);
+    			
+    		} else {
+    			restartTip.hide({target: $('main-menu-account-btn')});
+    		}
+    	});
+	}
+}
+
+window.addEvent("load", function(){
+	var topMenu = null;
+	var subMenuWrapper = null;
+	var subMenu = null;
+	var menuTimer = null;
+	var menuMainTimer = null;
+
+	function changeMenus(event) {
+		clearTimeout(menuTimer);
+		if (topMenu == null) {
+			topMenu = $$('.topNavListWrp li[class="active"]').pick();
+			subMenuWrapper = $$('.subNavWrapper.active').pick();
+			subMenu = $$('.subNavWrapper li.active').pick();
+		}
+			
+		$$('.topNavListWrp li').removeClass('active');
+		var elem = event.target; 
+		if (elem.nodeName != 'LI') {
+			elem = elem.getParent('li');
+		}
+
+		elem.addClass('active');
+		
+		//glyphicons white home
+		var elemContent = elem.getElement('a').get('text');
+
+		$$('.subNavWrapper').removeClass('active');
+		$('subNav_' + elemContent.trim()).addClass('active');
+	}
+
+	$$('.topbar .container').addEvent('mouseleave', function() {
+		menuMainTimer = setTimeout(function() { 
+			if (topMenu == null) {
+				return;
+			}
+
+			$$('.topNavListWrp li').removeClass('active');
+			$$('.subNavWrapper').removeClass('active');
+			$$('.subNavWrapper li').removeClass('active');
+			
+			topMenu.addClass('active');
+			subMenuWrapper.addClass('active');
+			if (subMenu) {
+				subMenu.addClass('active');
+			}
+
+			topMenu = null;
+			subMenuWrapper = null;
+			subMenu = null;
+		}, 2000);
+	});
+
+	$$('.topbar .container').addEvent('mouseenter', function() {
+		clearTimeout(menuMainTimer);
+	});
+	
+	$$('.topNavListWrp li').addEvent('mouseover', function(event) {
+		clearTimeout(menuTimer);
+		menuTimer = setTimeout(function() { changeMenus(event); }, 300);
+	});
+
+	$$('.subNavWrapper li').addEvent('mouseover', function(event) {
+		clearTimeout(menuTimer);
+	});
+	//Menu handling on small screens.
+	window.addEvent('resize', menuScreenResize);
+	menuScreenResize();
+	setAccountMenu();
+	var menusToggler={};
+	$$('#main-menu>div>a').addEvent('click', function(event) {
+		if(!menusToggler[this.text]) {
+			var nav = $$('nav[parent-menu="'+this.text+'"]')[0];
+			if (nav && nav.getParent().hasClass('active')) {
+				menusToggler[this.text] = new Fx.Slide(nav, { 
+					duration:300
+				}).show().toggle().chain(function(){
+					window.fireEvent('resize');
+				});
+			} else if (nav) {
+				menusToggler[this.text] = new Fx.Slide(nav, { 
+					duration:300
+				}).hide().toggle().chain(function(){
+					window.fireEvent('resize');
+				});
+			}
+		}
+
+		if (menusToggler[this.text]) {
+			if (!menusToggler[this.text].open) {
+				if($$('nav .opened')[0]){
+					$$('nav .opened')[0].click();
+				}
+				this.addClass('opened');
+			} else {
+				this.removeClass('opened');
+			}
+		
+			menusToggler[this.text].toggle().chain(function(){
+				window.fireEvent('resize');
+			});
+		}
+	});
+
+	$$('.page-description-content-wrapper .video-box').addEvent('click', function(item) {
+		var target = item.target;
+		if ((target.nodeName != 'DIV' && target.nodeName != 'IMG') || ! target.hasClass('video-box')) {
+			target = target.getParent('div.video-box');
+		}
+
+		simpleModal = new SimpleModal({width: 700, closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\" style=\"display:block;\">{_TITLE_}</div>\
+				<div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+				</div>"});
+
+		
+		var content = '<iframe style="height: 400px; width: 600px;" src="' + target.get('href') + '" frameborder="0" allowfullscreen></iframe>';
+		
+		simpleModal.show({
+	      "model":	"modal",
+	      "title": _t('Zend Server') + '<div style="float: right; display:inline-block; cursor: pointer; margin-right: 5px;" onclick="simpleModal.hide()">x</div>',
+	      "contents": content
+	    });
+	});
+});
+function menuScreenResize(){
+	if ($('main-menu').getHeight() < window.getHeight()) {
+		if(!$('side-bar').hasClass('fixed-sidebar')){
+			$('side-bar').addClass('fixed-sidebar');
+		}
+	}else{
+		if($('side-bar').hasClass('fixed-sidebar')){
+			$('side-bar').removeClass('fixed-sidebar');
+		}
+	}
+}
+</script>
+		
+</head>
+
+  <body>
+  	<div id="notification-messages" class="hidden">
+		<div id="pane-title"><?php echo _t('1 Message'); ?></div>
+        <div id="notification-msg-states"></div>
+        <div id="notification-msg-messages"></div>
+	</div>
+	<div id="main-menu-notification-holder"></div>
+	
+    <div class="topbar" id="topbar">
+      
+        <div class="container">
+         <?php if (isAzureEnv()) : ?>
+            <?php 
+                $azureLicense = getAzureLicense(); 
+                if (is_null($azureLicense)) { 
+                    $azureLicense = 'basic';
+                }
+            ?>
+            <a href="<?php echo $this->basePath('/'); ?>" class="logo-placeholder" title="Z-Ray <?php echo $azureLicense; ?>">
+                <img id="edition" class="edition" src="<?php echo $this->basePath('/images/editions/azure/' . strtolower($azureLicense) . '.png'); ?>"/>
+            </a>
+         <?php elseif (isZrayStandaloneEnv()) : ?>
+			<?php $zrayStandalineLicense = getZrayStandaloneLicense(); ?>
+            <a href="<?php echo $this->basePath('/'); ?>" class="logo-placeholder" title="Z-Ray <?php echo $zrayStandalineLicense; ?>">
+                <img id="edition" class="edition" src="<?php echo $this->basePath('/images/editions/zray-standalone/' . strtolower($zrayStandalineLicense) . '.png'); ?>"/>
+            </a>
+         <?php else : ?>
+            <?php echo $this->EditionImage('logo.png', $licenseType, false, $licenseEvaluation, $isI5)  ?>
+         <?php endif; ?>
+          <div class="topNav">
+          	<div class="topNavListWrp">
+          		
+	        </div>
+	        <div id="main-menu-buttons">
+	          	<ul>
+	          		<li class="not-clickable">
+	          			<div id="clock-placeholder" title="<?php echo _t('Server time'); ?>" style="cursor: default;"></div>
+	          		</li>
+	          		<?php if (!$azure && !$zrayStandalone) : ?>
+	          		<li>
+	          			<a href="javascript:void(0);" id="main-menu-notification-btn" class="off glyphicons white notes_2" title="<?php echo _t("Notification Center"); ?>">
+	          			<i></i>
+	          			<div id="notification-count" class="hidden"></div>
+	          			</a>
+	          		</li>
+	          		<?php endif; ?>
+					<?php if ($zrayStandalone) { ?>
+	          		<li>
+	          			<a href="http://www.zend.com/redirect/z-ray-preview/feedback" target="_blank" id="main-menu-notification-btn" class="off glyphicons white notes_2" title="<?php echo _t("Leave a feedback"); ?>">
+	          			<i></i>
+	          			<div id="notification-count" class="hidden"></div>
+	          			</a>
+	          		</li>
+					<?php } ?>
+	          		<?php if (!$azure && !$zrayStandalone) : ?>
+	          		<li>
+	          			<a href="javascript:void(0);" id="main-menu-restart-btn" title="<?php echo _t("Restart"); ?>" class="glyphicons white restart"><i></i></a>
+	          		</li>
+	          		<li>
+	          			<a href="javascript:void(0)" id="main-menu-account-btn" title="<?php echo $role . ' ' . _t("account"); ?>" class="glyphicons white user"><i></i></a>
+	          		</li>
+	          		<?php endif; ?>
+	          		<li>
+	          			<a href="<?php echo $this->helpLink() ?>" id="main-menu-help-btn" title="<?php echo _t("Help"); ?>" target="_blank" class="glyphicons white circle_question_mark"><i></i></a>
+	          		</li>
+	          	</ul>
+	          </div>
+          </div>  	        
+          
+        </div>
+      
+
+    </div>
+    <?php if (! $this->isAllowed('dataRentention:timelimit', '2weeks') || $licenseEvaluation) : ?>
+    <div id="contact-expired" style="display: none;">
+        <div id="menu-header">
+    		<a onclick="window.open('<?php echo $this->contactZend('server-6-ui-contact-zend-button'); ?>', '_blank');" target="_blank" id="contact-zend-link">
+    			<img id="contact-zend-icon" alt="" src="<?php echo $this->basePath('/images/phone-orange.png'); ?>"/>
+    			<span id="contact-zend"><?php echo _t("CONTACT ZEND"); ?></span>
+    		</a>
+    		<a href="#" class="glyphicons circle_arrow_left" aria-hidden="true" id="menu-toggler"><i></i></a>
+    	</div>
+  		<?php 
+  		
+  		$licenseText = false;
+  		if (! $licenseNeverExpires) {
+  		    if ($licenseIsOk) {
+  		        if ($daysToExpired === 0) {
+  		            $licenseText = _t("license expires today");
+  		        }
+  		        elseif ($daysToExpired !== false) {
+  		            if($licenseEvaluation){
+  		                $licenseText = _t("%s days for trial", array($daysToExpired));
+  		            }else{
+  		                $licenseText = _t("Expires in %s days", array($daysToExpired));
+  		            }
+  		        }
+  		    } else {
+  		        $licenseText = _t("license expired");
+  		    }
+  		}
+  		
+  		if($licenseText){ 
+  		    echo '  <a href="#" onclick="window.open(\''.$this->contactZend('server-6-ui-contact-zend-button') .'\', \'_blank\');" class="license-days">'.$licenseText.'</a>'; 
+  	    }          		
+  		
+  		?>
+  	
+  	</div>
+  	<?php endif; ?>
+	<div id="main-wrapper">
+	   <div id="side-bar">
+		<nav id="main-menu">
+          	  <?php
+	          	$navigation = $this->navigation('Navigation');
+				
+	          	$hasActive = false;
+	          	foreach ($navigation->getContainer() as $page) {
+					if ($page->isActive(true)) {
+						$hasActive = true;
+						break;
+					}
+				}
+	          	
+	          	foreach ($navigation->getContainer() as $page) {
+					$class = ($page->isActive(true)) ? 'active' : '';
+					if (! $hasActive) {
+						$hasActive = true;
+						$class = 'active';
+					}
+					if($page->getPages()){
+						//has children
+						$activeSection = current($navigation->findActive($page));
+						
+					    $pageClass = $page->getClass();
+					    if ($activeSection) {
+					        $pageClass .= ' opened';
+					    }
+						echo '<div class="'.$class.'"><a class="'.$pageClass.'" href="javascript:;"><i></i>' . $page->getLabel() . '</a>';
+						echo '<nav parent-menu="'.$page->getLabel().'">';
+						
+
+						$activeLabel = '';
+						if ($activeSection) {
+							$activeLabel = $activeSection->getLabel();          	
+						}
+						foreach ($page->getPages() as $subpage) {
+							$sublabel = $subpage->getLabel();
+							$subactive = '';
+							if ($subpage->getLabel() == $activeLabel) {
+								$subactive = ' active';
+							}
+							//$activeSection = $page->findOneBy('label', $label);
+							echo '<a href="'.$subpage->getHref().'" class="'.$subactive.'">'.$subpage->getLabel().'</a>';
+						}
+						echo '</nav></div>';
+					} else {
+						echo '<div class="'.$class.'"><a class="'.$page->getClass().'" href="'.$page->getHref().'"><i></i>' . $page->getLabel() . '</a></div>';
+					}
+					
+	          	}
+	          	?>
+		</nav>
+		</div>
+		<div class="container super-container" id="main-container">
+			<?php if(!empty($this->viewModel()->getCurrent()->getChildren()[0]->pageTitle)): ?>
+			<header>
+				<h1 style="display: none;"><?php 
+					echo $this->viewModel()->getCurrent()->getChildren()[0]->pageTitle; 
+					if(!empty($this->viewModel()->getCurrent()->getChildren()[0]->pageTitleDesc)){
+						echo ' <small>'.$this->viewModel()->getCurrent()->getChildren()[0]->pageTitleDesc.'</small>'; 
+					}
+					?>
+				</h1>
+			</header>
+			<?php endif;?>
+		  <?php echo $this->content; ?>
+		  <div class="clear"></div>
+		</div> <!-- /container -->
+	</div>
+	<script type="text/javascript">
+	if ($('bread')) {
+		if ($$('header h1').length > 0) {
+			   $$('header h1').pick().inject($('bread'), 'top');
+		}
+    	$$('#bread h1').pick().setStyle('display', 'block');
+    
+    	$('bread').adopt($('contact-expired'));
+    	if ($('contact-expired')) {
+    		   $('contact-expired').setStyle('display', 'block');
+    	}
+	}
+	
+	
+	<?php if ($zrayStandalone) { ?>
+		<?php $expired = function_exists('zray_is_standalone_preview_ended') ? zray_is_standalone_preview_ended() : false; ?>
+		<?php if ($expired) { ?>
+		var expiredCurtain = new Element('div', {id: 'expired-curtain'});
+		document.body.appendChild(expiredCurtain);
+		var expiredMessage = new Element('div', {id: 'expired-message'});
+		expiredMessage.innerHTML = 'This version of Z-Ray has expired.<br>' + 
+			'See the <a href="http://www.zend.com/z-ray/redirect/product-page" target="_blank">Z-Ray product page</a> for information on updates.';
+		document.body.appendChild(expiredMessage);
+		document.body.classList.add('expired');
+		<?php } ?>
+	<?php } ?>
+	</script>
+  </body>
+</html>

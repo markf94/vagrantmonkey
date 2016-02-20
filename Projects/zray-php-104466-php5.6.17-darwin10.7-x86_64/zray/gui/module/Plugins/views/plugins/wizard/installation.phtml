@@ -1,0 +1,46 @@
+<?php if ($valid) : ?>
+ok
+<?php elseif (isset($errorMessage)) : ?>
+<?php echo $errorMessage; ?>
+<?php else : ?>
+
+<?php 
+$appLogo = $package->getLogo();
+$applicationName = $package->getName();
+$version = $package->getVersion();
+$type = $package->getPluginType();
+
+$installationUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Installation'));
+?>
+
+<!-- <form id="deployment-set-installation-form" action="#" method="POST" onsubmit="return false;" > -->
+	<div class="tableDescContent" id="deployment-set-installation">
+		<div id="deployment-installation-top">
+		<table>
+			<tbody>
+				<tr>
+					<td><?php echo _t('Plugin'); ?></td>
+					<td><?php echo $this->escapeHtml($applicationName); ?></td>
+					<td rowspan="2"><?php echo $this->AppLogo($applicationName, $appLogo, 'application-installation-logo'); ?></td>
+			</tr>
+			<tr>
+				<td><?php echo _t('Version'); ?></td>
+				<td><?php echo $this->escapeHtml($version); ?></td>
+			</tr>
+			<?php if (is_array($type) && !empty($type)) { ?>
+			<tr>
+				<td><?php echo _t('Type'); ?></td>
+				<td>
+				    <ul class="plugin-types">
+				    <?php foreach ($type as $t) { ?>
+				        <li><?php echo $this->escapeHtml($t); ?></li>
+				    <?php } ?>
+				    </ul>
+				</td>
+			</tr>
+			<?php } ?>
+		</table>
+		</div>
+	</div>
+<!-- </form> -->
+<?php endif;?>

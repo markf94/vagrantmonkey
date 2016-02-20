@@ -1,0 +1,10 @@
+<responseData>
+	<auditMessages>
+		<?php
+		foreach ($auditMessages as $auditMessage) {
+			echo $this->auditMessageXml($auditMessage);
+		}
+		?>
+	</auditMessages>
+	<totalCount><?php echo $totalCount ?></totalCount>
+</responseData>

@@ -1,0 +1,335 @@
+<?php
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/pluginDeploymentWizard.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/plugins.js' );
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/prereq.css' );
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/plugins.css' );
+ 
+$wizardUrl = $this->url ( 'default', array (
+	'controller' => 'PluginsWizard',
+	'action' => 'Wizard'
+) );
+
+$pluginUrl = $this->url ( 'default', array (
+	'controller' => 'PluginsStore',
+	'action' => 'Plugin'
+) );
+
+$prerequisitesUrl = $this->url ( 'default', array (
+	'controller' => 'Plugins',
+	'action' => 'Get-Plugin-Prerequisites'
+) );
+?>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Plugins')) ?>"><?php echo _t("Plugins"); ?></a></li>
+		</ul>
+		<a href="http://www.zend.com/server/redirect/submit-plugin" target="_blank" style="margin: 8px 45px;  float: left;">want to add your plugin?</a>
+	</div>
+</div>
+
+<div class="plugins">
+	<div>
+		<form id="plugins-search">
+			<div class="form-group">
+				<label for="sort">Sort</label>
+				<select id="sort" name="sort">
+					<option value="downloads" selected><?php echo _t('Popularity');?></option>
+					<option value="display_name"><?php echo _t('Name');?></option>
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="sort">Show only:</label>
+				<input type="checkbox" id="zray-compitable" name="zray-compitable" />
+				<label for="zray-compitable">Z-Ray</label>
+			</div>
+			<div class="form-group">
+				<input type="checkbox" id="route-compitable" name="route-compitable" />
+				<label for="route-compitable">Route</label>
+			</div>
+			<div class="form-group">
+				<input name="term" id="term" />
+			</div>
+			<?php if ($showHidden) : ?>
+			<input type="hidden" name="hidden" id="hidden" value="true" />
+			<?php endif; ?>
+			<input type="submit" value="<?php echo _t('Search');?>"/>
+			<input type="hidden" name="page" id="page" />
+		</form>
+		<div class="loader"><img src="/ZendServer/images/preload-64.gif" /></div>
+	</div>
+	<br/>
+	<!-- Plugin Template -->
+	<div class="plugin" template="plugin">
+		<div class="plugin-top">
+			<a href="javascript:void(0);" onclick="moreDetails({{id}})" class="plugin-logo"><img ph-src="{{logo}}"></a>
+			<div class="name column-name">
+				<h4><a href="javascript:void(0);" onclick="moreDetails({{id}})">{{display_name}}</a></h4>
+			</div>
+			<div class="action-links">
+				<nav class="plugin-action-buttons">
+					<button class="download-button glyphicons white download_alt" title="Click to Download this Plugin" onclick="downloadPlugin({{download_id}})"><i></i></button>
+					<button class="install-button" title="Click to Install this Plugin" onclick="openWizard('download', {'download_id' : '{{download_id}}', 'name' : '{{name}}'})">Install</button>
+					<a href="javascript:void(0);" onclick="moreDetails({{id}})" class="more-details-button">More Details</a>
+				</nav>
+			</div>
+			<div class="desc column-description">
+				<p>{{description}}</p>
+			</div>
+			<label class="version">Version: {{version}}</label>
+		</div>
+		<div class="plugin-bottom">
+			<div class="downloads">Downloads: {{downloads}}</div>
+			<div class="author"> <cite>By <a href="mailto:{{author_email}}" target="_blank">{{author_name}}</a></cite></div>
+		</div>
+	</div>
+	<!-- EOF Plugin Template -->
+	<div class="plugins-wrapper">
+	</div>
+	<div id="pager">
+		<nav>
+		</nav>
+	</div>
+	<br/><br/><br/>
+</div>
+<div template="modal-plugin">
+	<div class="plugin-modal">
+		<header class="plugin-cover" style="background-image: url({{cover}} );">
+			<h2>{{display_name}}</h2>
+			<label class="version">{{version}}</label>
+		</header>
+		<nav class="tabs">
+			<a onclick="switchTab(this);" tab="main" selected>Main</a>
+			<a onclick="switchTab(this);" tab="package-details">Package Details</a>
+			<a onclick="switchTab(this); loadPrerequisites(this, {{id}}, '<?php echo $prerequisitesUrl; ?>')" tab="prerequisites">Prerequisites</a>
+			<a onclick="switchTab(this);" tab="license">License</a>
+			<a onclick="switchTab(this);" tab="changelog">Changelog</a>
+		</nav>
+		<div class="content-tabs">
+			<div tab="main" selected>
+				{{long_description}}
+			</div>
+			<div tab="package-details">
+				<table>
+					<tbody>
+					</tbody>
+				</table>
+			</div>
+			<div tab="prerequisites">
+			</div>
+			<div tab="license">
+				{{license}}
+			</div>
+			<div tab="changelog">
+				{{changelog}}
+			</div>
+		</div>
+		<div class="plugin-gallery">
+			<a href="#" class="plugin-gallery-prev glyphicons chevron-left"><i></i></a>
+			<div class="plugin-gallery-items-wrapper">
+				<div class="plugin-gallery-items">
+				</div>
+			</div>
+			<a class="plugin-gallery-next glyphicons chevron-right"><i></i></a>
+		</div>
+		<footer>
+			<div class="btn-group">
+			</div>
+		</footer>
+	</div>
+</div>
+
+
+<script>
+var installedPlugins = [];
+var pluginsResponse = {};
+var serverInfo = <?php echo json_encode($this->serverInfo); ?>;
+var storeListApiUrl = '<?php echo $this->storeListApiUrl; ?>';
+var storeDownloadApiUrl = '<?php echo $this->storeDownloadApiUrl; ?>';
+
+window.addEvent('domready', function() {
+	getPlugins();
+	document.addEvent('wizardComplete', function(options) {
+		getPlugins();
+	});
+});
+
+var pluginsRequest = new Request.StoreAPI({
+		method: 'post',
+		url:storeListApiUrl,
+		version: '<?php echo \DevBar\ZRayModule::PLUGIN_CURRENT_VERSION; ?>'
+	});
+
+	pluginsRequest.addEvent('success', pluginsRequestSuccess);
+	
+	
+	var installedPluginsUrl = '<?php echo $this->basepath('/Api/pluginGetList') ?>';
+	var installedPluginsRequest = new Request.WebAPI({
+		method: 'post',
+		url:installedPluginsUrl
+	});
+
+	installedPluginsRequest.addEvent('success', function(response){
+		installedPlugins = response.responseData.plugins;
+		loadPlugins();
+	});
+	function pluginsRequestSuccess (response) {
+		$$('.loader').hide();
+		for(var i=1;i<=response.pagination.pages;i++){
+			var classes = "";
+			if(response.pagination.current == i){
+				classes += "active";
+			}
+			$$('#pager nav')[0].innerHTML += '<a class="'+ classes + '" onclick="changePage(' + i + ')">' + i + '</a>';
+		}
+		Object.forEach(response.plugins, function(item){
+			if(!item.display_name || item.display_name == ''){
+				item.display_name = item.name;
+			}
+			pluginsResponse[item.id]=item;
+			var $plugin = $$("[template='plugin']")[0].clone();
+			$plugin.removeProperty('template');
+			$plugin.setProperty('plugin-id',item.id);
+			
+			installedPlugins.each(function(plugin){
+				if(plugin.name.toLowerCase()==item.name.toLowerCase()){
+					//This plugin is already installed
+					if(versionCompare(item.version,plugin.version)>0){
+						//there's new version
+						$plugin.getElement('.install-button').set('html','Update');
+						$plugin.getElement('.install-button').addClass('update-button');
+						$plugin.getElement('.install-button').set('title','Click to update this plugin to the latest version');
+						$plugin.getElement('.install-button').set('onclick', 'openWizard(\'update-download\', {\'download_id\' : \'{{download_id}}\', \'name\' : \'{{name}}\'})');
+					}else{
+						//same version
+						$plugin.getElement('.install-button').set('disabled', true);
+						$plugin.getElement('.install-button').set('html','Installed');
+						$plugin.getElement('.install-button').set('title','This plugin is already installed and is up to date');
+					}
+				}
+			});
+			<?php if (!$this->isAllowed('route:PluginsWebAPI', 'pluginDeploy') || isAzureEnv()) : ?>
+			$plugin.getElement('.install-button').set('disabled', true);
+			$plugin.getElement('.install-button').set('title',  _t('You do not have the correct permissions for deploying plugins'));
+			<?php endif; ?>
+			
+			html = $plugin.get('html');
+			var match = false;
+			while(match = html.match(/\{\{([a-zA-Z0-9_/-]+)\}\}/)){
+				html = html.replace(match[0],item[match[1]] || '');
+			}
+			$plugin.set('html', html);
+			$plugin.getElement('.plugin-logo img').setProperty('src',$plugin.getElement('.plugin-logo img').getProperty('ph-src'));
+			$plugin.getElement('.plugin-logo img').removeProperty('ph-src');
+			$$('.plugins .plugins-wrapper')[0].adopt($plugin);
+		});
+		if(response.plugins.length === 0){
+			$$('.plugins .plugins-wrapper')[0].innerHTML = 'No results';
+			$$('#pager nav')[0].innerHTML = '';
+		}
+	}
+	$$('#plugins-search input,#plugins-search select').addEvent('change',function(e){
+		$$('#plugins-search').fireEvent('submit');
+	});
+	$$('#plugins-search').addEvent('submit',function(e){
+		
+		$$('#page')[0].value = 0;
+		getPlugins();
+		return false;
+	});
+	
+	function loadPlugins(){
+		$$('.plugins .plugins-wrapper')[0].innerHTML = '';
+		$$('#pager nav')[0].innerHTML = '';
+		$$('.loader').show();
+		$$('.plugin:not([template],[pr])').destroy();
+		formData = $$('#plugins-search')[0].toQueryString().parseQueryString();
+		formData.arrayResponse = true;
+		pluginsRequest.post(Object.merge(formData,serverInfo));
+	}
+	
+	function getPlugins(){
+		installedPluginsRequest.get();
+	}
+
+function showFullImage(img,plugin_id){
+	var SM = new SimpleModal({
+		closeButton: true,
+		hideHeader: true,
+		hideFooter: true,
+		draggable: false,
+		overlayClick: false,
+		extraClass: 'plugins-gallery-modal',
+		template: "<div class=\"contents\"><img class=\"plugin-modal-zoom-image\" src=\""+img+"\"></div>"
+	});
+	SM.show({
+		"model":"modal"
+	});
+	/* Hooking close func of SimpleModel */
+	SM._oldOverlay = SM._overlay
+	SM._overlay = function(status){
+		this._oldOverlay(status);
+		//On Close
+		moreDetails(plugin_id);
+	}
+}
+
+function downloadPlugin(id) {
+	window.location = storeDownloadApiUrl + '?id=' + id;
+}
+
+function openWizard(action, options) {
+	options.url = storeDownloadApiUrl + '?id=' + options.download_id;
+	var wizardUrl = '<?php echo $wizardUrl . '?wizardId=' . mt_rand(100000,999999); ?>';
+	if (action == 'update') {
+		wizardUrl += '&action=update&pluginId=' + options.pluginId;
+		lastPageId = 4;
+	} else if (action == 'download') {
+		wizardUrl += '&action=download&url=' + options.url + '&name=' + options.name;
+	} else if (action == 'update-download') {
+		wizardUrl += '&action=update-download&url=' + options.url + '&name=' + options.name;
+	}
+
+	simpleModel = new SimpleModal({
+		width: 673,
+		closeButton: false,
+		hideHeader: true,
+		hideFooter: true,
+		draggable: false,
+		draggableContainer: 'wizard-title',
+		overlayClick: false,
+		template: "<div class=\"contents\">{_CONTENTS_}</div>"
+	});
+	simpleModel.show({
+		"model": "modal-ajax",
+		"param": {
+			"url": wizardUrl,
+			"onRequestComplete": function() { /* Action on request complete */ }
+		}
+	});
+	simpleModel._oldOverlay = simpleModel._overlay
+	simpleModel._overlay = function(status){
+		this._oldOverlay(status);
+		//On Close
+		
+	}
+}
+
+function cancelWizard() {
+}
+
+function cancelDialog() {
+	simpleModel.hide();
+	wizard.wizardClosed();
+}
+
+function closeDialog() {
+	simpleModel.hide();
+}
+
+function changePage(page){
+	$$('#page')[0].value = page;
+	getPlugins();
+}
+</script>

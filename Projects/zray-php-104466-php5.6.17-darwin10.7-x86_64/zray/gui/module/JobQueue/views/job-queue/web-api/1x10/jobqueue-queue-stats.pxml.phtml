@@ -1,0 +1,11 @@
+<responseData>
+	<queueStats>
+    <?php foreach ($queueStats as $qStat) { ?>
+        <item>
+            <queue_id><?php echo $qStat->getQueueId(); ?></queue_id>
+            <running_jobs_count><?php echo $qStat->getRunningJobsCount(); ?></running_jobs_count>
+            <pending_jobs_count><?php echo $qStat->getPendingJobsCount(); ?></pending_jobs_count>
+        </item>
+    <?php } ?>
+	</queueStats>
+</responseData>

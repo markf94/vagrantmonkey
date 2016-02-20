@@ -1,0 +1,454 @@
+<?php
+
+/* @var $parsedSchedule JobQueue\Model\RecurringJobSchedule */
+$this->headLink()->appendStylesheet($this->basePath() . '/css/recurringJob.css');
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/FragmentManager.js' );
+
+$validateSslOptions = array(
+		_t('Keep global behavior (%s)', array($globalCertValidate ? _t('Always validate server SSL certificate') : _t('Do not validate SSL certificate'))) => \JobQueue\Model\Mapper::OPTION_VALIDATE_SSL_INHERIT, 
+		_t('Always validate server SSL certificate') => \JobQueue\Model\Mapper::OPTION_VALIDATE_SSL_STRICT, 
+		_t('Do not validate server SSL certificate') => \JobQueue\Model\Mapper::OPTION_VALIDATE_SSL_ACCEPT, 
+);
+
+?>
+
+<script type="text/javascript">
+
+var ruleExists = false;
+var rule;
+var sslAvailable = <?php echo $sslAvailable ? 'true' : 'false' ?>;
+
+<?php if (!$this->isAllowed('route:JobQueueWebApi', 'jobqueueSaveRule')): ?>
+function createRuleAction(action, options) {
+	document.fireEvent('toastAlert', {'message': '<?php echo _t("You do not have the correct permissions for creating a new recurring job"); ?>'});
+}
+<?php else: ?>
+function createRuleAction(action, options) {
+	createRule();
+}
+<?php endif; ?>
+
+window.addEvent("load", function() {
+	document.addEvent('entry-changed', function(){
+		$('recurring-jobs_grid_create').set('disabled','');
+		window.onbeforeunload = function(){
+			return "Your changes have not been saved yet.";
+    	};	
+	});
+});
+
+window.addEvent("domready", function() {
+    <?php if (!is_null($rule)) : ?>
+    	ruleExists = true;
+    	rule = {<?php echo $this->partial('job-queue/web-api/1x3/jobqueue-rule-info.pjson.phtml', array('rule' => $rule, 'statuses' => $statuses, 'applications' => $applications, 'priorities' => $priorities)); ?>};
+        var ruleInfo = rule.responseData.rulesInfo.rule;
+        $('rule-url').value = ruleInfo.script;
+		// $('rule-url').set('disabled', 'disabled');
+        $('rule-name').value = ruleInfo.name;
+        $('rule-queue').value = <?php echo $queueId; ?>;
+        toggleScheduleType();
+        toggleScheduleEveryOptions();
+        toggleScheduleSslValidation($('rule-url'));
+    <?php endif ?>
+
+    $('rule-url').addEvent('input', function (event) {
+    	toggleScheduleSslValidation(event.target)
+    });
+
+    toggleScheduleSslValidation($('rule-url'));
+});
+
+function toggleScheduleSslValidation(urlbox) {
+	if (urlbox.get('value').test(/^https/)) {
+		if (sslAvailable) {
+			/// table rows can't be just "show()"n, the correct display style is needed
+	        $('scheduleSslValidationSelectBox').setStyle('display', 'table-row');
+	    } else {
+	        $('scheduleSslValidationNotAvailableBox').setStyle('display', 'table-row');
+	    }
+	} else {
+    	$('scheduleSslValidationSelectBox').hide();
+    	$('scheduleSslValidationNotAvailableBox').hide();
+	}
+}
+
+function toggleScheduleType() {
+    var selectedType = $('schedule-type').getSelected().get('value');
+	$('schedule-type').getElements('option').each(function(option) {
+	    if (selectedType == option.get('value')) {
+	    	$(eval("'" + option.get('value') + "'")).setStyle('display', '');
+	    } else {
+	    	$(eval("'" + option.get('value') + "'")).setStyle('display', 'none');
+	    }
+	});
+}
+
+function toggleScheduleEveryOptions() {
+	var selectedElement = $$('input[name=scheduleEvery]:checked').pick();
+	$$('input[name=scheduleEvery] + input').set('disabled', 'disabled');
+	$$('input[name=scheduleEvery]:checked + input').removeProperty('disabled');
+}
+
+/* Create/Update Rule */
+function createRule() {
+    var ruleUrl = $('rule-url').value.trim();
+    if (ruleUrl.length == 0 || !validateUrl(ruleUrl)) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify a valid URL for the recurring job"); ?>'});
+        return;
+    }
+
+    var ruleName = $('rule-name').value;
+    if (ruleName.length == 0) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify the name of the recurring job"); ?>'});
+        return;
+    }
+    var ruleSchedule = getRuleSchedule();
+    if (ruleSchedule == null) {
+        return;
+    }
+
+    if ($('rule-url').get('value').test(/^https/)) {
+	    ruleSchedule.validate_ssl = $('scheduleSslValidationSelect').get('value');
+    }
+    ruleSchedule.name = ruleName;
+
+    ruleSchedule.queue_id = $('rule-queue').get('value')
+
+    var param = '';
+    if (ruleExists) {
+        params = {'url': ruleUrl, 'ruleId': rule.responseData.rulesInfo.rule.id, 'vars': [], 'options': ruleSchedule};
+        url = '<?php echo $this->basePath() . '/Api/jobqueueSaveRule'; ?>';
+        param = 'preaction=updated';
+    } else {
+        params = {'url': ruleUrl, 'vars': [], 'options': ruleSchedule};
+        url = '<?php echo $this->basePath() . '/Api/jobqueueSaveRule'; ?>';
+        param = 'preaction=created';
+    }
+
+    $('recurring-jobs_grid_create').spin();
+    
+    var request = new Request.WebAPI({
+		url:url, 
+		data:params, 
+		onSuccess: function(response) {
+			window.onbeforeunload=null; //remove unsaved warning message
+			document.fireEvent('toastNotification', {'message': '<?php echo _t('Recurring job saved successfully. Redirecting back...') ?>'});
+			Function.from(function(){
+				var ruleId = response.responseData.rulesInfo.rule.id;
+			    location.href = '<?php echo $this->basePath() ?>/RecurringJobs/'; 
+			}).delay(1000);
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			$('recurring-jobs_grid_create').unspin();
+		},
+	}).post();
+}
+
+function validateUrl(url) {
+    return url.test(/^https?:\/\/[^\/].*/);
+}
+
+function getRuleSchedule() {
+    var scheduleType = $('schedule-type').value;
+    var schedule = '';
+    var interval = '';
+    switch (scheduleType) {
+        case 'schedule-every':
+            if ($$('input[name=scheduleEvery]:checked').length == 0) {
+                document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify an hours/minutes value"); ?>'});
+                return;
+            }
+
+            if ($$('input[name=scheduleEvery]:checked')[0].get('value') == 'schedule-every-days') {
+				if (isNaN($('schedule-every-days').value)) {
+					document.fireEvent('toastAlert', {'message': '<?php echo _t('Entered value "'); ?>' + $('schedule-every-days').value + '<?php echo _t("\" is an incorrect value. Enter a number in the days field"); ?>'});
+	                return;
+				}
+                if (! validateDays(parseInt($('schedule-every-days').value))) {
+                    return;
+                }
+                interval = 'D ' + parseInt($('schedule-every-days').value);                
+            } else if ($$('input[name=scheduleEvery]:checked')[0].get('value') == 'schedule-every-hours') {
+				if (isNaN($('schedule-every-hours').value)) {
+					document.fireEvent('toastAlert', {'message': '<?php echo _t('Entered value "'); ?>' + $('schedule-every-hours').value + '<?php echo _t("\" is an incorrect value. Enter a number in the hours field"); ?>'});
+	                return;
+				}
+                if (! validateHours(parseInt($('schedule-every-hours').value))) {
+                    return;
+                }
+                interval = 'H ' + parseInt($('schedule-every-hours').value);
+            } else {
+            	if (isNaN($('schedule-every-minutes').value)) {
+					document.fireEvent('toastAlert', {'message': '<?php echo _t('Entered value "'); ?>' + $('schedule-every-minutes').value + '<?php echo _t("\" is an incorrect value. Enter a number in the minutes field"); ?>'});
+	                return;
+				}
+                if (! validateMinutes(parseInt($('schedule-every-minutes').value))) {
+                    return;
+                }
+                interval = 'M ' + parseInt($('schedule-every-minutes').value);
+            }
+            break;
+        case 'schedule-hourly':
+        	if (isNaN($('schedule-hourly-minute').value)) {
+        		document.fireEvent('toastAlert', {'message': '<?php echo _t('Entered value "'); ?>' + $('schedule-hourly-minute').value + '<?php echo _t("\" is an incorrect value. Enter a number"); ?>'});
+                return;
+			}
+            if (! validateMinutes(parseInt($('schedule-hourly-minute').value))) {// hourly: at {schedule-hourly-minute} minutess after the hour
+                return;
+            }
+            schedule = parseInt($('schedule-hourly-minute').value);
+            break;
+        case 'schedule-daily':
+            schedule = parseInt($('schedule-daily-time-minute').value) + ' ' +  parseInt($('schedule-daily-time-hour').value);
+            break;
+        case 'schedule-weekly':
+            if ($$('input[name=scheduleWeeklyDay]:checked').length == 0) {
+                document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify a day"); ?>'});
+                return;
+            }
+            var days = new Array();
+            Array.each($$('input[name=scheduleWeeklyDay]:checked'), function (element) {
+                days.push(element.value);
+            });
+            schedule = parseInt($('schedule-weekly-time-minute').value) + ' ' +  parseInt($('schedule-weekly-time-hour').value) + ' * * ' + days.join(',');
+            break;
+        case 'schedule-monthly':
+            schedule = parseInt($('schedule-monthly-time-minute').value) + ' ' +  parseInt($('schedule-monthly-time-hour').value) + ' ' + $('schedule-monthly-day').value;
+            break;
+    }
+    if (schedule != '') {
+        return {'schedule' : schedule};
+	} else if(interval != '') {
+		return {'interval' : interval};
+	}
+    
+    return null;
+}
+
+function validateDays(value) {
+    if (! value) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify an days value"); ?>'});
+        return false;
+    }
+    if (value < 1 || value > 99) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify valid days value (1-99)"); ?>'});
+        return false;
+    }
+    return true;
+}
+
+function validateHours(value) {
+    if (! value) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify an hours value"); ?>'});
+        return false;
+    }
+    if (value < 1 || value > 23) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify valid hours value (1-23)"); ?>'});
+        return false;
+    }
+    return true;
+}
+
+function validateMinutes(value) {
+    if (! value) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify a minutes value"); ?>'});
+        return false;
+    }
+    if (value < 1 || value > 59) {
+        document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify valid minutes value (1-59)"); ?>'});
+        return false;
+    }
+    return true;
+}
+
+</script>
+<?php 
+$listUrl = $this->url('default', array('controller' => 'RecurringJobs'));
+$title = $rule ? _t('Edit Recurring Job') : _t('New Recurring Job');
+?>
+<header><h1><?php echo $title; ?></h1></header>
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><?php echo _t('JobQueue'); ?></li>
+			<li><a href="<?php echo $listUrl; ?>"><?php echo _t('Jobs Scheduler'); ?></a></li>
+			<li><?php echo $title; ?></li>
+		</ul>
+	</div>
+</div>
+<div class="settings-form-wrapper bordered-form">
+	<section>
+	<h3 style="background-image: url(/ZendServer/images/settings/general-settings.png);">
+		<?php echo isset($rule) ? 'Edit a' : 'Create a New'; ?> <?php echo _t('Recurring Job'); ?>
+	</h3>
+	<p class="section_description"><?php echo _t('A recurring job occurs periodically according to the scheduling rule provided below.') ?></p>
+
+	<table id="scheduling-rule-form" class="scheduling-rule-form">
+		<tbody>
+			<tr>
+				<th class="schedulingRuleDetail"><?php echo _t('Name'); ?></th>
+				<td>
+					<input style="width: 400px;" onchange="document.fireEvent('entry-changed');" onInput="document.fireEvent('entry-changed');" name="ruleName" type="text" id="rule-name" dir="ltr" placeholder="<?php echo _t('e.g. My useful job') ?>" />
+				</td>
+			</tr>
+			<tr>
+				<th class="schedulingRuleDetail"><?php echo _t('URL'); ?></th>
+				<td>
+					<input style="width: 400px;" onchange="document.fireEvent('entry-changed');" onInput="document.fireEvent('entry-changed');" name="ruleUrl" type="text" id="rule-url" dir="ltr" placeholder="<?php echo _t('e.g. http://my.operations.server/some-job.php') ?>" />
+				</td>
+			</tr>
+			<tr>
+				<th class="schedulingRuleDetail"><?php echo _t('Queue'); ?></th>
+				<td>
+					<select style="width: 400px;" onchange="document.fireEvent('entry-changed');" name="ruleQueue" id="rule-queue">
+					<?php foreach ($queues as $idx => $queue) { ?>
+						<?php $queueName = ($queue['status'] == \JobQueue\JobQueueInterface::QUEUE_SUSPENDED) ? $queue['name'].' (suspended)' : $queue['name']; ?>
+						<option value="<?php echo $queue['id']; ?>" <?php if ($idx == 0) echo 'selected="selected"';?>><?php echo $queueName; ?></option>
+					<?php } ?>
+					</select>
+				</td>
+			</tr>
+			
+			<tr id="scheduleSslValidationNotAvailableBox" class="scheduleSslValidation hidden">
+				<th class="schedulingRuleDetail">
+				</th>
+				<td>
+					<label class="experimental"><?php echo _t('To enable SSL for Job Queue %sclick here%s', array('<a href="'. $this->basepath('/ZendComponents/#search=zend_jobqueue.enable_https&daemon-tab=1') .'">', '</a>')) ?></label>
+				</td>
+			</tr>
+			
+			<tr id="scheduleSslValidationSelectBox" class="scheduleSslValidation hidden">
+				<th class="schedulingRuleDetail">
+				<?php echo _t('Validate SSL')  ?>
+				</th>
+				<td>
+					<select id="scheduleSslValidationSelect"  onchange="document.fireEvent('entry-changed');" >
+					<?php foreach ($validateSslOptions as $label => $value): ?>
+						<option value="<?php echo $value ?>" <?php echo $rule['validate_ssl'] == $value ? 'selected' : '' ?>><?php echo $label ?></option>
+					<?php endforeach ?>
+					</select>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	</section>
+	
+	
+	<section>
+	<h3><?php echo _t('Schedule'); ?></h3>
+	<table class="scheduling-rule-form">
+		<tbody>
+			<tr>
+				<th class="schedulingRuleDetail"><?php echo _t('Execute Job'); ?></th>
+				<td>
+					<select id="schedule-type" name="scheduleType" onchange="toggleScheduleType();document.fireEvent('entry-changed');">
+						<option value="schedule-every" <?php echo $parsedSchedule->getType() == 'schedule-every' ? 'selected="selected"' : ''?>><?php echo _t('Every'); ?></option>
+						<option value="schedule-hourly" <?php echo $parsedSchedule->getType() == 'schedule-hourly' ? 'selected="selected"' : ''?>><?php echo _t('Hourly'); ?></option>
+						<option value="schedule-daily" <?php echo $parsedSchedule->getType() == 'schedule-daily' ? 'selected="selected"' : ''?>><?php echo _t('Daily'); ?></option>
+						<option value="schedule-weekly" <?php echo $parsedSchedule->getType() == 'schedule-weekly' ? 'selected="selected"' : ''?>><?php echo _t('Weekly'); ?></option>
+						<option value="schedule-monthly" <?php echo $parsedSchedule->getType() == 'schedule-monthly' ? 'selected="selected"' : ''?>><?php echo _t('Monthly'); ?></option>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td>
+					<div id="schedule-stack" >
+						<div id="schedule-every" class="schedulingEveryDiv">
+							<div class="scheduleEveryMargin10">
+							<input  onchange="document.fireEvent('entry-changed');"  type="radio" name="scheduleEvery"  <?php echo $parsedSchedule->getEvery() == 'schedule-every-days' ? 'checked="checked"' : '' ?> id="schedule-every-days-opt" value="schedule-every-days" onclick="toggleScheduleEveryOptions()">
+							<input  onchange="document.fireEvent('entry-changed');" onInput="document.fireEvent('entry-changed');"  style="width:20px" maxlength="2" value="<?php echo $parsedSchedule->getEveryDays() ?>" name="scheduleEveryDays" type="text" id="schedule-every-days" disabled="disabled">
+							<?php echo _t('days'); ?>
+							</div>
+							<div class="scheduleEveryMargin10">
+							<input  onchange="document.fireEvent('entry-changed');"  type="radio" name="scheduleEvery"  <?php echo $parsedSchedule->getEvery() == 'schedule-every-hours' ? 'checked="checked"' : '' ?> id="schedule-every-hours-opt" value="schedule-every-hours" onclick="toggleScheduleEveryOptions()">
+							<input  onchange="document.fireEvent('entry-changed');" onInput="document.fireEvent('entry-changed');"  style="width:20px" maxlength="2" value="<?php echo $parsedSchedule->getEveryHours() ?>" name="scheduleEveryHours" type="text" id="schedule-every-hours">
+							<?php echo _t('hours'); ?>
+							</div>
+							<div class="scheduleEveryMargin10">
+							<input  onchange="document.fireEvent('entry-changed');"  type="radio" name="scheduleEvery" <?php echo $parsedSchedule->getEvery() == 'schedule-every-minutes' ? 'checked="checked"' : '' ?> id="schedule-every-minutes-opt" value="schedule-every-minutes" onclick="toggleScheduleEveryOptions()">
+							<input  onchange="document.fireEvent('entry-changed');" onInput="document.fireEvent('entry-changed');"  style="width:20px" maxlength="2" value="<?php echo $parsedSchedule->getEveryMinutes() ?>" name="scheduleEveryMinutes" type="text" id="schedule-every-minutes" disabled="disabled">
+							<?php echo _t('minutes'); ?>
+							</div>
+						</div>
+						<div id="schedule-hourly" class="scheduleHourly" style="display:none;">
+							<?php echo _t('at'); ?> <input  onchange="document.fireEvent('entry-changed');" onInput="document.fireEvent('entry-changed');"  maxlength="2" style="width:20px" value="<?php echo $parsedSchedule->getHourlyMinute() ?>" name="scheduleHourlyMinute" type="text" id="schedule-hourly-minute">
+							<?php echo _t('minutes after the hour'); ?>
+						</div>
+						<div id="schedule-daily" class="schedulingEveryDiv" style="display:none;">
+							<div><?php echo _t('at'); ?>  
+							<select  onchange="document.fireEvent('entry-changed');"  id="schedule-daily-time-hour">
+							<?php for ($i = 0; $i <= 23; $i++) :?>
+								<option value="<?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?>" <?php echo $parsedSchedule->getDailyHour() == $i ? ' selected' : '' ?>><?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?></option>
+							<?php endfor;?>
+							</select>
+							:
+							<select  onchange="document.fireEvent('entry-changed');"  id="schedule-daily-time-minute">
+							<?php for ($i = 0; $i <= 59; $i++) :?>
+								<option value="<?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?>" <?php echo $parsedSchedule->getDailyMinute() == $i ? ' selected' : '' ?>><?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?></option>
+							<?php endfor;?>
+							</select>
+							</div>
+						</div>
+						<div id="schedule-weekly" class="scheduleWeekly" style="display:none;">
+						<div><?php echo _t('Every:');  ?></div>
+									<input  onchange="document.fireEvent('entry-changed');"  type="checkbox" id="schedule-weekly-sunday" name="scheduleWeeklyDay" value="0" <?php if (in_array(0, $parsedSchedule->getWeeklyDay()) || in_array(7, $parsedSchedule->getWeeklyDay())) echo ' checked';?>><label for="schedule-weekly-sunday">&nbsp;<?php echo _t('Sunday'); ?></label>
+									<input  onchange="document.fireEvent('entry-changed');"  type="checkbox" id="schedule-weekly-monday" name="scheduleWeeklyDay" value="1" <?php if (in_array(1, $parsedSchedule->getWeeklyDay())) echo ' checked';?>><label for="schedule-weekly-monday">&nbsp;<?php echo _t('Monday'); ?></label>
+									<input  onchange="document.fireEvent('entry-changed');"  type="checkbox" id="schedule-weekly-tuesday" name="scheduleWeeklyDay" value="2" <?php if (in_array(2, $parsedSchedule->getWeeklyDay())) echo ' checked';?>><label for="schedule-weekly-tuesday">&nbsp;<?php echo _t('Tuesday'); ?></label>
+									<input  onchange="document.fireEvent('entry-changed');"  type="checkbox" id="schedule-weekly-wednesday" name="scheduleWeeklyDay" value="3" <?php if (in_array(3, $parsedSchedule->getWeeklyDay())) echo ' checked';?>><label for="schedule-weekly-wednesday">&nbsp;<?php echo _t('Wednesday'); ?></label>
+									<input  onchange="document.fireEvent('entry-changed');"  type="checkbox" id="schedule-weekly-thursday" name="scheduleWeeklyDay" value="4" <?php if (in_array(4, $parsedSchedule->getWeeklyDay())) echo ' checked';?>><label for="schedule-weekly-thursday">&nbsp;<?php echo _t('Thursday'); ?></label>
+									<input  onchange="document.fireEvent('entry-changed');"  type="checkbox" id="schedule-weekly-friday" name="scheduleWeeklyDay" value="5" <?php if (in_array(5, $parsedSchedule->getWeeklyDay())) echo ' checked';?>><label for="schedule-weekly-friday">&nbsp;<?php echo _t('Friday'); ?></label>
+									<input  onchange="document.fireEvent('entry-changed');"  type="checkbox" id="schedule-weekly-saturday" name="scheduleWeeklyDay" value="6" <?php if (in_array(6, $parsedSchedule->getWeeklyDay())) echo ' checked';?>><label for="schedule-weekly-saturday">&nbsp;<?php echo _t('Saturday'); ?></label>
+							<div class="scheduleEveryMargin10"><?php echo _t('at'); ?>
+								<select  onchange="document.fireEvent('entry-changed');"  id="schedule-weekly-time-hour">
+								<?php for ($i = 0; $i <= 23; $i++) :?>
+									<option value="<?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?>" <?php echo $parsedSchedule->getWeeklyHour() == $i ? ' selected' : '' ?>><?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?></option>
+								<?php endfor;?>
+								</select>
+								:
+								<select  onchange="document.fireEvent('entry-changed');"  id="schedule-weekly-time-minute">
+								<?php for ($i = 0; $i <= 59; $i++) :?>
+									<option value="<?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?>" <?php echo $parsedSchedule->getWeeklyMinute() == $i ? ' selected' : '' ?>><?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?></option>
+								<?php endfor;?>
+								</select>
+							</div>
+						</div>
+						<div id="schedule-monthly" class="scheduleMonthly" style="display:none;">
+							<div style="margin-bottom:10px;">
+							<?php echo _t('on the'); ?> 
+								   <select  onchange="document.fireEvent('entry-changed');"  id="schedule-monthly-day">
+								   <?php for ($day = 1; $day < 31; $day++): ?>
+								   <option value="<?php echo str_pad($day, 2, 0, STR_PAD_LEFT) ?>" <?php echo $parsedSchedule->getMonthlyDay() == $day ? ' selected' : '' ?>><?php echo str_pad($day, 2, 0, STR_PAD_LEFT)?></option>
+								   <?php endfor;?>
+								   </select>
+							<?php echo _t('of every month'); ?>
+							</div>
+							<div class="scheduleEveryMargin10">
+							<?php echo _t('at'); ?>
+								<select  onchange="document.fireEvent('entry-changed');"  id="schedule-monthly-time-hour">
+								<?php for ($i = 0; $i <= 23; $i++) :?>
+									<option value="<?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?>" <?php echo $parsedSchedule->getMonthlyHour() == $i ? ' selected' : '' ?>><?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?></option>
+								<?php endfor;?>
+								</select>
+								:
+								<select  onchange="document.fireEvent('entry-changed');"  id="schedule-monthly-time-minute">
+								<?php for ($i = 0; $i <= 59; $i++) :?>
+									<option value="<?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?>" <?php echo $parsedSchedule->getMonthlyMinute() == $i ? ' selected' : '' ?>><?php echo str_pad($i, 2, 0, STR_PAD_LEFT) ?></option>
+								<?php endfor;?>
+								</select>
+							</div>
+						</div>
+					</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	</section>
+	<div class="form-row submit-button-row">
+		<input type="submit" id="recurring-jobs_grid_create" disabled onclick="createRuleAction();" title="<?php echo _t(isset($rule) ? 'Edit the Recurring Job' : 'Create the new Recurring Job') ?>" value="<?php echo _t('Save'); ?>" />
+		<input type="button" id="recurring-jobs_grid_cancel" onclick="location.href='Index'" value="<?php echo _t('Close'); ?>" />
+	</div>
+
+</div>

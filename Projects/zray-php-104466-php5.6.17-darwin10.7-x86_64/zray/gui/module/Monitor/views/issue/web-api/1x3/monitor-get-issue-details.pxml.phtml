@@ -1,0 +1,28 @@
+	<responseData>
+		<issueDetails>
+<?php echo $this->issueXml($issue, $applications[$issue->getBaseUrl()], $eventsData); ?>
+			<eventsGroups>
+<?php foreach ($eventsGroups as $eventsGroupId => $eventsGroup) : /* @var $eventsGroup \EventsGroup\Container */?>
+                <eventsGroup>
+                    <eventsGroupId><?php echo $eventsGroup->getEventsGroupId() ?></eventsGroupId>
+                    <eventsCount><?php echo $eventsGroup->getEventsCount() ?></eventsCount>
+                    <startTime><?php echo $this->webapiDate($eventsGroup->getstartTime()) ?></startTime>
+                    <startTimeTimestamp><?php echo $eventsGroup->getstartTime() ?></startTimeTimestamp>
+                    <serverId><?php echo $eventsGroup->getServerId() ?></serverId>
+                    <serverName><?php echo $serverIdstoNames[$eventsGroup->getServerId()] ?></serverName>         
+                    <class><?php echo $eventsGroup->getClass() ?></class>
+                    <hasCodetracing><?php echo $eventsGroup->hasCodetracing() ? 'true' : 'false' ?></hasCodetracing>
+                    <userData><![CDATA[<?php echo $eventsGroup->getUserData() ?>]]></userData>
+                    <javaBacktrace><![CDATA[<?php echo $eventsGroup->getJavaBacktrace() ?>]]></javaBacktrace>
+                    <execTime><?php echo $eventsGroup->getExecTime() ?></execTime>
+                    <relExecTime><?php echo $eventsGroup->getRelExecTime() ?></relExecTime>
+                    <memUsage><?php echo $eventsGroup->getMemUsage() ?></memUsage>
+                    <relMemUsage><?php echo $eventsGroup->getRelMemUsage() ?></relMemUsage>
+                    <relOutputSize><?php echo $eventsGroup->getRelOutputSize() ?></relOutputSize>
+                    <load><?php echo $eventsGroup->getLoad() ?></load>
+                </eventsGroup>
+<?php endforeach; ?>
+            </eventsGroups>
+			<totalCount><?php echo $totalCount ?></totalCount>
+		</issueDetails>
+	</responseData>

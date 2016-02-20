@@ -1,0 +1,604 @@
+<?php 
+$this->headLink()->appendStylesheet($this->basePath() . '/css/recurringJob.css');
+?>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Job Queue is a job management system that provides offline asynchronous processing of tasks and activities that can be run independently of the end user experience.
+            				Using the Job Queue API you can delay the execution of "heavy" parts of your Web application that originate from direct user interaction with a Web server,
+            				helping you to significantly improve response time and reduce Web server load<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('jobs_component')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'JobQueue')) ?>"><?php echo _t("JobQueue"); ?></a></li>
+		</ul>
+	</div>
+	<div id="recurring-jqd-offline-message" class="hidden">
+		<div class="notice toast static">
+		<?php echo _t('Job Queue service is currently offline - job rules cannot be changed.')  ?>
+		</div>
+	</div>
+</div>
+
+<div id="filter_details"></div>
+
+<?php $multiSelect = false; ?>
+	<div class="grid-action-bar" id="recurring-job-grid-action-bar">
+<?php if ($jqLoaded) : ?>
+		<?php if ($this->isAllowed('route:JobQueueWebApi', 'jobqueueSaveRule')): ?>
+		<button id="recurring-job-create" title="<?php echo _t("Create a new recurring job"); ?>" onclick="location.href='<?php echo $this->basePath() ?>/RecurringJobs/create'"><?php echo _t("New Recurring Job"); ?></button>
+	<?php endif ?>
+	
+	<?php if ($this->isAllowed('route:JobQueueWebApi', 'jobqueueDeleteRules')): ?>
+		<?php $multiSelect = true; ?>
+		<button id="batch-delete" disabled onclick="batchDelete()" title="<?php echo _t('Delete recurring job'); ?>"><?php echo _t('Delete'); ?></button>
+	<?php endif ?>
+	
+	<?php if ($this->isAllowed('route:JobQueueWebApi', 'jobqueueDisableRules')): ?>
+		<?php $multiSelect = true; ?>
+		<button id="batch-suspend" disabled onclick="batchSuspend()" title="<?php echo _t('Suspend recurring job'); ?>"><?php echo _t('Suspend'); ?></button>
+	<?php endif ?>
+	
+	<?php if ($this->isAllowed('route:JobQueueWebApi', 'jobqueueResumeRules')): ?>
+		<?php $multiSelect = true; ?>
+		<button id="batch-resume" disabled onclick="batchResume()" title="<?php echo _t('Resume recurring job'); ?>"><?php echo _t('Resume'); ?></button>
+	<?php endif ?>
+<?php else: ?>
+	<div><?php echo _t('Job Queue is not loaded')  ?></div>
+<?php endif; ?>
+</div>
+<div id="mytable"></div>
+<div id="grid-count-bar"></div>
+<div id="mypager"></div>
+
+<script type="text/javascript">
+var rowsChecked = 0;
+var isAllowedJobsEdit = <?php echo $this->isAllowed('route:RecurringJobs', 'update') ? 'true' : 'false' ?>;
+var localJqdOffline = <?php echo $localJqdOffline ? 'true' : 'false' ?>;
+var queuesData = <?php echo json_encode($queuesData); ?>;
+/* @return bool */
+var queueIsSuspended = function(queueId) {
+	return queuesData[queueId]['status'] == <?php echo \JobQueue\JobQueueInterface::QUEUE_SUSPENDED; ?>
+};
+var statusesList = <?php echo json_encode($statusesList); ?>;
+var getStatusCode = function(name) {
+	var retVal = null;
+	statusesList.forEach(function(statusName, i) {
+		if (statusName.toLowerCase() == name.toLowerCase()) {
+			retVal = i;
+		}
+	});
+	return retVal;
+}
+
+var capitalizeFirstLetter = function(value) {
+    return value.replace(/\w\S*/g, function(value) {
+        return (value.charAt(0).toUpperCase() + value.substr(1).toLowerCase());
+    });
+}
+
+var appName = function(value, data) {
+	if (value == "") {
+	    return value;
+    }
+    return '<img src="<?php echo $this->url('default', array('controller' => 'IssueList', 'action' => 'App-Icon')) ?>?id=' + data.applicationId + '" class="tableRow_app_icon" /> ' + value.htmlEntities();
+ }
+
+ var jobName = function(value, data) {
+	<?php if (! $jqLoaded) : ?>
+	 return value;
+	<?php else: ?>	 
+	 if ((! localJqdOffline) && isAllowedJobsEdit) {
+		return '<a href="<?php echo $this->basePath('/RecurringJobs/update') ?>?jobId=' + data.id + '">' + value + '</a>';
+	} else {
+		return value;
+	}
+	<?php endif; ?>
+ }
+
+window.addEvent("domready", function() {
+	filterWidget = <?php echo $this->filter('filter_details', $internalFilters, $externalFilters, $existingFilters, 'job-rule', array(), 'All Job Rules'); ?>
+
+	filterWidget.addEvent('saveFilter', function(data) {
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was saved", {'filterName': data.filterName})});
+    });
+
+	filterWidget.addEvent('saveFilterFailed', function(data) {
+    	document.fireEvent('toastAlert', {'message': _t("Could not save filter: {errorMessage}", data.errorData)});
+    });
+
+	filterWidget.addEvent('deleteFilter', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was deleted", {'filterName': event.filterName})});
+	});
+	
+	filterWidget.addEvent('deleteFilterFailed', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was not deleted: {errorMessage}", {'filterName': event.filterName, 'errorMessage': event.errorData.errorMessage})});
+	});
+	
+	filterWidget.addEvent('loadItemDetails', function(params){
+		filterWidget.selectSearchFilter(params.query, 'freeText', 'search', 'freeText');
+		filterWidget.filterChanged();
+		filterWidget.runFiltering();
+	});
+	
+	filterWidget.addEvent('runFiltering', function(selectedFilters) {
+		zgrid.loadData();
+   	}.bind(this));
+	
+	if (localJqdOffline) {
+		$('recurring-jqd-offline-message').removeClass('hidden');
+		$('recurring-job-create').set('disabled', true);
+	}
+	
+	persistantHeaders.addHeader('recurring-job-grid-action-bar');
+	persistantHeaders.addHeader('mytable_tableHead');
+	
+    var cmu = [
+                {
+                	'title': _t('ID'),
+                	'dataIndex': 'id',
+                	'parser': zGrid2.prototype.string,
+                	'width': '5%',
+                	'sortable': true,
+    				'sortBy': 'id'
+                },
+    			{
+    				'title': _t('Status'),
+    				'dataIndex': 'status',
+    				'parser': function(val, rec) {
+						var retHtml = '';
+						// when R.Job is "active" but its queue is suspended
+						if (getStatusCode(val) == <?php echo \JobQueue\JobQueueInterface::STATUS_RULE_ACTIVE; ?> && queueIsSuspended(rec.queueId)) {
+							return '<div class="zgrid-status-disabled" title="Suspended by queue">Suspended by queue</div>';
+						} else if (getStatusCode(val) == <?php echo \JobQueue\JobQueueInterface::STATUS_RULE_ACTIVE; ?>) {
+							retHtml = '<div class="zgrid-status-ok" title="Active">Active</div>'
+						} else {
+							retHtml = '<div class="zgrid-status-disabled" title="'+val+'">' + capitalizeFirstLetter(val, rec) + '</div>';
+						}
+						
+						return retHtml;
+					},
+    				'width': '12%',
+    				'sortable': true,
+    				'sortBy': 'status'
+    			},
+    			{
+    				'title': _t('Name'),
+    				'dataIndex': 'name',
+    				'parser': jobName,
+    				'width': '14%',
+    				'sortable': true,
+    				'sortBy': 'name'
+    			},
+    			{
+    				'title': _t('Application'),
+    				'dataIndex': 'application',
+    				'parser': appName,
+    				'width': '15%',
+    				'sortable': true,
+    				'sortBy': 'app_id'
+    			},
+    			{
+    				'title': _t('URL'),
+    				'dataIndex': 'script',
+    				'parser': zGrid2.prototype.string,
+    				'width': '33%',
+    				'sortable': true,
+    				'sortBy': 'script'
+    			},
+    			{
+    				'title': _t('Queue'),
+    				'dataIndex': 'queueName',
+					'parser': function(queueName, rec) {
+						if (queueName) {
+							var hashSuffix = rec.queueId ? '#grid=' + rec.queueId : '';
+							if (queueIsSuspended(rec.queueId)) {
+								queueName+= ' (suspended)';
+							}
+							return '<a href="<?php echo $this->url('default', array('controller' => 'Queues')); ?>' + hashSuffix + '" '+
+								'title="queue &quot;'+queueName+'&quot;. Go to queues list page to view queue properties">' + 
+									zGrid2.prototype.string(queueName, rec) + 
+								'</a>';
+						} else {
+							return zGrid2.prototype.string(queueName, rec);
+						}
+					},
+    				'width': '12%',
+    				'sortable': true,
+    				'sortBy': 'app_id'
+    			},
+    			{
+    				'title': _t('Last Run'),
+    				'dataIndex': 'last_runTimestamp',
+    				'parser': zGrid2.prototype.timestamp,
+    				'width': '9%',
+    				'seperator': false,
+    				'sortable': true,
+    				'sortBy': 'last_run'
+    			},
+//    			{
+//    				'title': _t('Next Run'),
+//    				'dataIndex': 'next_runTimestamp',
+//    				'parser': zGrid2.prototype.timestamp,
+//    				'width': '13%',
+//    				'seperator': false,
+//    				'sortable': true,
+//    				'sortBy': 'next_run'
+//    			},
+    			{
+    				'title': _t('Edit'),
+    				'dataIndex': 'edit',
+    				'parser': zGrid2.prototype.button,
+    				'display': function(){return (! localJqdOffline)}
+    			},
+    			{
+    				'title': _t('Suspend'),
+    				'dataIndex': 'suspend',
+    				'parser': zGrid2.prototype.button,
+    				'display': function(){return (! localJqdOffline)}
+    			},
+    			{
+    				'title': _t('Resume'),
+    				'dataIndex': 'resume',
+    				'parser': zGrid2.prototype.button,
+    				'display': function(){return (! localJqdOffline)}
+    			},
+    			{
+    				'title': _t('Delete'),
+    				'dataIndex': 'delete',
+    				'parser': zGrid2.prototype.button,
+    				'display': function(){return (! localJqdOffline)}
+    			},
+    			{
+    				'title': _t('Run'),
+    				'dataIndex': 'runNow',
+    				'parser': zGrid2.prototype.button,
+    				'display': function(jobRule){return (! localJqdOffline)}
+    			},
+    			
+        	];
+
+    	pager = <?php echo $this->zPager('mypager', $perPage); ?>
+    	<?php 
+	    	$options = array(
+	    		'sortedBy'		=> 'id',
+	    		'idColumn' 		=> 'id',
+	    		'limit'			=> $perPage,
+				'multiSelect'	=> $multiSelect,
+				'totalContainer' => 'grid-count-bar'
+	    	);
+    	?>
+
+    	zgrid = <?php echo $this->zGrid2('mytable', 'cmu', $options); ?>
+
+    	// hide the main checkbox
+    	<?php if ($multiSelect): ?>
+    		$$('.zgrid #mytable_tableHead').getElement('input[type="checkbox"]').setStyle('display');
+    	<?php endif ?>
+    	
+    	
+    	var hash = zgrid.getHash('preaction');
+    	if (hash == 'updated') {
+    	    document.fireEvent('toastNotification', {'message': _t('The recurring job has been updated')}); 
+    	    location.hash = '';
+    	} else if (hash == 'created') {
+    	    document.fireEvent('toastNotification', {'message': _t('The recurring job has been added')}); 
+    	    location.hash = '';
+    	}
+
+    	var url = '<?php echo "{$this->basePath()}/Api/jobqueueRulesList"; ?>';
+    	zgrid.loadRequest = new Request.WebAPI({
+    		method: 'get',
+    		url:url,
+    		link:'cancel',
+    		onComplete: function(response) {
+        		var setDataFlag = true;
+        		// check if searched by id
+				if (filterWidget.selectedFilters.freeText != undefined && filterWidget.selectedFilters.freeText.toInt().toString() == filterWidget.selectedFilters.freeText) {
+					if (! localJqdOffline) {
+						Object.each(response.responseData.rules, function(item) {
+							if (item.id == filterWidget.selectedFilters.freeText) {
+								setDataFlag = false;
+								window.location = '<?php echo $this->basePath() ?>/RecurringJobs/update?jobId=' + item.id;
+							}
+						});
+					}
+				}
+
+        		if (setDataFlag) {
+					zgrid.setData(response.responseData.rules, response.responseData.total);
+					pager.reloadData(pager.page, response.responseData.total);
+        		}
+			}
+    	});
+    	
+    	//////////////GRID EVENTS //////////////
+        zgrid.addEvent('loadData', function(params) {
+        	zgrid.preLoad();
+        	params.filters = filterWidget.selectedFilters;
+    		zgrid.loadRequest.get(params);
+        });
+        
+        zgrid.addEvent('buttonClick', function(params) {
+            switch (params.type) {
+				case 'edit':
+					location.href = '<?php echo $this->basePath() ?>/RecurringJobs/update?jobId=' + params.rowId;
+					break;
+				case 'suspend':
+					suspendRules(new Array(params.rowId));
+					break;
+				case 'resume':
+				    resumeRules(new Array(params.rowId));
+					break;
+				case 'delete':
+					if(confirm(_t('Are you sure you would like to delete the currently selected recurring job(s)?'))) {
+				    	deleteRules(new Array(params.rowId));
+					}
+				    break;
+				case 'runNow':
+					runNow(params.rowId);
+					break;
+            }
+        });
+
+        zgrid.addEvent('descriptionOpen',function(params) {
+            var request = new Request.WebAPI({
+                url: '<?php echo $this->basePath() . '/Api/jobqueueRuleInfo'; ?>',
+                data: {id: params.id}, 
+                onSuccess: function(response) {
+                    var rowContent = getJobDetails(response.responseData.rulesInfo);
+        			$(params.rowId).set('html', rowContent);
+                },
+                onFailure: function(response) {
+                }
+            }).get();
+		});
+
+        zgrid.addEvent('rowUpdated', function(params) {
+            if (zgrid.isDescriptionOpen(params.id)) {
+            	zgrid.fireEvent('descriptionClose', zgrid.getDescriptionParams(params.id));
+            	zgrid.fireEvent('descriptionOpen', zgrid.getDescriptionParams(params.id));
+            }
+            if (! localJqdOffline) {
+	            switch (params.data.status) {
+	                case 'suspended': // Suspended
+	                    $('suspend_' + params.id).addClass('disabled');
+	                    $('runNow_' + params.id).addClass('disabled');
+	                    $('resume_' + params.id).removeClass('disabled');
+	                    break;
+	                case 'pending': // Pending
+	                default:    
+	                    $('suspend_' + params.id).removeClass('disabled');
+	                    $('runNow_' + params.id).removeClass('disabled');
+	                    $('resume_' + params.id).addClass('disabled');
+	                    break;
+	            }
+            }
+
+            <?php if (! $jqLoaded || ! $this->isAllowed('route:JobQueueWebApi', 'jobqueueSaveRule')): ?>
+            	$('edit_' + params.id).addClass('disabled');
+            <?php endif ?>
+
+            <?php if (! $jqLoaded || ! $this->isAllowed('route:JobQueueWebApi', 'jobqueueDisableRules')): ?>
+            	$('suspend_' + params.id).addClass('disabled');
+            <?php endif ?>
+
+            <?php if (! $jqLoaded || ! $this->isAllowed('route:JobQueueWebApi', 'jobqueueResumeRules')): ?>
+            	$('resume_' + params.id).addClass('disabled');
+            <?php endif ?>
+            
+            <?php if (! $jqLoaded || ! $this->isAllowed('route:JobQueueWebApi', 'jobqueueDeleteRules')): ?>
+            	$('delete_' + params.id).addClass('disabled');
+            <?php endif ?>
+
+            <?php if (! $jqLoaded || ! $this->isAllowed('route:JobQueueWebApi', 'jobqueueRunNowRule')): ?>
+            	$('runNow_' + params.id).addClass('disabled');
+            <?php endif ?>
+			
+			if (queueIsSuspended(params.data.queueId)) {
+				$('runNow_' + params.id).addClass('disabled');
+			}
+            
+    	});
+
+        zgrid.addEvent('rowChecked',function(params) {
+            if ((! localJqdOffline) && rowsChecked == 0) {
+           		$('batch-delete').set('disabled', ! params.checked);
+           		$('batch-suspend').set('disabled', ! params.checked);
+           		$('batch-resume').set('disabled', ! params.checked);
+            }
+            	
+	        if (params.checked) {
+	        	rowsChecked++;
+	        } else {
+	        	rowsChecked--;
+	        }
+        });
+        
+        pager.addEvent('pageSelect', function(params) {
+            pager.setPage(params.page);
+    		zgrid.reloadData(params);
+    	});
+
+		zgrid.loadData();
+});
+
+function batchSuspend() {
+    var ids = Array();
+	Object.each(zgrid.getSelectedRows(), function(row) {
+	    ids.push(row.id);
+	});
+	
+	$('batch-suspend').spin();
+	suspendRules(ids);
+}
+
+function suspendRules(rulesId) {
+    var request = new Request.WebAPI({
+        url: '<?php echo $this->basePath() . '/Api/jobqueueDisableRules'; ?>',
+        data: {rules: rulesId}, 
+        onSuccess: function(response) {
+            if (rulesId.length > 1) {
+            	document.fireEvent('toastNotification', {'message': '<?php echo _t("The recurring jobs have been suspended"); ?>'});
+            } else {
+            	document.fireEvent('toastNotification', {'message': '<?php echo _t("The recurring job has been suspended"); ?>'});
+            }
+            zgrid.updateData(response.responseData.rules);
+        },
+        onFailure: function(response) {
+        	if (rulesId.length > 1) {
+        		document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to suspend the recurring jobs"); ?>'});
+        	} else {
+            	document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to suspend the recurring job"); ?>'});
+        	}
+        },
+		onComplete: function() {
+			$('batch-suspend').unspin();
+		}
+    }).post();
+}
+
+function batchResume() {
+    var ids = Array();
+	Object.each(zgrid.getSelectedRows(), function(row) {
+	    ids.push(row.id);
+	});
+	
+	$('batch-resume').spin();
+	resumeRules(ids);
+}
+
+function resumeRules(rulesId) {
+    var request = new Request.WebAPI({
+        url: '<?php echo $this->basePath() . '/Api/jobqueueResumeRules'; ?>',
+        data: {rules: rulesId}, 
+        onSuccess: function(response) {
+        	if (rulesId.length > 1) {
+            	document.fireEvent('toastNotification', {'message': '<?php echo _t("The recurring jobs have been resumed"); ?>'});
+        	} else {
+            	document.fireEvent('toastNotification', {'message': '<?php echo _t("The recurring job has been resumed"); ?>'});
+        	}
+            zgrid.updateData(response.responseData.rules);
+        },
+        onFailure: function(response) {
+        	if (rulesId.length > 1) {
+        		document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to resume the recurring jobs"); ?>'});
+        	} else {
+            	document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to resume the recurring job"); ?>'});
+        	}
+        },
+		onComplete: function() {
+			$('batch-resume').unspin();
+		}
+    }).post();
+}
+
+function batchDelete() {
+    var ids = Array();
+    if(confirm(_t('Are you sure you would like to delete the currently selected recurring job(s)?'))) {
+		Object.each(zgrid.getSelectedRows(), function(row) {
+		    ids.push(row.id);
+		});
+		deleteRules(ids);
+    }
+}
+
+function deleteRules(rulesId) {
+    var request = new Request.WebAPI({
+        url: '<?php echo $this->basePath() . '/Api/jobqueueDeleteRules'; ?>',
+        data: {rules: rulesId}, 
+        onSuccess: function(response) {
+        	if (rulesId.length > 1) {
+            	document.fireEvent('toastNotification', {'message': '<?php echo _t("The recurring job has been deleted"); ?>'});
+        	} else {
+        		document.fireEvent('toastNotification', {'message': '<?php echo _t("The recurring jobs have been deleted"); ?>'});
+        	}
+            zgrid.loadData();
+        },
+        onFailure: function(response) {
+        	if (rulesId.length > 1) {
+            	document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to delete the recurring jobs"); ?>'});
+        	} else {
+            	document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to delete the recurring job"); ?>'});
+        	}
+        }
+    }).post();
+}
+
+function runNow(ruleId) {
+    var request = new Request.WebAPI({
+        url: '<?php echo $this->basePath() . '/Api/jobqueueRunNowRule'; ?>',
+        data: {ruleId: ruleId}, 
+        onSuccess: function(response) {
+            document.fireEvent('toastNotification', {'message': '<?php echo _t("The recurring job was scheduled for immediate execution"); ?>'});
+        },
+        onFailure: function(response) {
+            document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to execute the recurring job"); ?>'});
+        }
+    }).post();
+}
+
+function getJobDetails(ruleInfo) {
+    var baseUrl = '<?php echo $this->basePath(); ?>';
+    var ruleId = ruleInfo.rule.id;
+	var status = ruleInfo.rule.status.toLowerCase() == 'active' && ruleInfo.rule.queueStatus == <?php echo \JobQueue\JobQueueInterface::QUEUE_SUSPENDED; ?> ? 
+		'Suspended by queue' : capitalizeFirstLetter(ruleInfo.rule.status);
+    var ruleDetailsHtml = '<div class="ruleInfo" id="tableDescContent_' + ruleId + '"> \
+	<ul class="tabs"> \
+		<li class="tab first">' + _t('Details') + '</li> \
+	</ul> \
+	<div class="content" style="display:block; "> \
+	<table class="tableWithDesc" style="float:left;" cellpadding="10px"> \
+    <tbody> \
+     <tr> \
+      <td class="ruleInfoFieldName">' + _t('ID') + '</td> \
+      <td>' + ruleInfo.rule.id + '</td> \
+      <td class="ruleInfoFieldName">' + _t('Last Run') + '</td> \
+      <td>' + ((ruleInfo.rule.last_run) ? ruleInfo.rule.last_run : _t('Never')) + '</td> \
+     </tr> \
+     <tr> \
+      <td class="ruleInfoFieldName">' + _t('Name') + '</td> \
+      <td>' + ruleInfo.rule.name + '</td> \
+      <td class="ruleInfoFieldName">' + _t('Next Run') + '</td> \
+      <td>' + ((ruleInfo.rule.next_run) ? ruleInfo.rule.next_run : _t('Never')) + '</td> \
+     </tr> \
+     <tr> \
+      <td class="ruleInfoFieldName">' + _t('Persistent') + '</td> \
+      <td>' + capitalizeFirstLetter(ruleInfo.rule.persistent) + '</td> \
+      <td class="ruleInfoFieldName">' + _t('Script') + '</td> \
+      <td>' + ruleInfo.rule.script + '</td> \
+     </tr> \
+     <tr> \
+      <td class="ruleInfoFieldName">' + _t('Status') + '</td> \
+      <td>' + status + '</td> \
+      <td class="ruleInfoFieldName">' + _t('Variables') + '</td> \
+      <td>' + ruleInfo.rule.vars + '</td> \
+     </tr> \
+     <tr> \
+     <td class="ruleInfoFieldName">' + _t('Schedule') + '</td> \
+     <td>' + ruleInfo.ruleDetails.schedule + '</td> \
+     <td class="ruleInfoFieldName">' + _t('Priority') + '</td> \
+     <td>' + capitalizeFirstLetter(ruleInfo.rule.priority) + '</td> \
+     </tr> \
+    </tbody> \
+	</table> \
+	<div class="details-column" style="float:left; padding-left: 40px;"><span class="more-details"><a href="' + baseUrl + '/JobQueue/#rule_ids=' + ruleId + '">See History</a></span></div> \
+	</div> \
+	';
+	return ruleDetailsHtml;
+}
+</script>

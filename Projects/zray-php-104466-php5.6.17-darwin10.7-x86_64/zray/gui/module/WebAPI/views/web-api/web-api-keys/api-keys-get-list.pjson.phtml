@@ -1,0 +1,9 @@
+"responseData":{"keys": [
+<?php 
+	$keysInfo = array();
+	foreach ($keys as $key) {
+		$keysInfo[] = $this->apiKeyJson($key);
+	}
+	echo implode(',', $keysInfo);
+?>
+]}

@@ -1,0 +1,74 @@
+<?php if ($inSecureMode) : ?>
+<div class="zdb-toolbar-entry zdb-secure zdb-toolbar-button">
+    <div class="zdb-toolbar-preview zdb-secure-lock" title="Secure mode">
+    	<span class="zdb-toolbar-secure-lock">
+    		<div class="zdb-toolbar-icon"></div>
+        	<span class="zdb-toolbar-info">&nbsp;</span>
+        </span>
+    </div>
+    <div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+</div>
+
+<script type="text/javascript">
+(function() {
+	var jquery = zendDevBar.getJquery();
+
+	<?php if (isset($token)) : ?>
+	jquery('.zdb-secure .zdb-toolbar-secure-lock').qtip({ // Grab some elements to apply the tooltip to
+		style: {
+	        classes: 'zendDevBarQtip'
+	    },
+		content: {
+	       	text: function(event, api) {
+		       	var ttl = <?php echo $token->getTtl(); ?>;
+	       		ttl = moment(ttl * 1000).calendar();
+				return '<div class="token-details-wrapper"><b><?php echo _t('Name'); ?>:</b> <?php echo $this->escapehtml($token->getTitle()); ?><br/><br/><b><?php echo _t('Token'); ?>:</b> <?php echo $token->getToken(); ?><br/><br/><b><?php echo _t('Expires'); ?>:</b> ' + ttl + '</div>';
+            }
+        },
+        show: {
+            event: 'click'
+        },
+        hide: {
+        	event: 'click unfocus'
+           },
+        position: {
+            my: 'bottom left',
+            at: 'top center',
+            effect: false
+        },
+        events: {
+	    	show: function(event, api) {
+	    		zendDevBar.postMessage('resize', Math.max(zendDevBar.getHeight(), 150));
+	    	},
+	    	hide: function(event, api) {
+	    		zendDevBar.postMessage('resize', zendDevBar.getHeight());
+	    	}
+        }
+    });
+    <?php endif; ?>
+})();
+</script>
+
+<?php elseif ($isAzure) : ?>
+    
+    <div class="zdb-toolbar-entry zdb-secure zdb-toolbar-button">
+        <div class="zdb-toolbar-preview zdb-secure-lock-open" title="Non-Secure mode (click to change)">
+        	<span class="zdb-toolbar-secure-lock">
+        		<div class="zdb-toolbar-icon"></div>
+            	<span class="zdb-toolbar-info">&nbsp;</span>
+            </span>
+        </div>
+        <div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+    </div>
+    
+    <script type="text/javascript">
+    (function() {
+    	var jquery = zendDevBar.getJquery();
+    	jquery('.zdb-secure .zdb-toolbar-secure-lock').click(function() {
+    		var win = window.open(zendDevBar.baseUrl + '/Z-Ray/Mode/', '_blank');
+			win.focus();
+    	});
+    })();
+    </script>
+    
+<?php endif; ?>

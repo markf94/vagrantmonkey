@@ -1,0 +1,10 @@
+"responseData":{"issues":[
+<?php $counter = 0; foreach($issues as $issueId => $issue) : /* @var $issue Issue\Container */?>
+<?php
+$comma = (++$counter < $limitCount ? ',' : '');
+$appId = $issue->getLastAppId();
+$application = $appId && isset($applications[$appId]) ? $applications[$appId] : null;
+?>
+<?php echo $this->issueJson($issue, $application), $comma;?>
+<?php endforeach; ?>
+]}

@@ -1,0 +1,20 @@
+<ul class="mui-vars">
+<?php
+$issueDetails; /* @var $issueDetails Issue\Container */
+$event; /* @var $event EventsGroup\DataContainer */
+$eventsGroup; /* @var $eventsGroup EventsGroup\Container */
+?>
+<?php if ($event->getSuperGlobalsData()) :?>
+<?php
+	$superGlobals = array_intersect_key($event->getSuperGlobalsData(), $types);
+	foreach ($superGlobals as $key => $superGlobal) {
+		if ($superGlobal) {
+?>
+	<li class="mui-vars-open"><strong onclick="toggleContent('<?php echo 'global-variables-' . $key; ?>')"><?php echo $types[$key]?></strong>
+	<?php echo $this->selectAll('global-variables-' . $key); ?>
+	</a><ul id="global-variables-<?php echo $key; ?>"><li><?php echo $this->variablesTree($superGlobal)?></li></ul></li>			
+<?php		}
+	}
+?>
+<?php endif; ?>
+</ul>

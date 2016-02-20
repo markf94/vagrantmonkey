@@ -1,0 +1,67 @@
+<?php
+$zrayExtensions = array();
+foreach ($dataTypesMap as $extension => $datatypes) {
+	$datatypesMapped = implode(PHP_EOL, array_map(function($datatype){
+		return "<datatype><dataname>{$datatype}</dataname><display>Yes</display></datatype>";
+	}, $datatypes));
+	
+	$zrayExtensions[] = <<<EXTENSIONINFO
+		<zrayExtension>
+			<extensionName>{$extension}</extensionName>
+			<datatypes>
+				{$datatypesMapped}
+			</datatypes>
+		</zrayExtension>
+EXTENSIONINFO;
+	
+}
+
+$customDataJsoned = array();
+$customDataGrouped = array();
+
+$isArray = false;
+$dataArray = array();
+foreach ($customData as $key => $container) { /* @var $container \DevBar\ExtensionContainer */
+    $data = $container->getData();
+    $dataArray[$key] = $data;
+    if (is_array($data) && is_array(current($data))) {
+        $isArray = true;
+    }
+}
+
+foreach ($customData as $key => $container) { /* @var $container \DevBar\ExtensionContainer */
+	$dataname = "{$container->getExtension()}/{$container->getDataType()}";
+	$data = $dataArray[$key];
+	if (is_array($data)) {
+	    $data['__row_index'] = $container->getRowIndex();
+	}
+	if (is_array($data) && is_array(current($data)) && ! $isArray && ! isset($customDataGrouped[$dataname])) {
+	    $customDataGrouped[$dataname] = $data;
+	} else {
+		$customDataGrouped[$dataname][] = $data;
+	}
+}
+
+foreach ($dataTypesMap as $extension => $datatypes) {
+	foreach ($datatypes as $datatype) {
+		$dataGroupName = "{$extension}/{$datatype}";
+		$customDataJsoned[] = <<<EXTENSIONBLOCK
+		
+		<zrayExtensionParameters>
+			<extensionName>{$extension}</extensionName>
+			<datatype>{$datatype}</datatype>
+        	{$this->superglobalStructureXml($customDataGrouped[$dataGroupName])}
+		</zrayExtensionParameters>
+
+EXTENSIONBLOCK;
+		
+	}
+} ?>
+<responseData>
+	<zrayExtensions>
+		<?php echo implode(PHP_EOL, $zrayExtensions)?>
+	</zrayExtensions>
+	<zrayExtensionsData>
+        <?php echo implode(PHP_EOL, $customDataJsoned)?>
+    </zrayExtensionsData>
+</responseData>

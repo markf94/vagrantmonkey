@@ -1,0 +1,12 @@
+<?php 
+/* @var $application \Deployment\Application\Container */
+?>
+<responseData>
+	<libraryVersions>
+    	<?php 
+    		foreach ($libraryVersions as $id => $libVersion) {
+    			echo $this->LibraryVersionInfoXml($libVersion);
+			}
+    	?>
+    </libraryVersions>
+</responseData>

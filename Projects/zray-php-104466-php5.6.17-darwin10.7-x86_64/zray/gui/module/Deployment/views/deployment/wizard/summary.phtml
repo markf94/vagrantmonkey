@@ -1,0 +1,47 @@
+	<table class="tableDescContentLeft" id="deployment-summary" width="100%">
+		<tbody>
+			<tr>
+				<td align="left"><?php echo _t('Application'); ?></td>
+				<td><?php echo $this->escapeHtml($applicationName); ?></td>
+			</tr>
+			<tr>
+				<td align="left"><?php echo _t('Application Version'); ?></td>
+				<td><?php echo $this->escapeHtml($version); ?></td>
+			</tr>
+			<tr>
+				<td align="left"><?php echo _t('Display Name'); ?></td>
+				<td><?php echo $this->escapeHtml($userApplicationName); ?></td>
+			</tr>
+	
+			<tr>
+				<td align="left"><?php echo _t('Base URL'); ?></td>
+				<td><?php echo $this->escapeHtml($this->applicationUrl($baseUrl));  ?></td>
+			</tr>
+		</tbody>
+	</table>
+
+	<div style="position:absolute; top:0; right:10px;">
+		<?php echo $this->AppLogo($applicationName, $this->logo, 'application-wizard-logo'); ?>	
+	</div>
+
+	<?php if ($containMonitorRules || $containPageCacheRules) : ?>
+	<div style="margin-bottom: 20px;">
+		<?php if ($containMonitorRules && $containPageCacheRules) { $subject = "monitoring and page cache"; } else if ($containMonitorRules) { $subject = "monitoring"; } else $subject = "page caching"; ?>
+		<h3><?php echo _t('Package Rules'); ?></h3>
+		<?php echo _t("This application package contains $subject rules that will be applied on the server"); ?>
+	</div>
+	<?php endif; ?>
+		
+	
+<?php if (/*($userParamsForm instanceof \Zend\Form) &&*/ (0 < $userParamsForm->count())): ?>
+	<h3><?php echo _t('Submitted Parameters'); ?></h3>
+	<div class="application-user-params">
+		<?php 
+			foreach ($this->zendForm()->getElements($userParamsForm) as $element) { /* @var $element Zend\Form\Element */
+				$element->setAttribute('disabled', 'disabled');
+				$element->setAttribute('readonly', true);
+			}
+			echo $this->zendForm($userParamsForm);
+		?>
+	</div>
+<?php endif; ?>

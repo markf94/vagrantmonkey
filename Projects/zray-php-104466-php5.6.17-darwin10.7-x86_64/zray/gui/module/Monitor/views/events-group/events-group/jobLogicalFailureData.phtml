@@ -1,0 +1,39 @@
+<ul class="jobqueue_event_properties">
+<?php if ((string)$xml->queueName != ""): ?>
+	<li><strong><?php echo _t('Queue Name'); ?></strong><?php echo (string)$xml->queueName ?></li>
+<?php endif;?>
+<?php if ((int)$xml->scheduleId != 0): ?>
+	<li><strong><?php echo _t('Scheduling Rule'); ?></strong><a href="<?php echo "{$this->basePath()}/RecurringJobs/update?jobId=" .(string)$xml->scheduleId ?>"><?php echo (string)$xml->scheduleId ?></a></li>
+<?php endif;?>
+<?php if ((int)$xml->jobId != 0): ?>
+	<li>
+		<strong><?php echo _t('Job ID'); ?></strong>
+		<?php /* <a href="<?php echo "{$this->basePath()}/JobQueue/Index#grid=" . (string)$xml->jobId ?>"><?php echo (string)$xml->jobId ?></a> */ ?>
+		<a href="<?php echo "{$this->basePath()}/JobQueue/Index&jobId=" . (string)$xml->jobId . "#grid=" .(string)$xml->jobId ?>"><?php echo (string)$xml->jobId ?></a>
+	</li>
+<?php endif;?>
+<?php if ((string)$xml->jobUrl != ''): ?>
+	<li><strong><?php echo _t('Job URL'); ?></strong><?php echo (string)$xml->jobUrl ?></li>
+<?php endif;?>
+<?php if ((string)$xml->jobParams != ''):
+	$jobParams = (string)$xml->jobParams;
+	if (0 !== strpos($jobParams, '"')) {
+		$jobParams = '"' . $jobParams . '"';
+	}
+?>
+	<li><strong><?php echo _t('Job Variables'); ?></strong><ul><li><?php echo $this->variablesTree($jobParams) ?></li></ul></li>
+<?php endif;?>
+
+<?php if ((string)$xml->filename != ""): ?>
+	<li><strong><?php echo _t('File Name'); ?></strong><?php echo (string)$xml->filename ?></li>
+<?php endif;?>
+<?php if ((string)$xml->line != ""): ?>
+	<li><strong><?php echo _t('Line Number'); ?></strong><?php echo (string)$xml->line ?></li>
+<?php endif;?>
+<?php if ((string)$xml->errorMsg != ""): ?>
+	<li><strong><?php echo _t('Error Message'); ?></strong><?php echo (string)$xml->errorMsg ?></li>
+<?php endif;?>
+<?php if ((string)$xml->userData != ""): ?>
+	<li><strong><?php echo _t('User Data'); ?></strong><?php echo (string)$xml->userData ?></li>
+<?php endif;?>
+</ul>

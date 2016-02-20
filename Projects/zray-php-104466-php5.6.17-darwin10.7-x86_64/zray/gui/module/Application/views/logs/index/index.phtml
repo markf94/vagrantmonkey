@@ -1,0 +1,366 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/logs.css")?>
+<?php echo $this->onOffButton(); ?>
+<?php echo $this->SearchField(); ?>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('home/dashboard') ?>"><?php echo _t("Monitoring"); ?></a></li>
+		</ul>   
+	</div>
+</div>
+
+<div id="content_container">
+
+<script>
+var currentServerId = 0;
+var currentLogFile = '';
+var currentFilter = '';
+var currentLines = <?php echo $lines ?>;
+var logFileCookieName = 'log_file';
+
+var logDisplayRequest = new Request.WebAPI({
+	url: "<?php echo "{$this->basePath()}/Api/logsReadLines" ?>",
+	onSuccess: function(response) {
+
+		// remove loader
+		var loader = document.getElementById('loader_notification');
+		if (loader) {
+			loader.parentNode.removeChild(loader);
+		}
+
+		// display the log
+		document.fireEvent('displayLog', {
+			success: true,
+			serverId: currentServerId,
+			logName: currentLogFile,
+			content: response.responseData.logLines,
+			metadata: response.responseData.logFileMetaData
+		});
+	},
+	onFailure: function(response) {
+		var decoded = this.decodeResponse(response);
+		document.fireEvent('toastAlert', {'message': _t('Failed to retrieve log entries: {errorMessage}', decoded.errorData)});
+		document.fireEvent('displayToolbar', {success: false});
+	},
+	onRequest: function() {
+		$('entries_display').set('text', '');
+	}
+});
+
+window.addEvent('load', function(){
+	
+	logDisplayRequest.addEvent('load_log', function(event){
+
+		var loader = document.getElementById('loader_notification');
+		if (!loader) {
+			var topBar = document.getElementsByClassName('top-bar') ? document.getElementsByClassName('top-bar')[0] : null;
+			if (topBar) {
+			    loader = document.createElement('div');
+			    loader.setAttribute('id', 'loader_notification');
+			    loader.setAttribute('class', 'loader-indicator');
+			    loader.textContent = 'Loading...';
+
+			    // add it right after the select box
+			    var selectElement = document.getElementById('logs-select');
+			    if (selectElement == topBar.lastChild) {
+			        topBar.appendChild(loader);
+			    } else {
+				    topBar.insertBefore(loader, selectElement.nextSibling);
+			    }
+			}
+		}
+		
+		$('refresh_log_display_btn').set('disabled', true);
+		var serverId = event.serverId ? event.serverId : currentServerId;
+		
+		if(!currentLogFile){
+			$('entries_display').set('text','');
+			$('metadata_display').hide();
+			return;
+		}
+		
+		if (isNaN(serverId) || serverId == "") {
+			document.fireEvent('toastAlert', {'message': '<?php echo _t('No serves to retrieve the file from')  ?>'})
+			return ;
+		}
+		this.get({
+			serverId: serverId,
+			logName: event.logName ? event.logName : currentLogFile,
+			filter: currentFilter,
+			linesToRead: currentLines
+		});
+		
+	});
+
+	var searchField = new SearchField();
+	searchField.addEvent('searchClicked', function(data, element) {
+		currentFilter = data.value;
+		logDisplayRequest.fireEvent('load_log',{});
+		$('tool_bar').getElements('input').set('disabled', true);
+	});
+	
+	$('lines_log_display_input').addEvent('keyup', function(event){
+		if (event.code == 13) {
+			currentLines = this.get('value');
+			logDisplayRequest.fireEvent('load_log',{});
+			$('lines_log_display_input').set('disabled', true);
+		}
+	});
+
+	document.addEvent('displayToolbar', function(event){
+		$('tool_bar').getElements('input').set('disabled', false);
+		$('download_log_display_btn').set('disabled', true);
+		
+		if (event.success && event.metadata.fileSize > 0) {
+			$('download_log_display_btn').set('disabled', false);
+		}
+	});
+	
+	document.addEvent('displayLog', function(event){
+		$('file_name').set('text', event.logName);
+		$('file_name').store('serverId', event.serverId);
+		$('file_name').store('logName', event.logName);
+		$('entries_display').set('text', event.content);
+		$('entries_display').scrollTop = $('entries_display').scrollHeight;
+		
+		$('file_lines').getElements('span').pick().set('text', event.metadata.lineNumber.format());
+		$('file_size').set('text', formatFileSize(event.metadata.fileSize));
+				
+		$('file_last_update').getElements('span').pick().set('text', formatDate(event.metadata.lastModifiedTimestamp));
+		
+		if (event.metadata.fileSize == 0 || event.content == null) {
+			document.fireEvent('toastNotification', {'message': '<?php echo _t('The log file you requested to view is empty'); ?>'});
+		} else if (event.metadata.fileSize > 0 && event.content.length == 0) {
+			document.fireEvent('toastAlert', {'message': '<?php echo _t('Filtered result is empty'); ?>'});
+		}
+		
+		document.fireEvent('displayToolbar', event);
+		$('metadata_display').show();
+		$('refresh_log_display_btn').set('disabled', false);
+		$('auto-refresh-checkbox').set('disabled', false);
+	});
+
+	function reloadLogs() {
+		$('search_log_display_input').set('value', '');
+		currentFilter = '';
+		
+		logDisplayRequest.cancel();
+		if ($('toggler')) {
+			currentServerId = $('toggler').get('value');
+		} else {
+			currentServerId = $$('#log_display input[name="serverId"]')[0].value;
+		}
+		currentLogFile = $('logs-select').get('value');
+		logDisplayRequest.fireEvent('load_log',{});
+	}
+	
+	$('logs-select').addEvent('change', function(event){
+		if (Cookie) {
+			Cookie.write(logFileCookieName, $('logs-select').get('value'));
+		}
+		reloadLogs();
+	});
+
+	if ($('toggler')) {
+    	$('toggler').addEvent('change', function(event){
+    		reloadLogs();
+    	});
+	}
+	
+	var storedValue = Cookie ? Cookie.read(logFileCookieName) : false;
+	$('logs-select').value = storedValue || 'php'
+	$('logs-select').fireEvent('change');
+});
+</script>
+
+<div id="log_display" class="log_display float-left">
+	<div class="top-bar">
+		<?php if ($singleServer) :?>
+			<input name="serverId" type="hidden" value="0" />
+		<?php else: ?>
+			<select id="toggler" >
+				<?php foreach ($servers as $server) : /* @var $server \Servers\Container */ ?>
+				<option value="<?php echo $server->getNodeId() ?>"><?php echo $server->getNodeName(); ?>&nbsp;<?php echo $server->getNodeIp() ?></option>
+				<?php endforeach ?>
+			</select>
+			<?php
+				$servers->rewind();
+                $currServer = $servers->current();
+             ?>
+			<input name="serverId" id="serverId" type="hidden" value="<?php echo $currServer->getNodeId() ?>" />
+		
+		<?php endif; ?>
+		<select id="logs-select">
+			<?php $checked=' selected ';
+				foreach ($logfiles as $logfile) :?>
+				<option value="<?php echo $logfile ?>" <?php echo $checked;?>>
+					<?php echo $logfile ?>
+				</option>
+				<?php $checked=''; ?>
+			<?php endforeach ?>
+		</select>
+		<div>
+			<div id="metadata_display" class="hidden float-left"><ul class="properties_list flat-list">
+				<li id="file_name"></li>
+				<li id="file_lines"><span></span> <?php echo _t('lines'); ?></li>
+				<li id="file_size"></li>
+				<li id="file_last_update"><?php echo _t('Last updated on:'); ?> <span></span></li>
+			</ul></div>
+			<div id="tool_bar" class="float-right">
+				<div class="searchField" id="search_log_display" placeholder="<?php echo _t("Search pattern..."); ?>" disable="true"></div>
+				<label><?php echo _t('Last'); ?>&nbsp;<input id="lines_log_display_input" size="3" value="<?php echo $lines ?>" disabled="disabled" />&nbsp;<?php echo _t('lines'); ?>&nbsp;&nbsp;</label>
+				<button id="download_log_display_btn" disabled="disabled"><?php echo _t('Download'); ?></button>
+				<button id="refresh_log_display_btn" disabled="disabled"><?php echo _t('Refresh'); ?></button>
+				<input type="checkbox" id="auto-refresh-checkbox" name="auto-refresh-checkbox"  disabled="disabled"/> <label for="auto-refresh-checkbox"><?php echo _t('Auto refresh every')?></label> <input type="text" id="auto-refresh-interval" name="auto-refresh-interval" size="3" value="30" disabled="disabled" /> seconds</span>
+			</div>
+		</div>
+	</div>
+	<div id="entries_display_wrapper">
+	   <textarea id="entries_display" readonly="readonly" cols="120"></textarea>
+	</div>
+</div>
+
+<script type="text/javascript">
+window.addEvent('load', function(){
+	$('download_log_display_btn').addEvent('click', function(event){
+		location = '{baseUrl}/Logs/export?serverId={serverId}&logName={logName}'.substitute({baseUrl: baseUrl(), serverId: currentServerId, logName: currentLogFile});
+	});
+
+	// load the log when clicking on the log file in the left panel
+	var loadLogContent = function(event){
+		currentLines = $('lines_log_display_input').get('value');
+		currentFilter = $('search_log_display_input').get('value');
+		logDisplayRequest.fireEvent('load_log',{
+			serverId: $('file_name').retrieve('serverId'),
+			logName: $('file_name').retrieve('logName')
+		});
+	};
+	
+	// refresh button
+	$('refresh_log_display_btn').addEvent('click', loadLogContent);
+	
+	// function(refreshInterval) - seconds
+	var autoRefresh = (function() {
+		var interval = null;
+		var timer = null;
+
+		var refreshFn = function() {
+			if (!document.activeElement || $('entries_display') !== document.activeElement) {
+				loadLogContent();
+			}
+
+			timer = setTimeout(refreshFn, interval * 1000);
+		};
+		
+		return {
+			start: function(refreshInterval) {
+				// define the interval
+				interval = refreshInterval;
+		
+				// stop previous auto-refresh
+				if (timer) clearTimeout(timer);
+		
+				// start the auto-refresh
+				refreshFn();
+			},
+			stop: function() {
+				// stop auto-refresh
+				if (timer) clearTimeout(timer);
+			}
+		};
+	})();
+
+	// auto-refresh checkbox
+	var $checkBox = $('auto-refresh-checkbox');
+	$checkBox.addEvent('click', (function() {
+
+		// validate the auto-refresh input number
+		var validateTimer = null;
+		var markTimer = null;
+		var validateValue = function(callbackFn) {
+			var hasError = false;
+			var newValue = $('auto-refresh-interval').get('value');
+			if (newValue != parseInt(newValue)) {
+				hasError = true;
+				newValue = 30;
+			} else if (newValue < 3) {
+				hasError = true;
+				newValue = 3;
+			} else if (newValue > 180) {
+				hasError = true;
+				newValue = 180;
+			}
+
+			if (validateTimer) clearTimeout(validateTimer);
+			validateTimer = setTimeout(function() {
+				// mark that value is wrong
+				if (hasError) {
+					  $('auto-refresh-interval').addClass('error');
+					  document.fireEvent('toastAlert', {'message': _t('Auto-Refresh minimum interval is 3 seconds')});
+				}
+
+				if (markTimer) clearTimeout(markTimer);
+				markTimer = setTimeout(function() {
+					$('auto-refresh-interval').removeClass('error');
+				}, 1000);
+
+				if (hasError) {
+					$('auto-refresh-interval').set('value', newValue);
+				}
+				
+				callbackFn(newValue);
+			}, 1000);
+		};
+
+		var applyAutoRefresh = function() {
+			validateValue(function(newValue) {
+				autoRefresh.start(newValue);
+			});
+		};
+
+		return function() {
+			if ($checkBox.get('checked')) {
+				$('auto-refresh-interval').set('disabled', false);
+				$('auto-refresh-interval').addEvent('keyup', applyAutoRefresh);
+				$('auto-refresh-interval').addEvent('change', applyAutoRefresh);
+				applyAutoRefresh();
+			} else {
+				$('auto-refresh-interval').set('disabled', 'disabled');
+				$('auto-refresh-interval').removeEvent('keyup', applyAutoRefresh);
+				$('auto-refresh-interval').removeEvent('change', applyAutoRefresh);
+				autoRefresh.stop();
+			}
+		};
+
+	})());
+
+
+setInterval(function() {
+}, 2000);
+	
+	window.fireEvent('resize',{});
+});
+
+window.addEvent('resize', function(){
+	var containerSize = $('content_container').getSize();
+	var logDisplayDimensions = $('log_display').getComputedSize({styles: ['padding','border','margin']});
+	var extrasDifference = logDisplayDimensions.totalWidth - logDisplayDimensions.width;
+	$('log_display').setStyle('width', containerSize.x - extrasDifference - 20);
+	var textArea = $('log_display').getElements('textarea').pick();
+	textArea.setStyle('width', containerSize.x - extrasDifference - 20);
+	$('entries_display_wrapper').setStyle('width', containerSize.x - extrasDifference - 20);
+
+	var extrasDifference = logDisplayDimensions.totalHeight - logDisplayDimensions.height;
+	var windowHeight = window.getSize().y;
+	var topHeight = $('topbar').getSize().y + $('bread-wrp').getSize().y;
+	var logdisplayTopbarHeight = $$('.top-bar').pick().getSize().y;
+	var textAreaDimensions = textArea.getComputedSize();
+	var textAreaExtras = textAreaDimensions.totalHeight - textAreaDimensions.height;
+	textArea.setStyle('height', windowHeight - topHeight - logdisplayTopbarHeight - extrasDifference - textAreaExtras -1 - 50);
+	
+	$('entries_display').scrollTop = $('entries_display').scrollHeight;
+});
+</script>
+
+</div>

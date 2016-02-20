@@ -1,0 +1,30 @@
+<?php $this->headLink()->appendStylesheet($this->basepath('css/error.css')) ?>
+<div class="box-wrapper">
+	<div class="box-header"><h1><?php echo _t('500 - Internal Server Error') ?></h1></div>
+	<div class="box-body">
+		<h2><?php echo _t('Your request was declined: %s', array($message)) ?></h2>
+		<ul class="vertical-list">
+			<li><?php echo _t('Revisit the ')  ?><a id="previous-link" href="javascript:void(0)"><?php echo _t('previous page') ?></a></li>
+			<li><?php echo _t('Go to the ') ?><a id="dashboard-link" href="<?php echo $this->basepath('/') ?>"><?php echo _t('Dashboard page') ?></a></li>
+		</ul>
+			
+<?php if(isset($exception) && $this->exception instanceof \ZendServer\Exception): ?>
+		<div class="more-information">
+			<h3 class="more-information-header"><?php echo _t('More information') ?></h3>
+			<div class="display-box">
+			    <h3><?php echo _t('Permission declined'); ?></h3>
+<?php if ($exception->getCode() == \ZendServer\Exception::ACL_PERMISSION_DENIED) : ?>
+			    <p><?php echo _t('Required permissions level: Admin') ?></p>
+<?php endif ?>
+			    <p><?php echo _t('Contact your system\'s administrator about this problem for more details') ?></p>
+			</div>
+		</div>
+<?php endif ?>
+	</div>
+</div>
+
+<script type="text/javascript">
+window.addEvent('load', function(){
+	$('previous-link').addEvent('click', function(){history.back()});
+});
+</script>

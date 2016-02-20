@@ -1,0 +1,58 @@
+<?php if ($isAjaxRequest): ?>
+<div style="padding: 8px">
+<span>Redirecting to <a href="<?php echo $this->url('home') ?>" target="_top"><?php echo (isAzureEnv() || isZrayStandaloneEnv()) ? 'Z-Ray Management dashboard' : 'Login page'; ?></a>...</span>
+<script type="text/javascript">
+	top.location.replace.delay(1000,top, location); 
+</script>
+</div>
+<?php return; ?>
+<?php endif ?>
+
+<?php echo $this->doctype() ?>
+
+<html lang="en">
+  <head>
+  	<meta http-equiv="X-UA-Compatible" content="IE=edge" >
+    <meta charset="utf-8">
+    <?php echo $this->headTitle() ?>
+
+    <?php echo $this->headMeta() ?>
+
+    <?php echo $this->headScript() ?>
+
+    <!-- Le styles -->
+    <?php echo $this->headLink() ?>
+    
+    <!-- Le fav and touch icons -->
+    <?php echo $this->placeholder('favicon') ?>
+	
+	<script type="text/javascript">
+		function baseUrl() {
+			return '<?php echo $this->basePath(); ?>';
+		}
+
+		window.addEvent('domready', function(){
+			MooPlaceholder();
+		});
+
+		var logoutTimeout = 0;
+		var csrf = '<?php 
+		$csrfContainer = new \Zend\Session\Container('zs_csrf');
+		echo $csrfContainer->offsetGet('access_token');
+?>';
+Request.prototype.options.headers.access_token = csrf;
+
+	</script>
+  </head>
+
+  <body layout="login">
+    <div class="container" id="main-container">
+      <?php echo $this->content; ?>
+    </div> <!-- /container -->
+<script>
+	$$('form').each(function(form){
+		form.innerHTML+='<input type="hidden" name="access_token" value="' + csrf + '" />';
+	});
+</script>
+  </body>
+</html>

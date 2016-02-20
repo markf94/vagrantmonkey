@@ -1,0 +1,43 @@
+<?php
+$issue; /* @var $issue Issue\Container */
+$event; /* @var $event EventsGroup\DataContainer */
+$eventsGroup; /* @var $eventsGroup EventsGroup\Container */
+?>
+
+"responseData":
+"eventsGroupDetails": {
+	"issueId": <?php echo $issueId ?>
+	"eventsGroup": <?php echo $this->eventsGroupJson($eventsGroup) ?>
+	"event": <?php
+	
+		$codeTracingPath = $event->getCodeTracingPath();
+		if (0 < preg_match('#\.([[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+)$#', $codeTracingPath, $matches)) {
+			$codeTracing = $matches[1];
+		}
+	
+		$superGlobalsData = $event->getSuperGlobalsData();
+		
+		$superGlobals['GET'] = $superGlobalsData[ZM_DATA_VAR_GET];
+		$superGlobals['COOKIE'] = $superGlobalsData[ZM_DATA_VAR_COOCKIE];
+		$superGlobals['ENV'] = $superGlobalsData[ZM_DATA_VAR_ENV];
+		$superGlobals['FILES'] = $superGlobalsData[ZM_DATA_VAR_FILES];
+		$superGlobals['POST'] = $superGlobalsData[ZM_DATA_VAR_POST];
+		$superGlobals['RAW_POST_DATA'] = $superGlobalsData[ZM_DATA_VAR_RAW_POST_DATA];
+		$superGlobals['SERVER'] = $superGlobalsData[ZM_DATA_VAR_SERVER];
+		$superGlobals['SESSION'] = $superGlobalsData[ZM_DATA_VAR_SESSION];
+		
+		$eventArray = array (
+			'eventsGroupId' => $eventsGroup->getEventsGroupId(),
+			'type' => $eventsGroup->getEventType(),
+			'description' => $event->getErrorString(),
+			'superGlobals' => $superGlobals,
+			'severity' => $this->issueSeverity($issue->getSeverity()),
+			'backtrace' => $event->getBacktrace(),
+			'codeTracing' => $codeTracing
+		);
+		
+		
+		
+		echo $this->json ( $eventArray, true );
+	?>
+}

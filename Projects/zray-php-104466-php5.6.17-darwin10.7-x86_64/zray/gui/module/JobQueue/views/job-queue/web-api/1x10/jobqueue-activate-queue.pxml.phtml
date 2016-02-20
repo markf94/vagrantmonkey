@@ -1,0 +1,6 @@
+<responseData>
+	<result><?php echo $result; ?></result>
+    <?php if ($result == 'error' && isset($error)) { ?>
+    <error><?php echo $error; ?></error>
+    <?php } ?>
+</responseData>

@@ -1,0 +1,21 @@
+<?php $this->headLink()->appendStylesheet($this->basepath('css/error.css')) ?>
+<div class="box-wrapper">
+	<div class="box-header"><h1><?php echo _t('404 - Page Not Found')  ?></h1></div>
+	<div class="box-body">
+		<h2><?php echo _t('404 - Page Not Found - The page you requested was not found')  ?></h2>
+		<ul class="vertical-list">
+			<span><?php echo _t('Sorry, the page you requested may have moved or been deleted')  ?></span>
+			<span><?php echo _t('Please try to one of the following:')  ?></span>
+			<li><?php echo _t('Verify the URL and ')  ?><a id="reload-link" href="javascript:void(0)"><?php echo _t('reload page')  ?></a></li>
+			<li><?php echo _t('Revisit the ')  ?><a id="previous-link" href="javascript:void(0)"><?php echo _t('previous page') ?></a></li>
+			<li><?php echo _t('Go to the ')  ?><a id="dashboard-link" href="<?php echo $this->basepath('/') ?>"><?php echo _t('Dashboard page') ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<script type="text/javascript">
+window.addEvent('load', function(){
+	$('reload-link').addEvent('click', function(){location.reload()});
+	$('previous-link').addEvent('click', function(){history.back()});
+});
+</script>

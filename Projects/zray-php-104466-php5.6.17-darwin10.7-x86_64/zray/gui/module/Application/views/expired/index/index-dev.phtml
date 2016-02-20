@@ -1,0 +1,22 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/expired.css")?>
+<script type="text/javascript">
+window.addEvent('resize', function(){
+	$('expired-container').setStyle('left', ($(document).getSize().x - $('expired-container').getSize().x) / 2);
+	$('expired-container').setStyle('top', ($(document).getSize().y - $('expired-container').getSize().y) / 2);
+});
+
+window.addEvent('load', function(){
+	$('expired-container').setStyle('display', 'block');
+	window.fireEvent('resize');
+});
+</script>
+
+<div id="expired-container" style="display: none;">
+	<a id="logout" href="<?php echo $baseUrl; ?>/Login/logout/">x</a>
+	<div id="expired-top">
+		<h2><?php echo _t('Your Zend Server trial license has ended'); ?></h2>
+		<div>
+		Contact your administrator to retrieve new license
+		</div>
+	</div>
+</div>

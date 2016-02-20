@@ -1,0 +1,752 @@
+<div class="zdb-toolbar-entry zsb-queries-details" data-name="queries">
+    <div class="zdb-toolbar-preview" title="Database Queries">
+        <div class="zdb-toolbar-icon"></div>
+        <span class="zdb-toolbar-info">&nbsp;</span>
+    </div>
+    <div class="zdb-toolbar-detail zdb-queries-detail-wrapper">
+    	<div class="zdb-row zdb-toolbar-detail-header">
+    		<div class="zdb-col-1-narrow">
+    			<h1>Database Queries</h1>
+    		</div>
+    		<div class="zdb-col-3-wide">
+    			<div class="zdb-pull-left">
+    				<?php echo $this->devBarPager(); ?>
+    			</div>
+    			<div class="zdb-pull-right">
+    				<ul class="zdb-toolbar-items zdb-horizontal">
+    					<li>
+    						<span class="zdb-expand-all hidden" onclick="zendDevBar.expandTableRows(this, '.zsb-queries-panel')">Expand all</span>
+    					</li>
+    					<li class="zdb-toolbar-filter">
+    						<label for="zdb-toolbar-input-filter-text">Filter by</label>
+    						<select>
+    							<option value="">Parameter</option>
+    						</select>
+    						<input type="text" name="zdb-toolbar-input-filter-text" id="zdb-toolbar-input-filter-text" size="6" class="zdb-toolbar-input zdb-toolbar-input-filter-parameter" />
+    					</li>
+    					<li class="zdb-toolbar-search">
+    						<?php echo $this->devBarSearch(); ?>
+    					</li>
+    					<li>
+							<div class="zdb-export-results-btn" title="Show Report"></div>
+						</li>
+    					<li class="zdb-toolbar-pin">
+    						<div class="zdb-popup-pin" onclick="zendDevBar.unpin()"></div>
+    					</li>
+    				</ul>
+    			</div>
+    		</div>
+    	</div>
+    	<div class="zdb-row zdb-panel zsb-queries-panel">
+    		<!-- Left panel: summary -->
+    		<div class="zdb-col-1-narrow zdb-adaptive-height zdb-summary-table-wrapper zdb-queries-summary"></div>
+    		
+    		<!-- main panel: queries -->
+    		<div class="zdb-col-3-wide zdb-entries-table-wrapper zdb-adaptive-height zsb-queries-table-wrapper"></div>
+    	</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+(function() {
+
+	var backtraceEnabled  = <?php echo $backtraceEnabled ? '1' : '0'; ?>;
+	var producerEnabled = <?php echo $producerEnabled ? '1' : '0'; ?>;
+	if (!producerEnabled) {
+		zendDevBar.devBar.find('.zsb-queries-details .zdb-toolbar-preview').attr('title', 'SQL queries tracking is disabled. You can enable it from the Zend Server UI (Configurations | Components | Z-Ray)');
+	}
+	
+	////////////////////////////
+	// tools
+	////////////////////////////
+	
+	var tools = {
+		getContainer: (function() {
+			var $container = null;
+			return function() {
+				if (!$container) $container = zendDevBar.devBar.find('.zsb-queries-details').first(); 
+				return $container;
+			};
+		})(),
+
+		// `ucFirst` the type
+		translateQueryType: function(type) {
+			var _type = type.toLowerCase();
+			return _type.charAt(0).toUpperCase() + _type.substr(1);
+		},
+
+		// get query type by full query request
+		getQueryType: function(query) {
+			query = query.trim();
+			var firstSpace = query.search(/\s+/);
+			var firstWord = (firstSpace >= 0) ? query.substring(0, firstSpace).toLowerCase() : query.toLowerCase();
+			// clear all non relevant characters, like "(" in the beginning
+			firstWord = firstWord.replace(/[^\w]+/g, '');
+			if (firstWord.length == 0) firstWord = '[empty query]'; 
+			return firstWord;
+		}
+	};
+
+	var translateQueryStatus = function(status) {
+		var queryStatusesList = {'success': 'OK', 'error': 'Error', 'failure': 'Error', 'asynchronous': 'Async'};
+		return queryStatusesList[status] ? queryStatusesList[status] : 'Unknown';
+	};
+
+	// change the bottom label color if one of the queries is not successful
+	var updateLabelColor = function(data) {
+		var hasErrors = false;
+		data.every(function(query) {
+			if (query.success.toLowerCase() != "success") {
+				hasErrors = true;
+				return false;
+			}
+			return true;
+		});
+
+	
+		var $toolbarPreview = tools.getContainer().find('.zdb-toolbar-preview').removeClass('zdb-toolbar-preview-critical');
+		if (hasErrors) {
+			$toolbarPreview.addClass('zdb-toolbar-preview-critical');
+		}
+	};
+	
+	var countTypes = function(data) {
+		queriesTypes = {};
+		data.forEach(function(query) {
+
+			// aggregate
+			queryType = tools.getQueryType(query.string);
+			if (typeof queriesTypes[queryType] == 'undefined') {
+		    	queriesTypes[queryType] = {
+				    count: 1,
+				    time: parseInt(query.queryTime, 10),
+				    type: queryType
+		    	};
+		    } else {
+	    		queriesTypes[queryType]['count']++;
+	    		queriesTypes[queryType]['time']+= parseInt(query.queryTime, 10);
+		    }
+		});
+
+		queriesTypes = zendDevBar.sortByKeys(queriesTypes);
+
+		var rows = [];
+		if (Object.keys(queriesTypes).length > 0) {
+			// calculate total time (by how it's displayed (2 decimal digits))
+    		var timeTotal = 0;
+			for (var qType in queriesTypes) {
+				timeTotal+= parseFloat(zendDevBar.formatters.formatMicroseconds(queriesTypes[qType]['time'], 2, false));
+			}
+			timeTotal = 1000 * timeTotal.toFixed(2);
+			
+			rows.push({'type': 'All', 'time': timeTotal, 'count': data.length});
+			var newRows = $zendDevBar.map(queriesTypes, function(value, index) {
+			    return [value];
+			});
+			rows = rows.concat(newRows);
+		}
+		
+		return rows;
+	}
+
+	function showBacktrace(id, data) {
+		var overlay = zendDevBar.getModuleOverlay('queries');
+		var spinner = $zendDevBar('<div class="zdb-overlay-spinner" style="height: ' + (overlay.outerHeight() - 30) + 'px; line-height: ' + (overlay.outerHeight() - 30) + 'px"><div><div class="zdb-spinner-img"></div>Loading...</div></div>');
+		overlay.append(spinner);
+		
+		// load the data and store locally
+		var url = zendDevBar.baseUrl + '/Api/zrayGetBacktrace?id=' + id;
+		zendDevBar.loadJSON(url, function (response){
+			shortFileName = zendDevBar.shorten(data.string, 100);
+			spinner.remove();
+			overlay.append('\
+				<div class="zdb-row zdb-toolbar-detail-header">\
+					<div class="zdb-col-4">\
+						<h1><a href="javascript:void(0);" onclick="zendDevBar.removeModuleOverlay(\'queries\')">Database Queries</a> <span style="font-size: 14px;color: #006F9D;">&raquo Backtracing (' + shortFileName + ')</span></h1>\
+						<div class="zdb-pull-right">\
+							<ul class="zdb-toolbar-items zdb-horizontal">\
+								<li><a class="zdb-backtrace-back" href="javascript:void(0);" onclick="zendDevBar.removeModuleOverlay(\'queries\')">back</a></li>\
+								<li><div class="zdb-export-results-btn zdb-export-backtrace-btn" title="Export backtrace"></div></li>\
+							</ul>\
+						</div>\
+					</div>\
+				<div class="zdb-row zdb-panel zsb-logs-backtrace-panel">\
+					<div class="zdb-col-4 zdb-entries-table-wrapper zdb-adaptive-height zsb-overlay-backtrace-table-wrapper-queries"></div>\
+					<div class="hidden zdb-queries-backtrace-full-data"></div>\
+				</div>\
+			');
+			var backtrace = response.responseData.backtrace;
+			var backtraceTable = createBacktrace(backtrace);
+
+			overlay.find('.zdb-export-backtrace-btn').on('click', function() {
+				backtraceTable = createBacktrace(backtrace, true);
+				backtraceTable.exportResults('Query Backtrace<br><small style="font-size:14px; color: #888;">'+data.string+'</small>'); 
+			});
+			
+			overlay.find('.zdb-adaptive-height').css('height', zendDevBar.cookieParams.height - 50);
+		});
+	}
+
+	function createBacktrace(backtrace, displayFullData) {
+		var counter = 1;
+		backtrace.reverse();
+		$zendDevBar.each(backtrace, function(key, value) {
+			value.id = counter;
+			counter++;
+		});
+
+		var storageName = 'queries-backtrace' + (displayFullData ? '-fulldata' : '');
+		var storage = zendDevBar.createStorage(storageName);
+		storage.reset();
+		storage.setLimit(-1);
+		storage.addData(backtrace);
+		
+		// define the main table
+		var tableContainer = displayFullData ? $zendDevBar('.zdb-queries-backtrace-full-data') : $zendDevBar('.zsb-overlay-backtrace-table-wrapper-queries');  
+		var mainTable = zendDevBar.createTable(zendDevBar.getStorage(storageName), tableContainer);
+		var columns = [{
+			label: '#',
+			propertyName: 'id',
+			width: '3%',
+			defaultSort: 'desc',
+			sortable: true
+		}, {
+			label: 'Name',
+			propertyName: 'name',
+			width: '30%',
+			attributes: {'class': 'zdb-monospace zdb-ellipsis'},
+			sortable: true,
+			getHtml: function(val, rec) {
+				var args = '';
+				if (rec.args.length > 0) {
+					if (displayFullData) {
+		 	 	 	 	args = $zendDevBar('<span class="zdb-backtrace-args">' + zendDevBar.formatters.phpFunctionParameters(rec.args) + '</span>');
+		 	 	 	 } else {
+						args = $zendDevBar('<span class="zdb-backtrace-args">[...]</span>');
+	
+						args.qtip({ // Grab some elements to apply the tooltip to
+							style: {
+						        classes: 'zendDevBarQtip'
+						    },
+					        content: {
+					        	text: function(event, api) {
+					        		return '<div style="padding: 3px; 5px;">( ' + zendDevBar.formatters.phpFunctionParameters(rec.args) + ' )</div>';
+					            }
+					        },
+					        show: {
+					            event: 'click'
+					        },
+					        hide: {
+						        fixed: true,
+					        	when: {
+						        	event: 'click unfocus'
+					        	}
+				            },
+					        position: {
+					            my: 'center left',
+					            at: 'top center',
+					            effect: false
+					        }
+					    });
+		 	 	 	 }
+				}
+
+				var resp = $zendDevBar('<span></span>');
+				
+				if (val == '{main}') {
+					return val;
+				} else if (rec.scope.trim() == '') {
+					resp.append(val + '(');
+					resp.append(args);
+					resp.append(')');
+					return resp;
+				}
+				resp.append(rec.scope + '::' + val + '(');
+				resp.append(args);
+				resp.append(')');
+				return resp;
+			}
+		}, {
+			label: 'File',
+			propertyName: 'file',
+			width: '57%',
+			sortable: true,
+			getHtml: function(val, rec) {
+				var cline = parseInt(rec.cline);
+				if (cline > 0) {
+					return val + ':' + cline;
+				}
+				return zendDevBar.formatters.htmlEntities(val);
+			}
+		}];
+
+		<?php if (!$azure && !$zrayStandalone) : ?>
+		columns.push({
+			label: 'Show in IDE',
+			propertyName: 'file',
+			width: '10%',
+			sortable: false,
+			getHtml: function(val, rec) {
+				if (val == '<builtin>') {
+					return '';
+				}
+				
+				if (!zendDevBar.zendDebuggerEnabled) {
+					return '<span style="border-bottom: 1px dashed #555;" title="Show in IDE is not available because Zend Debugger is disabled">n/a</span>';
+				}
+				
+				var filePath = zendDevBar.addSlashes(val);
+				var line = rec.cline;
+				var fullUrl = zendDevBar.addSlashes(document.referrer);
+				
+				return '<a class="zdb-show-in-ide" title="Show in IDE" onclick="zendDevBar.spinner.show(this); zendDevBar.showInIde(this,\''+filePath+'\', \''+line+'\', \''+fullUrl+'\');"></a>';
+			}
+		});
+		<?php endif; ?>
+
+		mainTable.setColumns(columns);
+		
+		return mainTable;
+	}
+	
+	///////////////////////////////////////////////////////////////////////////////
+	// tables definition
+	///////////////////////////////////////////////////////////////////////////////
+	$zendDevBar(function() {
+		// define the main table
+		zendDevBar.getStorage('queries').setSorter('string', function(data, direction) { 
+			return data.sort(zendDevBar.getStorage('queries')
+				.firstBy(function(a,b) { var a = parseInt(a.transactionId); var b = parseInt(b.transactionId); if (a == b) return 0; return (a > b) ? 1 : -1; })
+				.thenBy(function(a,b) { 
+					if (a.transactionId != -1 && b.transactionId != -1) {
+						if (a.string.match(/^BEGIN/i) || b.string.match(/^BEGIN/i)) {
+							if (a.string.match(/^BEGIN/i)) return (direction == 'asc') ? -1 : 1;
+							return (direction == 'asc') ? 1 : -1;
+						}
+						if ((a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) || b.string.match(/^COMMIT/i) || b.string.match(/^ROLLBACK/i)) {
+							if (a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) return (direction == 'asc') ? 1 : -1;
+							return (direction == 'asc') ? -1 : 1;
+						}
+					}
+					
+					if (a.string == b.string) return 0; return (a.string > b.string) ? 1 : -1;
+				})
+				.thenBy(function(a,b) { if (a.string == b.string) return 0; return (a.string > b.string) ? 1 : -1; })
+			); 
+		});
+		zendDevBar.getStorage('queries').setSorter('queryTime', function(data, direction) { 
+			return data.sort(zendDevBar.getStorage('queries')
+				.firstBy(function(a,b) { var a = parseInt(a.totalTimePerTransaction); var b = parseInt(b.totalTimePerTransaction); if (a == b) return 0; return (a > b) ? 1 : -1; })
+				.thenBy(function(a,b) { var a = parseInt(a.transactionId); var b = parseInt(b.transactionId); if (a == b) return 0; return (a > b) ? 1 : -1; })
+				.thenBy(function(a,b) { 
+					if (a.transactionId != -1 && b.transactionId != -1) {
+						if (a.string.match(/^BEGIN/i) || b.string.match(/^BEGIN/i)) {
+							if (a.string.match(/^BEGIN/i)) return (direction == 'asc') ? -1 : 1;
+							return (direction == 'asc') ? 1 : -1;
+						}
+						if ((a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) || b.string.match(/^COMMIT/i) || b.string.match(/^ROLLBACK/i)) {
+							if (a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) return (direction == 'asc') ? 1 : -1;
+							return (direction == 'asc') ? -1 : 1;
+						}
+					}
+					 
+					var a = parseInt(a.queryTime); var b = parseInt(b.queryTime); if (a == b) return 0; return (a > b) ? 1 : -1;
+				})
+				.thenBy(function(a,b) { var a = parseInt(a.queryTime); var b = parseInt(b.queryTime); if (a == b) return 0; return (a > b) ? 1 : -1; })
+			); 
+		});
+		zendDevBar.getStorage('queries').setSorter('affectedRows', function(data, direction) { 
+			return data.sort(zendDevBar.getStorage('queries')
+				.firstBy(function(a,b) { var a = parseInt(a.totalAffectedRowsPerTransaction); var b = parseInt(b.totalAffectedRowsPerTransaction); if (a == b) return 0; return (a > b) ? 1 : -1; })
+				.thenBy(function(a,b) { var a = parseInt(a.transactionId); var b = parseInt(b.transactionId); if (a == b) return 0; return (a > b) ? 1 : -1; })
+				.thenBy(function(a,b) { 
+					if (a.transactionId != -1 && b.transactionId != -1) {
+						if (a.string.match(/^BEGIN/i) || b.string.match(/^BEGIN/i)) {
+							if (a.string.match(/^BEGIN/i)) return (direction == 'asc') ? -1 : 1;
+							return (direction == 'asc') ? 1 : -1;
+						}
+						if ((a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) || b.string.match(/^COMMIT/i) || b.string.match(/^ROLLBACK/i)) {
+							if (a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) return (direction == 'asc') ? 1 : -1;
+							return (direction == 'asc') ? -1 : 1;
+						}
+					}
+					 
+					var a = parseInt(a.affectedRows); var b = parseInt(b.affectedRows); if (a == b) return 0; return (a > b) ? 1 : -1;
+				})
+				.thenBy(function(a,b) { var a = parseInt(a.affectedRows); var b = parseInt(b.affectedRows); if (a == b) return 0; return (a > b) ? 1 : -1; })
+			); 
+		});
+		zendDevBar.getStorage('queries').setSorter('success', function(data, direction) { 
+			return data.sort(zendDevBar.getStorage('queries')
+				.firstBy(function(a,b) { var a = parseInt(a.transactionId); var b = parseInt(b.transactionId); if (a == b) return 0; return (a > b) ? 1 : -1; })
+				.thenBy(function(a,b) { 
+					if (a.transactionId != -1 && b.transactionId != -1) {
+						if (a.string.match(/^BEGIN/i) || b.string.match(/^BEGIN/i)) {
+							if (a.string.match(/^BEGIN/i)) return (direction == 'asc') ? -1 : 1;
+							return (direction == 'asc') ? 1 : -1;
+						}
+						if ((a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) || b.string.match(/^COMMIT/i) || b.string.match(/^ROLLBACK/i)) {
+							if (a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) return (direction == 'asc') ? 1 : -1;
+							return (direction == 'asc') ? -1 : 1;
+						}
+					}
+					
+					var a = a.success; var b = b.success; if (a == b) return 0; return (a > b) ? 1 : -1;
+				})
+				.thenBy(function(a,b) { var a = a.success; var b = b.success; if (a == b) return 0; return (a > b) ? 1 : -1; })
+			); 
+		});
+		zendDevBar.getStorage('queries').setSorter('errorMessage', function(data, direction) { 
+			return data.sort(zendDevBar.getStorage('queries')
+				.firstBy(function(a,b) { var a = parseInt(a.transactionId); var b = parseInt(b.transactionId); if (a == b) return 0; return (a > b) ? 1 : -1; })
+				.thenBy(function(a,b) { 
+					if (a.transactionId != -1 && b.transactionId != -1) {
+						if (a.string.match(/^BEGIN/i) || b.string.match(/^BEGIN/i)) {
+							if (a.string.match(/^BEGIN/i)) return (direction == 'asc') ? -1 : 1;
+							return (direction == 'asc') ? 1 : -1;
+						}
+						if ((a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) || b.string.match(/^COMMIT/i) || b.string.match(/^ROLLBACK/i)) {
+							if (a.string.match(/^COMMIT/i) || a.string.match(/^ROLLBACK/i)) return (direction == 'asc') ? 1 : -1;
+							return (direction == 'asc') ? -1 : 1;
+						}
+					} else {
+						var a = a.errorMessage; var b = b.errorMessage; if (a == b) return 0; return (a > b) ? 1 : -1;
+					} 
+				})
+				.thenBy(function(a,b) { var a = a.errorMessage; var b = b.errorMessage; if (a == b) return 0; return (a > b) ? 1 : -1; })
+			); 
+		});
+		
+		var mainTable = zendDevBar.createTable(zendDevBar.getStorage('queries'), $zendDevBar('.zsb-queries-table-wrapper'));
+		mainTable.setColumns([{
+			label: '#',
+			tooltip: 'Query serial number',
+			propertyName: 'rowCount',
+			sortable: true,
+			defaultSort: 'asc',
+			attributes: {'class': 'zdb-numerical'},
+			width: '3%'
+		}, {
+			label: 'Query',
+			tooltip: 'Query content',
+			propertyName: 'string',
+			attributes: {'class': 'zdb-monospace'},
+			width: '52%',
+			sortable: true,
+			getHtml: function(val, row) {
+				if (val.trim() == '') {
+					return '<?php echo _t('[Empty query]'); ?>';	
+				}
+				
+				var contentWrapper = $zendDevBar('<div></div>');
+				
+				var queryDisplayPosition = 0;
+				if (row.transactionId != -1) {
+					if (val.match(/^BEGIN/i)) {
+						queryDisplayPosition = 0;
+						contentWrapper.addClass('zdb-querytable-row-transaction-start');
+					} else if (val.match(/^COMMIT/i) || val.match(/^ROLLBACK/i)) {
+						queryDisplayPosition = 2;
+						contentWrapper.addClass('zdb-querytable-row-transaction-end');
+					} else {
+						queryDisplayPosition = 1;
+					}
+					contentWrapper.addClass('zdb-querytable-row-transaction');
+				}
+
+				contentWrapper.attr('transactionorder', row.transactionId)
+					.attr('transactionpos', queryDisplayPosition);
+
+				var expandor = zendDevBar.expendedText(val, null, function(sqlCode) {
+					// highlight sqlCode param. steps:
+					// create element, add it to the doc, highlight its code, get the html and remove elem from the doc
+					var $elem = $zendDevBar('<span>').text(sqlCode);
+					$zendDevBar('body').append($elem);
+					if (window.hljs) hljs.highlightBlock($elem.get(0));
+					var highlighedCodeHtml = $elem.html(); 
+					$elem.remove();
+					return highlighedCodeHtml;
+				});
+				
+				if (typeof expandor != 'string') {
+					$zendDevBar(expandor).on('expandingTextChanged', function(event){
+						var searchTerm = zendDevBar.getStorage('queries').searchTerm;
+						$zendDevBar(event.target).highlight(searchTerm);
+					});
+				}
+
+				contentWrapper.html(expandor);
+				return contentWrapper;
+			}
+		}, {
+			label: 'Time (ms)',
+			tooltip: 'Query execution time',
+			width: '7%',
+			propertyName: 'queryTime',
+			sortable: true,
+			initialSortDirection: 'desc',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val, rec) {
+				var formattedTime = zendDevBar.formatters.formatMicroseconds(val, 2, false);
+				var formattedTotalTime = zendDevBar.formatters.formatMicroseconds(rec.totalTimePerTransaction, 2, false);
+				var suffix = rec.transactionId != -1 ? ' ('+formattedTotalTime+')</span>':'';
+				var prefix = suffix.length > 0 ? '<span title="query time: '+formattedTime+', total transaction time: '+formattedTotalTime+'">' : '';
+				return prefix + formattedTime + suffix;
+			}
+		}, {
+			label: 'Rows',
+			tooltip: 'Rows affected by query',
+			width: '5%',
+			propertyName: 'affectedRows',
+			sortable: true,
+			initialSortDirection: 'desc',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val, rec) {
+				if (val == -1) {
+					return '<span title="<?php echo _t('Returned rows count unknown. The current database driver does not provide information about returned rows for SELECT queries.'); ?>">N/A</span>';
+				} else if (!val) {
+					val = 0;
+				}
+				
+				var suffix = rec.transactionId != -1 ? ' ('+rec.totalAffectedRowsPerTransaction+')</span>':'';
+				var prefix = suffix.length > 0 ? '<span title="affected rows by query: '+val+', affected rows by transaction: '+rec.totalAffectedRowsPerTransaction+'">':'';
+				return prefix + val + suffix;
+			}
+		},
+		{
+			label: 'Result',
+			tooltip: 'Query result',
+			width: '8%',
+			propertyName: 'success',
+			sortable: true,
+			getHtml: function(val) {
+				val = translateQueryStatus(val);
+				var cssclass = 'critical';
+				if (val == 'OK') {
+					cssclass = 'normal';
+				} else if (val == 'Async') {
+					cssclass = 'warning';
+				}
+				val = '<span class="zdb-severity-indication zdb-badge-'+ cssclass +'"></span>' + val; 
+				return val;
+			}
+		},
+		{
+			label: 'Message',
+			tooltip: 'Query failure message',
+			width: '20%',
+			propertyName: 'errorMessage',
+			sortable: true,
+			getHtml: function(val, rec) {
+				if (translateQueryStatus(rec.success) == 'Async') {
+					return '<?php echo _t('Sent to execution, unknown result'); ?>';
+				}
+				
+				var expandor = zendDevBar.expendedText(val);
+				if (typeof expandor != 'string') {
+					$zendDevBar(expandor).on('expandingTextChanged', function(event){
+						var searchTerm = zendDevBar.getStorage('queries').searchTerm;
+						$zendDevBar(event.target).highlight(searchTerm);
+					});
+				}
+				
+				return expandor;
+			}
+		}, {
+			label: 'Actions',
+			tooltip: 'Query actions',
+			propertyName: 'backtraceId',
+			width: '5%',
+			getHtml: function(val, rec) {
+
+			    var $actions = $zendDevBar('<div>');
+
+				if (rec.fileName && rec.lineNumber && zendDevBar.zendDebuggerEnabled) {
+    				var $showInIdeElem = $zendDevBar('<div class="zdb-table-action zdb-show-in-ide" title="Show in IDE"></div>'); 
+    				$showInIdeElem.click(function() {
+    					zendDevBar.showInIde(this, rec.fileName, rec.lineNumber);
+    				});
+    				$actions.append($showInIdeElem);
+				}
+
+				var $btElem = $zendDevBar('<div class="zdb-table-action zdb-ta-backtrace'+(backtraceEnabled&&val!==-1?'':' zdb-ta-backtrace-disabled')+'" title="Show backtrace"></div>');
+				if (!backtraceEnabled || val === -1) {
+					$btElem.attr('title', 'Backtrace is disabled. You can enable it from the Zend Server UI (Configurations | Components | Z-Ray).');
+				} else {
+					$btElem.click(function() {
+						 showBacktrace(val, rec);
+					});
+				}
+			    $actions.append($btElem);
+				
+				return $actions;
+			}
+		}]);
+
+		// bind search
+		search = new $zendDevBar.zdbSearch(zendDevBar.getStorage('queries'), $zendDevBar('.zdb-queries-detail-wrapper .zdb-toolbar-input-search').first(), mainTable);
+		
+		// define the summary table
+		zendDevBar.getStorage('queries').setFilter('string', function(rowValue, value) {
+			return tools.getQueryType(rowValue) == value;
+			
+		});
+		var table = zendDevBar.createSummaryTable(zendDevBar.getStorage('queries'), $zendDevBar('.zdb-queries-summary'));
+		table.setFilterColumn('string');
+		table.setUpdateCallback(countTypes);
+		table.setTableHeaderHtml('<th colspan="100%">Show</th>');
+		table.setColumns([{
+			label: 'Types',
+			propertyName: 'type',
+			width: '10%',
+			getHtml: function(val, rec) { return table.createCheckboxColumn(val, rec, table); }
+		},
+		{
+			label: 'Types',
+			propertyName: 'type',
+			width: '40%',
+			getHtml: function(val) {
+				return tools.translateQueryType(val);
+			}
+		},
+		{
+			label: 'Count',
+			propertyName: 'count',
+			width: '10%',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val) {
+				return '(' + val + ')';
+			}
+		},
+		{
+			label: 'Time',
+			propertyName: 'time',
+			width: '50%',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val) {
+				return zendDevBar.formatters.formatMicroseconds(val);
+			}
+		}]);
+		
+		// bind to save button
+		$zendDevBar('.zdb-queries-detail-wrapper .zdb-export-results-btn').click(function() { mainTable.exportResults('Queries list', table); });
+	});
+
+	var queriesCount = function() {
+		var queriesCountElement = zendDevBar.devBar.find('.zsb-queries-details .zdb-toolbar-preview .zdb-toolbar-info');
+		return {
+			set: function(totalQueries) {
+				queriesCountElement.text(producerEnabled?''+totalQueries:'N/A');
+			},
+			get: function() {
+				return queriesCountElement.text();
+			}
+		};
+	};
+	
+	zendDevBar.registerOnUpdateLabel('queries', function($, requests) {
+		// check parameter
+		if (!requests) return;
+		if (!(requests instanceof Array)) requests = [requests];
+
+		$.each(requests, function(i, data) {
+			if (data == undefined || data.SqlQueries == undefined) {
+				return;
+			}
+			var queries = data.SqlQueries;
+
+			queriesCount().set(Number(queriesCount().get()) + queries.length);
+			updateLabelColor(queries);
+		});
+	});
+	
+	var rowCount = 0;
+	zendDevBar.registerResetHandler('queries', function($, data) {
+		zendDevBar.getStorage('queries').reset();
+
+		// reset queries enumeration
+		rowCount = 0;
+		
+		// clear the number of the queries in the devBar
+		queriesCount().set(0);
+
+		zendDevBar.removeModuleOverlay('queries');
+
+		updateLabelColor([]);
+	});
+
+	zendDevBar.registerHandler('queries', function($, data) {
+		// check if the update is relevant
+		if (data == undefined) {
+			zendDevBar.finishLoading('queries');
+			return;
+		}
+
+		var allData = [];
+		$.each(data, function(key, request) {
+			// update rowcount
+			var queries = request.SqlQueries;
+			$.each(queries, function(key, value) {
+				rowCount++;
+				value.rowCount = rowCount; 
+			});
+
+			// update `affected rows` and `total time` per transaction
+			var dataPerTransaction = {};
+			$.each(queries, function(key, query) {
+				if (query.transactionId != -1) {
+					if (!dataPerTransaction[query.transactionId]) { 
+						dataPerTransaction[query.transactionId] = {totalAffectedRows:0, totalTime:0};
+					}
+					dataPerTransaction[query.transactionId]['totalAffectedRows']+= parseInt(query.affectedRows);
+					dataPerTransaction[query.transactionId]['totalTime']+= parseInt(query.queryTime);
+				}
+			});
+			$.each(queries, function(key, query) {
+				if (query.transactionId != -1) {
+					query.totalTimePerTransaction = dataPerTransaction[query.transactionId]['totalTime'];
+					query.totalAffectedRowsPerTransaction = dataPerTransaction[query.transactionId]['totalAffectedRows'];
+				} else {
+					query.totalTimePerTransaction = query.queryTime;
+					query.totalAffectedRowsPerTransaction = query.affectedRows;
+				}
+			});			
+			allData = allData.concat(queries);
+		});
+
+		zendDevBar.getStorage('queries').addData(allData);
+		zendDevBar.finishLoading('queries');
+	});
+
+	/// expand/collapse
+	zendDevBar.getStorage('queries').onChange(function(){
+		var container = $zendDevBar(tools.getContainer());
+		if (container.find('.zdb-expand-button').length) {
+			container.find('.zdb-expand-all').removeClass('hidden');
+			zendDevBar.expandTableRows(container.find('.zdb-expand-all').first(), '.zsb-queries-panel', true)
+		} else {
+			container.find('.zdb-expand-all').addClass('hidden');
+		}
+	});
+
+	// load Highlight JS library
+	if (!window.hljs) {
+		var headElem = document.getElementsByTagName('head')[0]; 
+		var hlJsLinkTag = document.createElement('link');
+		hlJsLinkTag.setAttribute('rel', 'stylesheet');
+		hlJsLinkTag.setAttribute('href', ZDB_BASEURL + '/hljs/styles/tomorrow.css'); // looking good: default, tomorrow, github, sunburst, xcode
+		headElem.appendChild(hlJsLinkTag);
+		
+		var hlJsStyleTag = document.createElement('style');
+		hlJsStyleTag.textContent = ".hljs {background-color: transparent !important;}";
+		headElem.appendChild(hlJsStyleTag);
+		
+		var hlJsScriptTag = document.createElement('script');
+		hlJsScriptTag.src = ZDB_BASEURL + '/hljs/highlight.pack.js';
+		headElem.appendChild(hlJsScriptTag);
+	}
+
+})();
+
+new $zendDevBar.zdbPager(zendDevBar.getStorage('queries'), $zendDevBar('.zdb-queries-detail-wrapper .zdb-pager').first());
+</script>

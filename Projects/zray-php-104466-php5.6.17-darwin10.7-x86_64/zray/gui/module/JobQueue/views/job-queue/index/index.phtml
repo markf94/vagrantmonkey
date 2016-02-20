@@ -1,0 +1,569 @@
+<?php
+$this->headLink()->appendStylesheet("{$this->basePath()}/css/jobs.css");
+$this->headScript ()->appendFile ( $this->basePath () . '/js/ToolTip.js' );
+$this->headScript ()->appendFile ( $this->basePath () . '/js/FragmentManager.js' );
+
+
+if (! $this->isAllowed('dataRentention:timelimit', '2weeks')) {
+	$externalFilters[0]['allowedRange'] = '2hour';
+} elseif (! $this->isAllowed('dataRentention:timelimit', '3month')) {
+	$externalFilters[0]['allowedRange'] = '2weeks';
+} elseif (! $this->isAllowed('dataRentention:timelimit', 'unlimited')) {
+	$externalFilters[0]['allowedRange'] = '3months';
+} else {
+	$externalFilters[0]['allowedRange'] = 'unlimited';
+}
+?>
+<script type="text/javascript">
+
+var joinClusterTip;
+var filterWidget;
+var statuses = <?php echo json_encode($statuses); ?>;
+var priorities = <?php echo json_encode($priorities); ?>;
+var isAllowedJobsEdit = <?php echo $this->isAllowed('route:RecurringJobs', 'update') ? 'true' : 'false' ?>;
+var isAllowedForJobsAction = <?php echo $this->isAllowed('route:JobQueueWebApi', 'jobqueueDeleteJobs') ? 'true' : 'false' ?>;
+var isAllowedDeleteFilteredAction = <?php echo $this->isAllowed('route:JobQueueWebApi', 'jobqueueDeleteJobsByPredefinedFilter') ? 'true' : 'false' ?>;
+var localJqdOffline = <?php echo $localJqdOffline ? 'true' : 'false' ?>;
+var jqLoaded = <?php echo $jqLoaded ? 'true' : 'false' ?>;
+
+window.addEvent("domready", function(){
+	persistantHeaders.addHeader('jobs-grid-actions-bar');
+	persistantHeaders.addHeader('mytable_tableHead');
+
+	//////////////GRID CALLBACKS //////////////
+	 var eventAppName = function(value, data) {
+		if (value == "") {
+  		return value;
+		}
+		return '<img src="<?php echo $this->url('default', array('controller' => 'IssueList', 'action' => 'App-Icon')) ?>?id=' + data.applicationId + '" class="tableRow_app_icon" /> ' + value.htmlEntities();
+	 }
+
+	 
+	var jobInfo = <?php echo $this->zGridJobDetails($this->basePath() . '/JobQueue/JobInfo'); ?>;
+	var cmu2 = [
+			{
+				'title': _t('ID'),
+				'dataIndex': 'id',
+				'parser': zGrid2.prototype.string,
+				'width': '5%',
+				'sortable': true,
+				'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_ID ?>'
+			},
+			{
+				'title': _t('Status'),
+				'dataIndex': 'status',
+				'parser': function(status, rec) {
+					if (statuses[status] == undefined) {
+						return 'Unknown';
+					}
+					var statusName = statuses[status];
+					
+					var badgeClass = 'zgrid-status-disabled';
+					if (["Waiting", "Scheduled"].indexOf(statusName) >= 0 && 
+							rec.queueStatus == <?php echo \JobQueue\JobQueueInterface::QUEUE_SUSPENDED; ?>) {
+						statusName = 'Suspended by queue';
+					} else if (["Waiting", "Running", "OK", "Scheduled", "Completed"].indexOf(statusName) >= 0) {
+						badgeClass = 'zgrid-status-ok';
+					} else if (["Failed", "Timeout"].indexOf(statusName) >= 0) {
+						badgeClass = 'zgrid-status-error';
+					}
+					
+					return '<div class="'+badgeClass+'">'+statusName+'</div>';
+				},
+				'width': '10%',
+				'sortable': true,
+				'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_STATUS ?>'
+			},
+			{
+				'title': _t('Name'),
+				'dataIndex': 'name',
+				'parser': zGrid2.prototype.string,
+				'width': '10%',
+				'sortable': true,
+				'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_NAME ?>'
+			},
+			{
+				'title': _t('Application'),
+				'dataIndex': 'application',
+				'parser': eventAppName,
+				'width': '12%',
+				'sortable': true,
+				'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_APP ?>'
+			},
+			{
+				'title': _t('Queue'),
+				'dataIndex': 'queueName',
+				'parser': function(queueName, rec) {
+					// "(deleted)" suffix is added automatically (in the DB), once queue is deleted
+					if (queueName && queueName.indexOf('(deleted)') == -1) {
+						var hashSuffix = '#grid=' + rec.queueId;
+						
+						// add ("suspended") to queue name
+						if (queueName && rec.queueStatus == <?php echo \JobQueue\JobQueueInterface::QUEUE_SUSPENDED; ?>) {
+							queueName+= ' (suspended)';
+						}
+						
+						return '<a href="<?php echo $this->url('default', array('controller' => 'Queues')); ?>' + hashSuffix + '">' + zGrid2.prototype.string(queueName, rec) + '</a>';
+					} else {
+						return zGrid2.prototype.string(queueName, rec);
+					}
+				},
+				'width': '15%',
+				'seperator': false,
+				'sortable': true
+			},
+			{
+				'title': _t('URL'),
+				'dataIndex': 'script',
+				'parser': zGrid2.prototype.string,
+<?php if ($singleServer): ?>
+				'width': '30%',
+<?php else: ?>
+				'width': '20%',
+<?php endif ?>
+				'sortable': true,
+				'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_SCRIPT ?>'
+			},
+			{
+				'title': _t('Priority'),
+				'dataIndex': 'priority',
+				'parser': function(priority) {
+					if (priorities[priority] == undefined) {
+						return 'Unknown';
+					}
+
+					return priorities[priority];
+				},
+				'width': '7%',
+				'sortable': true,
+				'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_PRIORITY ?>'
+			},
+			<?php if (! $singleServer): ?>
+			{
+				'title': _t('Server'),
+				'dataIndex': 'nodeId',
+				'parser': function(nodeId, job) {
+					if (nodeId == 0) {
+						return 'localhost';
+					}
+
+					return job.nodeName ? job.nodeName : nodeId;
+				},
+				'width': '10%'
+			},
+			<?php endif; ?>
+			{
+				'title': _t('Start Time'),
+				'dataIndex': 'startTimeTimestamp',
+				'parser': zGrid2.prototype.timestamp,
+				'width': '12%',
+				'sortable': true,
+				'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_STARTTIME ?>'			
+			},
+			{
+				'title': _t('Edit'),
+				'dataIndex': 'edit',
+				'parser': zGrid2.prototype.button,
+          		'display': function(job) {
+                    if (job.scheduleId && job.scheduleId != "0") {
+                    	if (jqLoaded && (! localJqdOffline) && isAllowedJobsEdit) {
+                    		return true;
+                    	} else {
+                    		return false;
+                    	}
+                    }
+					return false;
+				}
+			
+			}
+			
+    	];
+
+	pager = <?php echo $this->zPager('mypager', $perPage); ?>
+	
+	<?php 
+	    	$options = array(
+	    		'sortedBy'		=> 'creationTime',
+				'direction'		=> 'desc',
+	    		'idColumn' 		=> 'id',
+	    		'limit'			=> $perPage,
+				'multiSelect'	=> true,
+				'totalContainer' => 'grid-count-bar'
+	    	);
+    	?>
+    	
+    zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $options); ?>
+
+    zgrid2.addEvent('buttonClick', function(params) {
+    	switch (params.type) {
+    		case 'edit':
+    			window.location = '<?php echo $this->basePath('/RecurringJobs/update') ?>?jobId=' + params.data.scheduleId;
+        		break;
+        }
+    });
+
+    var url = '<?php echo "{$this->basePath()}/Api/jobqueueJobsList"; ?>';
+	zgrid2.loadRequest = new Request.WebAPI({
+		method: 'get',
+		url:url,
+		link:'cancel',
+		onSuccess: function(response) {
+			zgrid2.setData(response.responseData.jobs, response.responseData.total);
+			pager.reloadData(pager.page, response.responseData.total);
+			checkItemes();
+		}.bind(this),
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+			zgrid2.postLoad();
+			zgrid2.setData([], 0);
+			pager.reloadData(1, 0);
+		}.bind(this)
+	});
+    
+    ////////////// GRID EVENTS //////////////
+    zgrid2.addEvent('loadData', function(params) {
+    	zgrid2.preLoad();
+   	 	params.filterId = filterWidget.currentFilter();
+     	params.filter = filterWidget.selectedFilters;
+     	zgrid2.loadRequest.get(params);
+    });
+
+    zgrid2.addEvent('rowChecked', function(params) {
+        if (isAllowedForJobsAction) {
+            $('jobs-grid-actions-bar').getElements('button:not(.ignore-checked)')
+    		    .set('disabled',(! $('mytable').getElements('input[type=checkbox].zgrid-checkbox')
+    	    		.some(function(item){
+			            return item.checked;
+			        })));
+        }
+    });
+
+
+    $('jobs_grid_filtered_delete').addClass('ignore-checked');
+    if (! jqLoaded || localJqdOffline) {
+	    $('jobs_grid_requeue').addClass('ignore-checked');
+	    $('jobqueue-service-warning').removeClass('hidden');
+    }
+    
+    
+	$('jobs_grid_requeue').addEvent('click', function(event) {
+
+		var jobs = {"jobs":Object.keys(zgrid2.getSelectedRows())};
+  		var request = new Request.WebAPI({url: '<?php echo $this->basePath(); ?>' + '/Api/jobqueueRequeueJobs', data: jobs,
+  		onComplete: function(response) {
+  	  		var requeued = response.responseData.jobs;
+
+  	  	  	requeued.each(function(item){
+  	  	  	  	zgrid2.updateRow(item);
+  	  	  	});
+  	  	  	zgrid2.fireEvent('rowChecked',{});
+  	  	  	
+  	  	  	var requeuedIds = requeued.map(function(item){return item.id});
+  	  	  	var jobsToRequeue = this.options.data.jobs;
+
+  	  	  	if (jobsToRequeue.every(function(item){
+  	  	  	  	// strange, but contains doesn't work here
+	  	  	  	  	return this.some(function (item) {
+		  	  	  	  	return item == this;
+		  	  	  	}, item);
+	  	  	  	}, requeuedIds)) {
+  	  			document.fireEvent('toastNotification', {'message': '<?php echo _t("The selected jobs were successfully requeued") ?>'});
+  	  		} else {
+  	  	  		var failedJobs = jobsToRequeue.filter(function(item){
+  	  	  	  		/// find arrays' diff: return true if the id is *missing*
+  	  	  	  		return (! this.some(function (item) {
+  		  	  	  	  	return item == this;
+  		  	  	  	}, item));
+  	  	  	  	}, requeuedIds);
+  	  			document.fireEvent('toastAlert', {'message': '<?php echo _t("Some jobs could not be requeued ") ?>(' + failedJobs.join(',') + ')'});
+  	  		}
+  	  	}});
+
+  		request.post();
+	});
+	
+	$('jobs_grid_delete').addEvent('click', function(event) {
+		if (window.confirm("<?php echo _t('Are you sure you wish to permanently delete the selected jobs?')  ?>")) {
+				
+			var jobs = {"jobs":Object.keys(zgrid2.getSelectedRows())};
+	  		var request = new Request.WebAPI({url: '<?php echo $this->basePath(); ?>' + '/Api/jobqueueDeleteJobs', data: jobs,
+	  		onFailure: function(response) {
+		  		var responseData = this.decodeResponse(response);
+		  		document.fireEvent('toastAlert', {'message': _t("Operation failed: {errorMessage}", responseData.errorData)});
+	  		},
+	  		onSuccess: function(response) {
+	  	  		var deleted = response.responseData.jobs;
+	
+	  	  	  	deleted.each(function(item){
+	  	  	  	  	zgrid2.deleteRow(item.id);
+	  	  	  	});
+	  	  	  	zgrid2.reloadData({page: zgrid2.page});
+	  	  	  	zgrid2.fireEvent('rowChecked',{});
+	  	  	  	
+	  	  	  	var deletedIds = deleted.map(function(item){return item.id});
+	  	  	  	var jobsToDelete = this.options.data.jobs;
+	
+	  	  	  	if (jobsToDelete.every(function(item){
+	  	  	  	  	// strange, but contains doesn't work here
+		  	  	  	  	return this.some(function (item) {
+			  	  	  	  	return item == this;
+			  	  	  	}, item);
+		  	  	  	}, deletedIds)) {
+	  	  			document.fireEvent('toastNotification', {'message': '<?php echo _t("The selected jobs were successfully deleted") ?>'});
+	  	  		} else {
+	  	  	  		var failedJobs = jobsToDelete.filter(function(item){
+	  	  	  	  		/// find arrays' diff: return true if the id is *missing*
+	  	  	  	  		return (! this.some(function (item) {
+	  		  	  	  	  	return item == this;
+	  		  	  	  	}, item));
+	  	  	  	  	}, deletedIds);
+	  	  			document.fireEvent('toastAlert', {'message': '<?php echo _t("Some jobs could not be deleted ") ?>(' + failedJobs.join(',') + ')'});
+	  	  		}
+	  	  	}});
+	
+	  		request.post();
+		}
+	});
+
+	$('jobs_grid_filtered_delete').addEvent('click', function(event) {
+
+		var job = pager.totalItems > 1 ? 'jobs (' + pager.totalItems + ')': 'job';
+
+		if (! confirm(_t("Are you sure you would like to delete the currently filtered " + job + "?"))) {
+			return;
+		}
+		
+		$('jobs_grid_filtered_delete').spin();
+			
+		var params = {	'filter' : filterWidget.selectedFilters, 'filterId': filterWidget.currentFilter()};
+     	
+  	  	var url = '<?php echo $this->basePath() . '/Api/jobqueueDeleteJobsByPredefinedFilter'; ?>';
+		var request = new Request.WebAPI({
+			method: 'post',
+			url:url, 
+			data:params,
+			onFailure: function(response) {
+		  		var responseData = this.decodeResponse(response);
+		  		document.fireEvent('toastAlert', {'message': _t("Operation failed: {errorMessage}", responseData.errorData)});
+	  		},
+			onSuccess: function(response) {
+				document.fireEvent('toastNotification', {'message': '<?php echo _t("The selected jobs were successfully deleted") ?>'});
+				zgrid2.loadData();
+			},
+			onComplete: function(response) {
+				$('jobs_grid_filtered_delete').unspin();
+			}
+		}).send();
+
+	}.bind(this));
+	
+    pager.addEvent('pageSelect',function(params) {
+        pager.setPage(params.page);
+		zgrid2.reloadData(params);
+	});
+
+    zgrid2.addEvent('descriptionOpen',function(params) {
+    	jobInfo.loadData(params);
+    });
+
+
+    //var timeNowTimestamp = (Date.now() - (serverTimezoneOffset * 3600000)) / 1000; 
+	var nd = removeTimezoneOffset(new Date((<?php echo time(); ?> + 3600 * serverTimezoneOffset) * 1000));
+	var timeNowTimestamp = nd.getTime() / 1000; // convert to senconds
+	
+	zgrid2.addEvent('rowUpdated', function(params) {
+    	if (params.data.scheduleTimeTimestamp < timeNowTimestamp && (params.data.status == 1 || params.data.status == 9)) { // the job is late, needs to be signed; status 1 - waiting and 9 scheduled
+    		$("tableRow_" + params.id).getElements('.zgrid_td-startTimeTimestamp').getElements('div')[0].setStyle('font-weight','bold');
+    	}
+	});
+});
+
+function checkItemes() {
+	if (pager.totalItems > 0 && isAllowedDeleteFilteredAction) {
+		$('jobs_grid_filtered_delete').set('disabled', false);
+	} else {
+		$('jobs_grid_filtered_delete').set('disabled', true);
+	}
+}
+
+function delayer() {
+	document.fireEvent('toastNotification', {'message': '{_t("Server joining the cluster...") ?>'});
+	// redirection to the servers list page
+	window.location = '<?php echo $this->url('default', array('controller' => 'Servers', 'action' => 'index')) ?>';
+}
+
+window.addEvent("load", function(){ 
+
+	filterWidget = <?php echo $this->filter('filter_details', $internalFilters, $externalFilters, $existingFilters, 'job', array(), 'All Jobs'); ?>
+	
+	filterWidget.addEvent('saveFilter', function(data) {
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was saved", {'filterName': data.filterName})});
+    });
+
+	filterWidget.addEvent('saveFilterFailed', function(data) {
+    	document.fireEvent('toastAlert', {'message': _t("Could not save filter: {errorMessage}", data.errorData)});
+    });
+
+	filterWidget.addEvent('deleteFilter', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was deleted", {'filterName': event.filterName})});
+	});
+	
+	filterWidget.addEvent('deleteFilterFailed', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was not deleted: {errorMessage}", {'filterName': event.filterName, 'errorMessage': event.errorData.errorMessage})});
+	});
+
+	filterWidget.addEvent('loadItemDetails', function(event) {
+
+		// in case of search integer in the jobs list we assume that user can see the specific job id  
+		var params = {};
+     	params.filter = filterWidget.selectedFilters;
+     	params.jobId = event.query;
+     
+    	var url = '<?php echo $this->basePath() . '/Api/jobqueueJobsList'; ?>';
+		var request = new Request.WebAPI({
+			method: 'get',
+			url:url, 
+			data:params, 
+			onSuccess: function(response) {
+				zgrid2.setData(response.responseData.jobs, response.responseData.total);
+				pager.reloadData(1, response.responseData.total);
+				checkItemes();
+				if(response.responseData.total == 1) {
+					zgrid2.fireEvent('descriptionOpen', zgrid2.getDescriptionParams(event.query));
+				}
+			}.bind(this),
+			onFailure: function(response) {
+				var response = JSON.decode(response.responseText);
+				document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+				zgrid2.postLoad();
+				zgrid2.setData([], 0);
+				pager.reloadData(1, 0);
+			}.bind(this)
+		}).send();
+	})
+	
+    <?php $params = array(
+            'timerpicker'    => 'true',
+            'xoffset'        => '5',
+            'yoffset'        => '0',
+    		'format'		=> '%d/%b/%Y %H:%M',
+	);?>
+
+	var datePicker = <?php echo $this->datePicker('.datePicker', $params); ?>  
+	datePicker.addEvent('select', function(){
+		filterWidget.selectedFilters.from = new Date(this.inputs[0].value).getTime()/1000;
+		filterWidget.selectedFilters.to = new Date(this.inputs[1].value).getTime()/1000;
+	});
+	filterWidget.addEvent('runFiltering',function(selectedFilters) {
+    	zgrid2.loadData();
+   	}.bind(this));
+
+	// add filtering for the fragment
+	filterWidget.fireEvent('runFiltering');
+
+	<?php if ($jqLoaded) : ?>
+	new Request.WebAPI({
+		url: baseUrl() + '/Api/jobqueueStatistics',
+		onSuccess: function(response){
+			var statistics = response.responseData.jobqueueStatistics;
+			$('stats-get_waiting').set('text', statistics.waiting);
+			$('stats-get_waiting_predecessor').set('text', statistics.waitingPredecessor);
+			$('stats-get_added').set('text', statistics.added);
+			$('stats-get_scheduled').set('text', statistics.scheduled);
+			$('stats-get_avg_wait').set('text', statistics.avgWait);
+			$('stats-get_avg_run').set('text', statistics.avgRun);
+			$('stats-get_in_progress').set('text', statistics.inProgress);
+			$('stats-get_failed').set('text', statistics.failed);
+			$('stats-get_logically_failed').set('text', statistics.logicallyFailed);
+			$('stats-get_served').set('text', statistics.served);
+			$('stats-get_completed').set('text', statistics.completed);
+			$('stats-get_startup_time').set('text', formatDate(dateFromISO8601(statistics.startupTime)));
+		},
+		onFailure: function(response){
+		}
+	}).get();
+	<?php endif; ?>
+});
+
+</script>
+
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Job Queue is a job management system that provides offline
+				asynchronous processing of tasks and activities that can be run independently of
+				the end user experience. Using the Job Queue API you can delay the execution of "heavy" parts
+				of your Web application that originate from direct user interaction with a Web server,
+				helping you to significantly improve response time and reduce Web server load<br/>
+				%sread more%s', array("<a href=\"{$this->helplink('jobs_component')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/8-zend-server-performance-features-embed?ecat=breadcrumbs&amp;eaction=8 Zend Server Performance Features">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/performance-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'JobQueue')) ?>"><?php echo _t("JobQueue"); ?></a></li>
+		</ul>   
+	</div>
+</div>
+<?php if ($jqLoaded) : ?>
+<div id="jobqueue-general-details" class="general-details-top">
+	<h2><?php echo _t('Statistics and Activity'); ?></h2>
+	<ul>
+		<li>
+			<table><tbody>
+				<tr><td><?php echo _t('Jobs waiting for execution'); ?></td><td id="stats-get_waiting"></td></tr>
+				<tr><td><?php echo _t('Jobs waiting for predecessor'); ?></td><td id="stats-get_waiting_predecessor"></td></tr>
+				<tr><td><?php echo _t('Jobs set to run once'); ?></td><td id="stats-get_added"></td></tr>
+				<tr><td><?php echo _t('Jobs scheduled for execution'); ?></td><td id="stats-get_scheduled"></td></tr>
+			</tbody></table>
+		</li>
+		<li>
+			<table><tbody>
+				<tr><td><?php echo _t('Job Queue startup time'); ?></td>
+					<td id="stats-get_startup_time"></td></tr>
+				<tr><td><?php echo _t('Average job wait time'); ?></td><td id="stats-get_avg_wait"></td></tr>
+				<tr><td><?php echo _t('Average job execution'); ?></td><td id="stats-get_avg_run"></td></tr>
+				<tr><td><?php echo _t('Jobs currently executing'); ?></td><td id="stats-get_in_progress"></td></tr>
+			</tbody></table>
+		</li>
+		<li>
+			<table><tbody>
+				<tr><td><?php echo _t('Jobs that failed execution'); ?></td><td id="stats-get_failed"></td></tr>
+				<tr><td><?php echo _t('Jobs that reported an error'); ?></td><td id="stats-get_logically_failed"></td></tr>
+				<tr><td><?php echo _t('Completed jobs'); ?></td><td id="stats-get_completed"></td></tr>
+				<tr><td><?php echo _t('Total jobs served'); ?></td><td id="stats-get_served"></td></tr>
+			</tbody></table>
+		</li>
+	</ul>
+</div>
+<?php endif; ?>
+<div id="filter_details"></div>
+<div id="jobs-grid-actions-bar" class="grid-action-bar">
+<button id="jobs_grid_delete" disabled="disabled" title="<?php echo _t('Delete selected job'); ?>"><?php echo _t('Delete Selected'); ?></button>
+<button id="jobs_grid_filtered_delete" title="<?php echo _t("Delete all currently filtered jobs");  ?> " disabled="disabled"><?php echo _t('Delete Filtered'); ?></button>
+<button id="jobs_grid_requeue" disabled="disabled" title="<?php echo _t('Requeue job'); ?>"><?php echo _t('Requeue'); ?></button>
+<span id="jobqueue-service-warning" class="hidden glyphicons circle_exclamation_mark"><i></i><?php echo _t('Job Queue service is currently disabled, and some actions may not be available')  ?></span>
+</div>
+
+<div id="mytable">
+</div>
+
+<div id="grid-count-bar"></div>
+
+<div id="mypager">
+</div>

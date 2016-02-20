@@ -1,0 +1,34 @@
+.tableWithDesc {
+	width: 900px;
+}
+
+.library_remove-message {
+    font-weight:bold;
+
+}
+
+.library_remove-alert {
+    font-weight:bold;
+}
+
+.library_remove {
+    width: 300px;
+}
+
+#check-updates-btn {
+	margin: 5px;
+}
+
+.tableDescContent.float-left {
+	width: 450px !important;
+}
+
+
+.tableDescContent-Aligned td:first-child {
+	text-align: left;
+	width:100px;
+}
+
+input#isDefault {
+	vertical-align: -2px;
+}

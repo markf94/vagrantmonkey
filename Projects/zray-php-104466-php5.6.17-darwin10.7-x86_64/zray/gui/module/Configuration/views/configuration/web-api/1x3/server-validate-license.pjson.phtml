@@ -1,0 +1,12 @@
+<?php 
+	$currentLicense = $this->licenseChangeJson($licenseChangeContainer, true);
+	$newLicense = $this->licenseChangeJson($licenseChangeContainer, false);
+?>
+
+"responseData":{
+"licenseValidated": <?php echo $this->json($licenseValidated) ?>,
+"licenseChange": {
+"currentLicense": <?php echo $currentLicense ?>,
+"newLicense": <?php echo $newLicense ?>
+}
+}

@@ -1,0 +1,114 @@
+<?php
+$form = $form ?: new \Zend\Form\Form();
+$this->headLink()->appendStylesheet($this->basePath().'/css/login.css');
+?>
+
+<script type="text/javascript">
+window.addEvent('resize', function(){
+	$('main-container').setStyle('margin-top', ((window.getSize().y - parseInt($('main-container').getStyle('height')) - 120) / 2));
+});
+
+window.addEvent('domready', function() {
+	if ($$('input[name="username-field"]').length > 0) {
+		$$('input[name="username-field"]')[0].setFocus();
+	} else {
+		$$('input[name="password"]')[0].setFocus();
+		$$('select[name="username-field"]').addEvent('change',function(event) {
+			$$('input[name="password"]').set('value', ' ');	
+			$$('input[name="password"]').set('value', '');
+		});
+	}
+	if(Cookie.read('lastUser')){
+		$$('select[name="username-field"] option[value="'+Cookie.read('lastUser')+'"]').pick().selected = true;
+		$$('input[name="username"]').set('value', $$('select[name="username-field"]').pick().get('value'));
+	}
+
+
+	$('login').addEvent('submit', function (e) {
+		if ($$('select[name="username-field"]').length > 0) {
+			$$('input[name="username"]').set('value', $$('select[name="username-field"]').pick().get('value'));
+			Cookie.write('lastUser',$$('select[name="username-field"]').pick().get('value'));
+		} else if ($$('input[name="username-field"]').length > 0) {
+			$$('input[name="username"]').set('value', $$('input[name="username-field"]').pick().get('value'));
+		}
+	});
+
+	window.fireEvent('resize');
+});
+</script>
+
+
+<div id="login-form-container">
+	<div id="login-top" style="position: relative;">
+		<div id="frame-top"><?php echo $this->EditionImage('logo.png', $licenseType, true, $licenseEvaluation, ($osType == \ZendServer\Configuration\Manager::OS_TYPE_IBMI))?></div>
+	</div>
+	<div id="login-content">
+		<h1>Login to your account</h1>
+		<?php 
+		// invalid username/passwd msg replaces other messages
+		if (isset($error)) {
+			echo '<div id="error" style="top: 52px;">' .  $error . '</div>';
+		} else {
+            if ($licenseType == Configuration\License\License::EDITION_FREE){
+                echo '<div class="notice" style="width: auto;">' . _t("You are currently using the Zend Server %s edition. For additional features, and to upgrade to other editions. ", array($this->FreeEditionString()));
+                $contactZendText='Contact Zend';
+            }
+			if (! $licenseNeverExpires) {
+				if ($licenseIsOk) {
+					if ($daysToExpired === 0) {
+						echo '<div class="notice" style="top: 52px;">' . _t("Your license expires today") . '</div>';
+					}
+					elseif ($daysToExpired !== false) {
+						echo '<div class="notice" style="top: 52px;">' . _t("Your license will expire in %s day(s)", array($daysToExpired)) . '</div>';
+					}
+				} else {
+					echo '<div class="notice" style="top: 52px;">' . _t("Your license has expired") . '</div>';
+				}
+                $contactZendText='Contact us to get a license';
+			}
+            if(!empty($contactZendText)){
+                echo '<div><a href="' . $this->contactZend('server-6-upgrade-login') . '" target="_blank">'._t($contactZendText).'</a></div>';
+            }
+
+
+		}
+		?>
+		
+		<?php
+		$form->prepare();
+		$form->setAttribute('action', $this->url('default', array('controller' => 'Login')));
+		$form->setAttribute('method', 'post');
+		?>
+		<?php echo $this->form()->openTag($form); ?>
+			<dl class="zend_form">
+				<?php if ($form->get('username-field')->getAttribute('type') == 'text') : ?>
+				<dd class="login-field glyphicons user"><i></i> <?php echo $this->formInput($form->get('username-field')); ?></dd>
+				<?php else : ?>
+				<dd class="login-field glyphicons user"><i></i> <?php echo $this->formSelect($form->get('username-field')); ?></dd>
+				<?php endif; ?>
+				<input type="text" name="username" style="display: none;">
+				<dd class="login-field glyphicons lock"><i></i> <?php echo $this->formInput($form->get('password')); ?></dd>
+				<dd><?php echo $this->formInput($form->get('redirectTo')); ?></dd>
+				<dd style="margin: 0;"><?php echo $this->formInput($form->get('submit')); ?>
+					<a class="helpLink" href="<?php echo $this->helplink('resetting_user_passwords') ?>" target="_blank"><?php echo _t('Problems logging in?') ?></a></dd>
+			</dl>
+		<?php echo $this->form()->closeTag(); ?>
+	</div>
+</div>
+<div class="login-meta">
+	<div class="login-copyright">
+		<img src="/ZendServer/images/zend-logo-footer.png" alt="Zend" style="float: left; margin-right: 5px;" />
+		&copy; <?php echo _t('Copyright 1998-%s Zend Technologies Ltd. All rights reserved.', array(date('Y'))); ?>	
+	</div>
+</div>
+<ul class="system_details">
+	<?php if ($authenticationSource != 'simple'): ?>
+		<li><?php echo _t('Extended authentication enabled') ?></li>
+	<?php endif ?>
+	<li><?php echo _t('Zend Server Version: ') . $version; ?></li>
+	<li><?php echo _t('Build: ') . $build; ?></li>
+	<li><?php echo $profile ? _t('Profile: ') . ucfirst($profile) : ''; ?></li>
+	<?php if (! $licenseNeverExpires) : ?>
+	<li><?php echo _t('License Expiry Date: ') . $licenseExpiryDate; ?></li>
+	<?php endif; ?>
+</ul>

@@ -1,0 +1,233 @@
+<!doctype html>
+<html>
+<head>
+	<title>Zend Server Z-Ray</title>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" >
+</head>
+<body>
+
+<div id="zend-dev-bar" style="display: none;">
+	<div id="zdb-toolbar-group-serverinfo"
+		class="zdb-toolbar-group zdb-toolbar-group-serverinfo">
+		<div
+			class="zdb-toolbar-entry zdb-server-info zdb-align-right zdb-toolbar-button"
+			style="margin-right: 50px;">
+			<div class="zdb-toolbar-preview" title="Zend Server">
+				<a href="<?php echo $url; ?>" target="_blank"><img alt="Zend Server"
+					src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAYCAYAAAAxkDmIAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyBpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMC1jMDYwIDYxLjEzNDc3NywgMjAxMC8wMi8xMi0xNzozMjowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNSBXaW5kb3dzIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjEwOTNFODU3Q0VCQTExRTNBRDIzRUU4QzFBMDNDM0VFIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjEwOTNFODU4Q0VCQTExRTNBRDIzRUU4QzFBMDNDM0VFIj4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6MTA5M0U4NTVDRUJBMTFFM0FEMjNFRThDMUEwM0MzRUUiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6MTA5M0U4NTZDRUJBMTFFM0FEMjNFRThDMUEwM0MzRUUiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz6T81H7AAAEo0lEQVR42uxavXLaQBDGHvooM+lDnsB6A0OdwlCmAspUhrwA8ALBVCklqpTIRWrLT2C9geU+MyZPQHZnvvVsNnegww6ZEO3MjUDavTvtz7e7ByebzaZR0/HSaa2C46aT/+2F33/4GNMlolF8+/plfYD12nyltfI6gg9Dcxo3NOIDrXeDUUN0KL35tIxp3NdAfLwRzNHYqs1YQ3Rt4JqOk5qUw1aoKnfR+vvnfg+5j2FxQqOrZLkizWjMiK/UeRJQ6qJbGsybkczak2d5/gGNc8c+Y0/lKjIXev80rn3vimq3byC/oLGgCrgEzxT3M7pXeOYRnlTkVPXeN3v+ZX7Fy3s/c7zfrWPeAd6tUHoSWjbx0kkFA/eUwW6UomSxFhboEs+YDJbiPvO1PXPK/TnJDEkmM8YdwDmiqh4L4+oquYQC2nBIl0yCvYsjlJBnmQE978Cgb8HH16HHSSaY48o8vlPzF5ibx4jkhjR/qni1PXLotgX+S7WfhnKayMjwvdsmG4IUWTremwVW+MxRmSFyxbg8yVCiFc/mUGJC3wt6VhhvHTsMLFGzIpmeGBnGTdSGrzGHbUFchVcM3p4jilY6ShEBEgU96VfhKHM842uHow3f2ehjRx/dV9Frnw0R+Wu19ghzJ/Q5V3tl3tzsPYI+WL+XxsEiONTMrssR3CCl5g5oFI/L6bnAzgSTZQLXQjB0j+QSoxQN8XYd/j41MhlgWWA9JbmhB7590NywxsVhQ0E8pYFhgfGxPoyAoobEzwpt89yQzxUapJ61F3avJkLl3hXJnQnySdR7eNfEuwCfq3O4dh3cND2KkyhYCzSD5AXGW1ByjE20EdU7iQ1IvKy0llzhSKXPuB56gmVr3C3UVs7mIoHTGDxLgUptYAX/ecDaklcld145HDbeVXNsLbIcxuWNjiQKpPiB4oXubfR4KKRHzZUDidyysR+FKFhyF8Puznfg6CI+RrKYIV/lwktf9Fbca2TSxuQlevymMW5L5b2ZC7r/ID385Y5iEsC7BD/n3AK5PQZyZM/ZhMrLUqhdK0doNQKPPZumHVmpHDv1eBrn0tcBx4ntPd5TcsnZoaxLhgn54SWFgQdISf09o9dFl6omSI3xgyP61FF9lq4WAEUUw1FERhttMSi3SRsaj894SYmCbqCDlCavVqECyusGOEMJI0emCk/3eNcLvQ+BZVehtfdJFlqSgc27DpqpvnXkyd+J4Q0mOJMUHNw+jYAwVRRfKqirmvt15ITAdEP16Vnoz4+m8tZQ7HO4KFSXTcdJ052jgOKNv0MvnEpLQ5/7amMXqsrj1ubqOZ5H8mN1ijXHelVEx0g1c7QgDyZaYofTDtAK3TsKu3M4T8c4U078hZpvscOYj0Am2c8rrBuh8s5NfufemNf+odJVd58ITip4xtOhB9qWIYweYzMT1VbNAlubre0T1ioC4DNDa1dCgRM1fmvxEHUddWI0MSNGK+OihWqNih05OzP7GUGvqW5FaZ6pQr+R4u+qeSrTs/7RgfzYVgcih6y6q0CgPsLb2Rs7+s6tMoq/ct8t//AQFHgpXq+B6z/dHTfVPxfWBq7pX6afAgwAFp4ziahpTLMAAAAASUVORK5CYII=" /></a><span
+					class="zdb-toolbar-info">&nbsp;</span>
+			</div>
+			<div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+		</div>
+		<div class="zdb-toolbar-entry zdb-toolbar-button"
+			id="zdb-loading-entry" style="margin-left: 20px;">
+			<div class="zdb-toolbar-preview" style="opacity: 1;">
+				<span class="zdb-toolbar-info" id="zdb-loading-message">Loading Z-Ray...</span>
+			</div>
+		</div>
+		<a class="zdf-toolbar-hide-button" title="Close Toolbar"
+			onclick="this.parentNode.parentNode.style.display = 'none';"></a>
+	</div>
+</div>
+<div id="zend-dev-bar-padding"></div>
+
+<script>
+//Safari bug fix
+setTimeout(function() {
+    document.body.style.background = "transparent";
+}, 1000);
+</script>
+<style type="text/css" media="all">
+body {
+	overflow: hidden;
+}
+
+#zend-dev-bar a,#zend-dev-bar body,#zend-dev-bar div,#zend-dev-bar html,#zend-dev-bar span
+	{
+	margin: 0;
+	padding: 0;
+	font: inherit;
+	vertical-align: baseline
+}
+
+#zend-dev-bar, #custom-panels {
+	left: 0;
+	bottom: 0;
+	width: 100%;
+	height: 31px;
+	color: #000;
+	z-index: 2147483600;
+	position: fixed;
+	border-top: 1px solid #666;
+	visibility: visible;
+	background: #fff;
+	background: -moz-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #fff),
+		color-stop(1%, #f8f8f8), color-stop(100%, #d9d9d9));
+	background: -webkit-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: -o-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: -ms-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: linear-gradient(to bottom, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#d9d9d9', GradientType=0)";
+	-webkit-box-shadow: rgba(0, 0, 0, .35) 0 0 9px;
+	box-shadow: rgba(0, 0, 0, .35) 0 0 9px;
+	font: 400 12px/31px 'Open Sans', sans-serif;
+	direction: ltr
+}
+
+#custom-panels {
+	bottom: 32px;
+}
+
+#zend-dev-bar.zdb-collapsed {
+	visibility: hidden
+}
+
+#zend-dev-bar div.zdb-collapsed-group.zdb-toolbar-group-serverinfo {
+	width: 230px;
+	float: right;
+	-moz-border-radius: 6px 0 0;
+	-webkit-border-radius: 6px 0 0;
+	-khtml-border-radius: 6px 0 0;
+	border-radius: 6px 0 0
+}
+
+#zend-dev-bar div.zdb-collapsed-group {
+	background: #fff;
+	background: -moz-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #fff),
+		color-stop(1%, #f8f8f8), color-stop(100%, #d9d9d9));
+	background: -webkit-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: -o-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: -ms-linear-gradient(top, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	background: linear-gradient(to bottom, #fff 0, #f8f8f8 1%, #d9d9d9 100%);
+	filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#d9d9d9', GradientType=0)";
+	-webkit-box-shadow: rgba(0, 0, 0, .35) 0 0 9px;
+	box-shadow: rgba(0, 0, 0, .35) 0 0 9px;
+	border-top: 1px solid #666;
+	border-left: 1px solid #666;
+	visibility: visible;
+	height: 32px
+}
+
+#zend-dev-bar a {
+	color: #006f9d;
+	text-decoration: none
+}
+
+#zend-dev-bar a:hover {
+	text-decoration: underline
+}
+
+#zend-dev-bar .zdb-toolbar-entry {
+	float: left;
+	display: block;
+	background: 0 0
+}
+
+#zend-dev-bar .zdb-toolbar-detail .zdb-toolbar-info {
+	clear: both;
+	display: block;
+	white-space: normal
+}
+
+#zend-dev-bar .zdb-toolbar-entry .zdb-toolbar-detail,#zend-dev-bar .zdb-toolbar-entry .zdb-toolbar-info
+	{
+	font-size: 11px
+}
+
+#zend-dev-bar .zdb-toolbar-detail-redundant {
+	display: none;
+	opacity: 0
+}
+
+#zend-dev-bar .zdb-toolbar-detail {
+	bottom: 40px;
+	display: none;
+	line-height: 20px;
+	padding: 7px 10px;
+	position: absolute;
+	float: left;
+}
+
+#zend-dev-bar .zdb-align-right {
+	float: right
+}
+
+#zend-dev-bar .zdb-toolbar-info {
+	vertical-align: middle
+}
+
+#zend-dev-bar .zdb-toolbar-preview img {
+	border: 0;
+	width: auto;
+	display: inline;
+	margin-right: 5px;
+	vertical-align: middle
+}
+
+#zend-dev-bar .zdf-toolbar-hide-button {
+	top: 5px;
+	right: 14px;
+	color: #bebebe;
+	display: block;
+	cursor: pointer;
+	position: absolute;
+	text-decoration: none;
+	background-image:
+		url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAwCAMAAAA8VkqRAAAAh1BMVEUAAAD///////////////////////////8UFBQeHh4UYov///8ea5P///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8UcaEUFBRuD4SgAAAAK3RSTlMAk1l8VS+8LM/Y9hf5DAZYToSSGTVfMG4ne08dKS5IDoatu1Q3G0sEChQIN29UTwAAAHpJREFUeF7t0TUOA0EMQNENDsIyMwfuf740Hq3rNNFIeaV/Ycn2XETfCD2CYDgwoW2IYt+cgfHjSDu6Iy+z4gKKrMx3G7qqbm6gqatu++Kqf/yF8CMQiYMkyoY0CcITCIMkVY7uaPthvINx6NuHDcu8TlcwrfPy9H7sAwwtIdgF0+00AAAAAElFTkSuQmCC);
+	height: 24px;
+	width: 24px
+}
+
+#zend-dev-bar .zdf-toolbar-hide-button:hover {
+	color: #eb4a4a;
+	text-decoration: none
+}
+
+#zend-dev-bar-padding {
+	height: 33px;
+	width: 100%;
+	display: block;
+}
+</style>
+
+<?php if ($inputFilterFailed): ?>
+<script type="text/javascript">
+	document.getElementById('zdb-loading-message').innerHTML = 'Input validation failed <a href="http://www.zend.com/server/redirect/helplink/troubleshooting" target="_blank">See why...</a>'; 
+	if (document.getElementById('zend-dev-bar') != null && document.cookie.indexOf("ZSDEVBARDISABLED") < 0) {
+		document.getElementById('zend-dev-bar').style.display = 'block'
+	}
+</script>
+</body>
+</html>
+<?php 	return ; /// abort view script so as not to display input parameters at all ?>
+<?php endif ?>
+
+<script type='text/javascript' src='<?php echo $url; ?>/js/devbar/easyXDM.min.js?hash=<?php echo $build; ?>'></script>
+<script type='text/javascript' src='<?php echo $url; ?>/js/devbar/external.libs.min.js?hash=<?php echo $build; ?>'></script>
+<script type='text/javascript' src='<?php echo $url; ?>/js/devbar/components.min.js?hash=<?php echo $build; ?>'></script>
+<script type="text/javascript">
+if (typeof $zendDevBar == 'undefined') {
+	document.getElementById('zdb-loading-message').innerHTML = 'Failed to communicate with Zend Server. <a href="http://www.zend.com/server/redirect/helplink/troubleshooting" target="_blank">See why...</a>';
+	if (document.getElementById('zend-dev-bar') != null && document.cookie.indexOf("ZSDEVBARDISABLED") < 0) {
+		document.getElementById('zend-dev-bar').style.display = 'block'
+	}
+}
+var ref = '<?php echo isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : ''; ?>';
+</script>
+<link href="<?php echo $url; ?>/css/devbar.css?hash=<?php echo $build; ?>" media="screen" rel="stylesheet" type="text/css">
+<?php if (isAzureEnv()) : ?>
+<link href="<?php echo $url; ?>/css/devbar-azure.css?hash=<?php echo $build; ?>" media="screen" rel="stylesheet" type="text/css">
+<?php endif; ?>
+<?php if (isZrayStandaloneEnv()) : ?>
+<link href="<?php echo $url; ?>/css/devbar-zray-standalone.css?hash=<?php echo $build; ?>" media="screen" rel="stylesheet" type="text/css">
+<?php endif; ?>
+<script>ZDB_BASEURL=<?php echo json_encode($url); ?>;</script>
+<?php 
+$scriptUrl = "{$url}/Z-Ray?pageId={$pageId}&requestsSeparated={$requestsSeparated}&embedded={$embedded}&historyEmbedded={$historyEmbedded}&ZRayDisable=1&disable_debug=1&token={$token}&iframe={$inIframe}&url=".urlencode($url)."&host=".urlencode($host);
+?>
+<script type='text/javascript'>(function(){var s = document.createElement('script');s.src='<?php echo $scriptUrl; ?>';document.body.appendChild(s);})();</script>
+
+</body>
+</html>

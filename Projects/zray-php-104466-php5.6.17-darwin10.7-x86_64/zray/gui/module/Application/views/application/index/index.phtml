@@ -1,0 +1,800 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/zmenu.css")?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/dashboard.css")?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/js/ammap/ammap.css")?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/ammap/ammap.js' );?>        
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/ammap/maps/js/worldHigh.js' );?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/FragmentManager.js' );?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/Fx.Scroll.Carousel.js' );?>
+<?php $marketingLink = $this->contactZend('server-6-upgrade-dashboard'); ?>
+<script type="text/javascript">
+	<?php
+	$appIds = array();
+	foreach ($applications as $app) { /* @var $app \Deployment\Application\Container */
+		$appIds[] = $app->getApplicationId();
+	}
+	?>
+
+	// auto detect IDE settings
+	var autoDetectIdeSettings = <?php echo $ideConfig->getAutoDetect() ? 'true' : 'false'; ?>;
+	
+	<?php
+	if (!$ideConfig->getAutoDetect()) {
+	    echo $this->ZendStudioSettingsJsString($ideConfig);
+	}
+	?>
+	var applicationsIds = <?php echo json_encode($appIds); ?>;
+	var mapContainer;
+	
+	function handle(delta) {
+	    if (delta < 0)
+	    	mapContainer.zoomOut();
+	    else
+	    	mapContainer.zoomIn();
+	}
+	
+	function wheel(event){
+	    var delta = 0;
+	    if (!event) event = window.event;
+	    if (event.wheelDelta) {
+	        delta = event.wheelDelta/120;
+	        if (window.opera) delta = -delta;
+	    } else if (event.detail) {
+	        delta = -event.detail/3;
+	    }
+	    if (delta)
+	        handle(delta);
+	        if (event.preventDefault)
+	                event.preventDefault();
+	        event.returnValue = false;
+	}
+
+	function loadMapChart(graphId, data) {
+		var map = new AmCharts.AmMap();
+	    map.pathToImages = "<?php echo $this->basePath(); ?>/js/ammap/images/";
+	    map.panEventsEnabled = true; // this line enables pinch-zooming and dragging on touch devices
+	    				
+	    map.areasSettings = {
+	        autoZoom: true,
+			balloonText: "[[title]] - [[value]]",
+			selectedColor: "#89a54e"
+	    };
+	    //map.zoomControl.zoomControlEnabled = false;
+	    map.zoomControl.panControlEnabled = false;
+
+	    var valueLegend = new AmCharts.ValueLegend();
+	    valueLegend.right = 10;
+	    valueLegend.minValue = "low";
+	    valueLegend.maxValue = "high";
+	    map.valueLegend = valueLegend;
+		
+    	map.colorSteps = 10;
+    	map.balloon.color = "#000000";
+    	//map.balloon.fillColor = "#CC0000";
+
+	    var dataProvider = {
+	        mapVar: AmCharts.maps.worldHigh,
+	        areas: data
+	    };
+
+	    map.dataProvider = dataProvider;
+	    map.write(graphId);
+
+	    $(graphId).map = map;
+
+	    $(graphId).addEvent('mouseenter', function(event) {
+	    	mapContainer = $(graphId).map;
+    		if (window.addEventListener)
+	    	    window.addEventListener('DOMMouseScroll', wheel, false);
+	    	window.onmousewheel = document.onmousewheel = wheel;
+    	});
+
+	    $(graphId).addEvent('mouseleave', function(event) {
+    		window.onmousewheel = document.onmousewheel = null;
+    	});
+	}
+
+	// end world map
+
+	var currentPage = 1;
+	var horizontal;
+
+	function changeGraphPage(element) {
+		$$('#graph-tabs-container li').removeClass('active');
+		element.addClass('active');
+
+		var pageId = element.get('id').replace('dashboard-stats-p', '');
+		currentPage = pageId.toInt();
+		zendCharts.setGraphsContainer('#graph-page-' + currentPage);
+
+		horizontal.toId(currentPage - 1);
+
+		var graphContainers = $$('#graph-page-' + currentPage + ' .main-apps-graph');
+		
+		if (element.hasClass('loaded')) {
+			// load new graphs
+			graphContainers.each(function(graphContainer){
+				if (graphContainer.graph) {
+					zendCharts.syncGraphZoom(graphContainer.graph, false);
+				}
+			});
+			return;
+		}
+
+		element.addClass('loaded');
+		
+
+		// cancel old requests
+		zendCharts.getCurrRequests().each(function(item) {
+			if (item.isRunning()) {
+				item.cancel();
+			}
+		});
+		zendCharts.setCurrRequests([]);
+		
+		// load new graphs
+		graphContainers.each(function(graphContainer){
+			if (graphContainer.graph) {
+				zendCharts.loadGraphData(graphContainer.graph);
+			}
+		});
+
+		var mapContainers = $$('#graph-page-' + currentPage + ' .map-chart');
+		mapContainers.each(function(mapContainers){
+			zendCharts.loadMapData(mapContainers);
+		});
+	}
+
+var fragmentManager = new FragmentManager({'cookieName': 'ZS6Fragments', 'context': 'ZS6DC'});
+
+	window.addEvent("domready", function(){
+		
+		persistantHeaders.addHeader('mytable_tableHead');
+
+		var fragmentAppId = fragmentManager.getFragmentValue('AppId');
+		if (fragmentAppId != null && ! applicationsIds.contains(fragmentAppId)) {
+			fragmentManager.removeUriFragment('AppId');
+		}
+
+		// set the chart width when page is resized
+		window.addEvent('resize', function(){
+			//$('main-apps-wrapper').setStyle('width', $('main-container').getSize().x);
+			var containerPadding = $('main-container').getStyle('padding-left').toInt();
+			$('main-apps-stats-wrapper').setStyle('width', $('main-container').getSize().x - (containerPadding * 2) - $('main-apps-list-wrapper').getSize().x - ($('next-graph').getSize().x * 2) + 50);
+			
+			var graphSize = $('main-apps-status-content').getSize().x - ($('next-graph').getSize().x * 2);
+			$('main-apps-graphs').setStyle('width', graphSize + 'px');
+			$$('.graph-page').setStyle('width', graphSize + 'px');
+
+			var graphsCount = $$('.graph-page').length;
+			$$('#main-apps-graphs .inner').setStyle('width', (graphSize * graphsCount) + 'px');
+			//$('graph-tabs-container').setStyle('width', graphSize + 'px');
+
+			$$('.main-apps-graph').setStyle('width', Math.floor(graphSize / 3));
+			$$('.main-apps-graph#graph4').setStyle('width', Math.floor(graphSize / 2)); // change specific chart to double size
+			$$('.main-apps-graph#graph5').setStyle('width', Math.floor(graphSize / 2)); // change specific chart to double size
+
+			$$('.main-apps-graph#graph13').setStyle('width', Math.floor(graphSize / 3) * 2); // change specific chart to double size
+			$$('.main-apps-graph#graph14').setStyle('width', Math.floor(graphSize / 2)); // change specific chart to double size
+			$$('.main-apps-graph#graph15').setStyle('width', Math.floor(graphSize / 2)); // change specific chart to double size
+		});
+
+		document.addEvent('reloadGraphs', function(event) {
+			$$('.diagonal-tab').removeClass('loaded');
+			zendCharts.reloadGraphs();			
+		});
+
+		document.addEvent('statisticsServerChanged', function(event) {
+			zendCharts.setCurrServer(event.server);
+			fragmentManager.setUriFragment('Server', event.server);
+			document.fireEvent('reloadGraphs', {});
+		});
+		
+		document.addEvent('timerangeChanged', function(event) {
+			zendCharts.setInZoomMode(false);
+			zendCharts.setCurrTimeRange(event.timeRange);
+			fragmentManager.setUriFragment('Timerange', event.timeRange);
+			document.fireEvent('reloadGraphs', {'timeRange': true});
+		});
+
+		document.addEvent('applicationSelected', function(event){
+			appId = event.appId;
+			zendCharts.setCurrAppId(appId);
+			
+			$$('#main-apps-list li').removeClass('active');
+			 
+			$('app_' + appId).addClass('active');
+			$('app_' + appId).adopt($("main-apps-list-active-arrow"));
+			var fragmentAppId = fragmentManager.getFragmentObject().AppId;
+			if (zendCharts.getCurrAppId() != 0) {
+				fragmentManager.setUriFragment('AppId', zendCharts.getCurrAppId());
+			} else {
+				fragmentManager.removeUriFragment('AppId');
+			}
+
+			document.fireEvent('reloadGraphs', {});
+		});
+		
+		$$('#main-apps-list li').each(function(item) {
+			item.addEvent('click', function() {
+				var timeRangeValue = $('time-range').options[$('time-range').selectedIndex].value;
+				document.fireEvent('applicationSelected', {appId: item.get('id').replace('app_', ''), timeRange: timeRangeValue});
+			});
+		});
+
+		$$('#graph-tabs-container li').each(function(item) {
+			item.addEvent('click', function(event) {
+				if (currentPage < event.target.get('id').replace('dashboard-stats-p', '').toInt()) {
+					$$('.graph-page').removeClass('hidden');
+			    	$$('.graph-page').setStyle('margin-left', '0');
+				    for (var i = 1; i <= horizontal.getOffsetIndex(); i++) {
+					    $('graph-page-' + (i + 1) ).setStyle('margin-left', $('graph-page-' + (i + 1)).getSize().x * -1);
+				    }
+				} else {
+					$$('.graph-page').removeClass('hidden');
+					$$('.graph-page').setStyle('margin-left', '0');
+					var size = $('graph-page-' + (horizontal.getOffsetIndex() + 1)).getSize().x;
+					horizontal.set(horizontal.getOffsetIndex() * size, 0);
+				}
+				
+				changeGraphPage(event.target);
+			});
+		});
+		
+		var graphSize = $('main-apps-status-content').getSize().x;
+		$('main-apps-graphs').setStyle('width', graphSize + 'px');
+
+		var fragments = fragmentManager.getFragmentObject();
+
+		// initial currentTimeRange
+		if (fragments.Timerange) {
+			var selectedTimeRanges = -1;
+			Array.each($('time-range').options, function(option, key){
+				if (fragments.Timerange.pick() == option.value) {
+					selectedTimeRanges = key;
+				}
+			});
+			
+			if (selectedTimeRanges >= 0) {
+				$('time-range').selectedIndex = selectedTimeRanges;
+			}
+		}
+
+    	/// fire the event while only the graphs are listening
+	    if (fragments.AppId) {
+	    	zendCharts.setCurrAppId(fragments.AppId.pick());
+	    }
+
+	    horizontal = new Fx.Scroll.Carousel('main-apps-graphs',{
+	    	childSelector: '.graph-page',
+			mode: 'horizontal',
+			loopOnScrollEnd: true,
+			onComplete: function(){
+				$$('.graph-page').addClass('hidden');
+				if (horizontal.getOffsetIndex() == 3) {
+					$('graph-page-' + (horizontal.getOffsetIndex() + 1)).removeClass('hidden');
+				} else {
+					$('graph-page-' + (horizontal.getOffsetIndex() + 1)).removeClass('hidden');
+				}
+				horizontal.set(0, 0);
+			}
+		});
+	
+		$$('.graph-page').removeClass('hidden');
+	    
+	    $('next-graph').addEvent('click', function(){
+	    	$$('.graph-page').removeClass('hidden');
+	    	$$('.graph-page').setStyle('margin-left', '0');
+	    	if (horizontal.getOffsetIndex() < 2) {
+			    for (var i = 1; i <= horizontal.getOffsetIndex(); i++) {
+				    $('graph-page-' + (i + 1) ).setStyle('margin-left', $('graph-page-' + (i + 1)).getSize().x * -1);
+			    }
+	    	} else {
+	    		var size = $('graph-page-' + (horizontal.getOffsetIndex() + 1)).getSize().x;
+				horizontal.set(horizontal.getOffsetIndex() * size, 0);
+	    	}
+	    	
+			horizontal.toNext();
+
+			changeGraphPage($$('li.diagonal-tab')[horizontal.getOffsetIndex()]);
+		});
+		
+		$('prev-graph').addEvent('click', function(){
+			$$('.graph-page').removeClass('hidden');
+			$$('.graph-page').setStyle('margin-left', '0');
+			var size = $('graph-page-' + (horizontal.getOffsetIndex() + 1)).getSize().x;
+			horizontal.set(horizontal.getOffsetIndex() * size, 0);
+
+			horizontal.toPrevious();
+
+			changeGraphPage($$('li.diagonal-tab')[horizontal.getOffsetIndex()]);
+		});
+
+		$('main-apps-list').addEvent('mouseout', function() {
+			$('main-apps-list').setStyle('width', '207px');
+			$$('#main-apps-list ul').setStyle('width', '207px');
+		});
+
+		$('main-apps-list').setStyle('width', '207px');
+		$$('#main-apps-list ul').setStyle('width', '207px');
+		window.fireEvent('resize');
+
+	});
+</script>
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+		</ul>   
+	</div>
+</div>
+<div id="main-apps-wrapper">
+	<div id="main-apps-list-wrapper">
+		<div id="main-apps-list">
+			<ul>
+				<li id="app_0" class="active">
+					<?php echo _t('All Applications') ?>
+					<div id="main-apps-list-active-arrow"></div>
+				</li>
+				<?php 
+				foreach ($applications as $app) { /* @var $app \Deployment\Application\Container */
+					$statusClass = 'main-apps-list-warning';
+					if ($app->getAppStatus() == \ZendDeployment_Application_Interface::STATUS_ACTIVE && $app->getHealthStatus() == \Deployment\Model::HEALTH_OK) {
+						$statusClass = 'main-apps-list-ok';
+					}
+					$appId = $app->getApplicationId();
+					
+					echo '<li id="app_' . $appId . '" title="' . $this->escapehtmlattr($app->getUserApplicationName()) . '"><div class="'. $statusClass .'">' . $this->escapehtml($app->getUserApplicationName()) . '</div></li>';
+				}
+				?>
+				<?php if ($applications->count() == 0) : ?>
+					<?php if ($deploymentSupportedByWebServer && $this->isAllowed('route:Wizard', 'index')): ?>
+					<li id="app_0" onclick="window.location = '<?php echo $this->basepath('Deployment') ?>#Deploy=1';">
+						<div class="main-apps-list-deploy"><?php echo _t('Deploy Application') ?></div>
+					</li>
+					<?php endif; ?>
+					<?php if ($this->isAllowed('route:DefineWizard')): ?>
+					<li id="app_0" onclick="window.location = '<?php echo $this->basepath('Deployment') ?>#Define=1';">
+						<div class="main-apps-list-define"><?php echo _t('Define Application') ?></div>
+					</li>
+					<?php endif; ?>
+				<?php endif; ?>
+			</ul>
+		</div>
+	</div>
+	<div id="main-apps-stats-wrapper">
+		<div id="graph-tabs-container">
+			<ul>
+				<li id="dashboard-stats-p1" class="diagonal-tab active hidden"><?php echo _t('Overview') ?></li>
+				<li id="dashboard-stats-p2" class="diagonal-tab hidden" ><?php echo _t('System Health') ?></li>
+				<li id="dashboard-stats-p3" class="diagonal-tab hidden"><?php echo _t('System Utilization') ?></li>
+				<li id="dashboard-stats-p4" class="diagonal-tab hidden"><?php echo _t('Usage Statistics') ?></li>
+				<li id="dashboard-stats-p5" class="diagonal-tab hidden"><?php echo _t('Mobile Usage') ?></li>
+				<li id="dashboard-stats-p6" class="diagonal-tab hidden"><?php echo _t('Mobile Statistics') ?></li>
+			</ul>
+			<div id="main-apps-status-actions">
+				<div class="dropbox-container">
+					<?php if ($this->isAllowed('dataRentention:timelimit', '2weeks')) : ?>
+					<label class="control-label" for="time-range"><?php echo _t('Time Range:') ?></label>
+					<select id="time-range">
+					<?php else : ?>
+					<?php
+					// MARKETING
+					echo 'Want to see performance and monitoring data further than two hours in the past? <a href=\''. $marketingLink .'\' target=\'_blank\' >Contact Zend</a> to upgrade.';
+					?>
+					<select id="time-range" style="display: none;">
+					<?php endif; ?>
+						<?php if (! $this->isAllowed('dataRentention:timelimit', '2weeks')) : ?>
+						<option value="2h" selected>2 hours</option>
+						<?php else : ?>
+						<option value="2h">2 hours</option>
+						<option value="1d" selected>1 day</option>
+						<option value="7d">week</option>
+						<option value="14d">2 weeks</option>
+						<?php endif; ?>
+						<?php if ($this->isAllowed('dataRentention:timelimit', '3month')) : ?>
+						<option value="1m">month</option>
+						<option value="3m">3 months</option>
+						<?php endif; ?>
+						<?php if ($this->isAllowed('dataRentention:timelimit', 'unlimited')) : ?>
+						<option value="6m">6 months</option>
+						<option value="12m">year</option>
+						<option value="e">all</option>
+						<?php endif; ?>
+					</select>
+				</div>
+			</div>
+		</div>
+		<div id="main-apps-status-content">
+			<div id="prev-graph" class="graph-nav-btn"></div>
+			<div id="main-apps-graphs">
+				<div class="inner">
+					<div id="graph-page-1" class="graph-page hidden">
+						<?php echo $this->highcharts('graph1', $statEvents); ?>
+						<?php echo $this->highcharts('graph2', $statReqPerSec); ?>
+						<?php echo $this->highcharts('graph3', $statAvgReqProcTime); ?>
+					</div>
+					<div id="graph-page-2" class="graph-page hidden">
+						<?php echo $this->highcharts('graph4', $statNumEvents); ?>
+						<?php echo $this->highcharts('graph5', $statProcessingTime); ?>
+					</div>
+					<div id="graph-page-3" class="graph-page hidden">
+						<?php echo $this->highcharts('graph6', $statSessReused); ?>
+						<?php echo $this->highcharts('graph7', $statAvgCpuUsage); ?>
+						<?php echo $this->highcharts('graph8', $statAvgMemUsage); ?>
+					</div>
+					<div id="graph-page-4" class="graph-page hidden">
+						<?php echo $this->highcharts('graph9', $statBrowsers); ?>
+						<?php echo $this->highcharts('graph10', $statOs); ?>
+						<div id="graph11" class="map-chart-wrapper map-chart main-apps-graph" style="width: 33%; float: left;">
+							<h2>Requests Overview</h2>
+							<div id="graph11-map" style="width: 100%; height: 100%;"></div>
+						</div>
+					</div>
+					<div id="graph-page-5" class="graph-page hidden">
+						<?php echo $this->highcharts('graph12', $statMobileOs); ?>
+						<?php echo $this->highcharts('graph13', $trendOfMobileUsage); ?>
+					</div>
+					<div id="graph-page-6" class="graph-page hidden">
+						<?php echo $this->highcharts('graph14', $statMobileReqPerSec);?>
+						<?php echo $this->highcharts('graph15', $mobileStatProcessingTime); ?>
+					</div>
+				</div>
+			</div>
+			<div id="next-graph" class="graph-nav-btn"></div>
+		</div>
+	</div>
+</div>
+<div id="main-events-list-wrapper">
+	<script type="text/javascript">
+		var menu;
+		var simpleModal;
+
+	    window.addEvent("load", function(){
+	    	zendCharts.setGraphsContainer('#graph-page-' + currentPage);
+
+			var timeRangeSelect = $('time-range');
+			if (timeRangeSelect) {
+				timeRangeSelect.addEvent('change', function(event) {
+					document.fireEvent('timerangeChanged', {timeRange: event.target.options[event.target.selectedIndex].value});
+				});
+			}
+
+			var statisticsServerSelect = $('statistics-server');
+			if (statisticsServerSelect) {
+				statisticsServerSelect.addEvent('change', function(event) {
+					document.fireEvent('statisticsServerChanged', {server: event.target.options[event.target.selectedIndex].value});
+				});
+			}
+	    	
+	    	var eventInfo = <?php echo $this->zGridEventDetails("{$this->basePath()}/Api/monitorGetIssueDetails"); ?>;
+
+			//////////////GRID CALLBACKS //////////////
+	   	 	var eventSeverity = function(value, data) {
+	   	   	 	var divClass = '';
+	   	    	switch (value) {
+	   	        	case 'Warning':
+	   	    			divClass = 'severity-warning';
+	   	    			divTitle = 'Warning';
+	   	        		break;
+	   	    		case 'Critical':
+	   	    			divClass = 'severity-error';
+	   	    			divTitle = 'Critical';
+	   	        		break;
+	   	    		case 'Info':
+	   	        	default:
+	   	    			divClass = 'severity-info';
+   	    				divTitle = 'Notice';
+	   	        		break;
+	   	    	}
+
+	   	    	return '<div class="' + divClass + '" title="' + divTitle + '"></div>';
+	      	}
+
+	      	 var eventAppName = function(value, data) {
+	       		if (value == "") {
+		        	return value;
+	        	}
+
+	        	return '<img src="<?php echo $this->url('default', array('controller' => 'IssueList', 'action' => 'App-Icon')) ?>?id=' + data.appId + '" class="tableRow_app_icon" /> ' + value.htmlEntities();
+	      	 }
+
+	      	
+	      	 var eventCount = function(value, data) {
+	       		var shortValue = value;
+	        	if (value > 1000) {
+	            	shortValue = Math.floor(value / 1000) + "k";
+	        	}
+	        	return '<div class="issues-count-wrapper"><div class="count-icon" title="' + value + '">' + shortValue + '</div></div>';
+	      	 }
+
+	       	var eventId = function(value, data) {
+	    	    return '<a href="<?php echo $this->basePath() ?>/Issue?issueId=' + value + '" title="<?php echo _t("Display event details"); ?>">' + value + '</a>';
+	    	}
+
+			var summary = function(value, data) {
+				var summaryStr = '';
+
+	  			var eventType = data.eventType.toInt();
+	  			console.log(eventType);
+	  			switch (eventType) {
+	  				case 0: // ZM_TYPE_CUSTOM
+	  					summaryStr = clean('Custom event triggered from ' + data.generalDetails.sourceFile);
+	  					break;
+	  				case 1: // ZM_TYPE_FUNCTION_SLOW_EXEC
+	  					summaryStr = clean('Function ' + data.generalDetails.function + '() took ' + value.execTime + 'ms');
+	  					break;
+	  				case 2: // ZM_TYPE_FUNCTION_ERROR
+	  					summaryStr = clean('Function ' + data.generalDetails.function + '() returned false');
+	  					break;
+	  				case 3: // ZM_TYPE_REQUEST_RELATIVE_SLOW_EXEC, ZM_TYPE_REQUEST_SLOW_EXEC
+		  				var prefix = 'Request to ' + data.generalDetails.url;
+	  					if (data.routeDetails) {
+	  						prefix = 'Request with route: ' + data.routeDetails;
+	  					}
+		  				
+	  	  				if (value.relExecTime > 0) {// REL
+	  	  	  				summaryStr = clean(prefix + ' took ' + Math.round(value.relExecTime) + '% more than normal');
+	  	  				} else { // ABS
+	  	  	  				summaryStr = clean(prefix + ' took ' + value.execTime + 'ms');
+	  	  				}  			
+	  	  				break;				
+	  				case 4: // ZM_TYPE_REQUEST_RELATIVE_LARGE_MEM_USAGE, ZM_TYPE_REQUEST_LARGE_MEM_USAGE
+	  					var prefix = 'Request to ' + data.generalDetails.url;
+	  					if (data.routeDetails) {
+	  						prefix = 'Request with route: ' + data.routeDetails;
+	  					}
+	  					
+	  	  				if (value.relMemUsage > 0) {// REL
+	  	  	  				summaryStr = clean(prefix + ' consumed ' + Math.round(value.relMemUsage) + '% more than normal');
+	  	  				} else { // ABS
+	  	  	  				summaryStr = clean(prefix + ' consumed ' + value.memUsage + 'KB');
+	  	  				}  	
+		  	  			break;
+	  				case 5: // ZM_TYPE_REQUEST_RELATIVE_LARGE_OUT_SIZE
+	  					var prefix = 'Request to ' + data.generalDetails.url + data.routeDetails;
+	  					if (data.routeDetails) {
+	  						prefix = 'Request with route: ';
+	  					}
+	  					
+	  					summaryStr = clean(prefix + ' generated output of ' + Math.round(value.relOutputSize) + '% more than normal');
+	  					break;
+	  				case 6: // ZM_TYPE_ZEND_ERROR
+	  					summaryStr = clean('Function ' + data.generalDetails.function + '() caused a ' + data.generalDetails.errorType + ' PHP error');
+	  					break;
+	  				case 7: // ZM_TYPE_JAVA_EXCEPTION
+	  					summaryStr = clean('Function ' + data.generalDetails.function + '() caused a Java Exception');
+	  					break;
+	  				case 8: // ZM_TYPE_JQ_JOB_EXEC_ERROR
+	  					summaryStr = clean('Job execution of ' + data.generalDetails.url + ' ended with error');
+	  					break;
+	  				case 9: // ZM_TYPE_JQ_JOB_LOGICAL_FAILURE
+	  					summaryStr = clean('Job execution of ' + data.generalDetails.url + ' ended with logical error');
+	  					break;
+	  				case 10: // ZM_TYPE_JQ_JOB_EXEC_DELAY
+	  					summaryStr = clean('Job execution of ' + data.generalDetails.url + ' is delayed');
+	  					break;
+	  				case 12: // ZM_TYPE_TRACER_FILE_WRITE_FAIL
+	  					summaryStr = clean('Failed to write codetrace');// would have been nice to show related data (filename and error), but we don't have this data here 
+	  					break;
+	  				default:
+	  					summaryStr = clean("Unknown event type '" + eventType + "'");
+		  			    break;
+	  			}
+	  			return summaryStr;
+			}
+			
+			function clean(value) {
+				var cleaner = new Element('div');
+				cleaner.set('text', value);
+
+				return  cleaner.get('html');
+			}
+
+			var codeTracingLink = function(value, data) {
+				if (! value) {
+					return '';
+				}
+				var href = "";
+				<?php if(! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+					var href = "javascript:void(0)";
+					var title = _t('Collecting the Code Traces in the Events is not supported');
+				<?php else: ?>
+					var href = <?php echo '"'. $this->url('default', array('controller' => 'CodeTracing', 'action' => 'details')) .'?eventsGroupId=' ?> " + value;
+					var title="Code Trace";
+				<?php endif; ?>
+				return '<a title="' + title + '" href="' + href +'">show</a>';
+			}
+			
+	    	var cmu2 = [
+	    				{
+	    					'title': '!',
+	    					'tooltip' : _t('Severity'),
+	    					'dataIndex': 'severity',
+	    					'parser': eventSeverity,
+	    					'width': '3%',
+	    					'center': true,
+	        				'ellipsis': false
+	    				},
+	    				{
+	    					'title': _t('Count'),
+	    					'dataIndex': 'count',
+	    					'parser': eventCount,
+	    					'width': '5%',
+	    					'ellipsis': false
+	    				},
+	    				{
+	    					'title': _t('Event ID'),
+	    					'dataIndex': 'id',
+	    					'parser': eventId,
+	    					'width': '6%',
+	    					'ellipsis': false
+	    				},
+	    				{
+	    					'title': _t('Name'),
+	    					'dataIndex': 'rule',
+	    					'parser': zGrid2.prototype.string,
+	    					'width': '16%',
+	    				},
+	    				{
+	    					'title': _t('Last Occurred'),
+	    					'dataIndex': 'lastOccuranceTimestamp',
+	    					'parser': zGrid2.prototype.timestamp,
+	    					'width': '12%',
+	    				},
+	    				{
+	    					'title': _t('Application'),
+	    					'dataIndex': 'appName',
+	    					'parser': eventAppName,
+	    					'width': '12%'
+	    				},
+						{
+							'title': _t('Summary'),
+							'dataIndex': 'whatHappenedDetails',
+							'parser': summary,
+							'width': '39%'
+						},
+	    				{
+	    					'title': _t('Code Trace'),
+							<?php if(! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+							<?php //MARKETING ?>
+	    						'tooltip' : "<?php echo _t('Want to view line-by-line execution for this PHP request? <a href=\'' . $marketingLink .'\' target=\'_blank\' >Contact Zend</a> to upgrade.')?>",
+	    						'useTooltipWidget': true,
+							<?php endif; ?>	    								
+	    					'dataIndex': 'codeTracingEventGroupId',
+	    					'parser': codeTracingLink,
+	    					'width': '7%',
+	    					'ellipsis': false
+	    				}
+	    	    	];
+
+	    			menu = new zMenu();
+	    			menu.timeout = <?php echo $timeout ?>;
+
+	    	        <?php 
+	    	    	    	$options = array(
+	    	    	    		'sortedBy'		=> 'name',
+	    	    	    		'idColumn' 		=> 'id',
+	    	    	    		'menu'			=> 'menu',
+	    	    	    		'limit'			=> $perPage,
+								'sortedBy' 		=> 'severity',
+								'direction'		=> 'desc',
+	    	    	    	    
+	    	    	    	    'actionsColumnLabel' => 'IDE Actions',
+	    	    	    	    'actionsColumnTooltip' => 'IDE Actions',
+	    	    	    	);
+	    	        	?>
+	    	        	
+	    	        zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $options); ?>
+
+
+	    	        var url = '<?php echo "{$this->basePath()}/Api/monitorGetIssuesByPredefinedFilter"; ?>';
+	    	    	zgrid2.loadRequest = new Request.WebAPI({
+    					method: 'get',
+    					url:url,
+    					link:'cancel',
+    					onSuccess: function(response) {
+        					/// hardcoded limit value of 15
+    						zgrid2.setData(response.responseData.issues, Math.min(15, response.responseData.totalCount));
+    						changeLimitedMessageColor(response.responseData.issues.length);
+    					},
+    					onFailure: function(response) {
+    	    				var decoded = this.decodeResponse(response);
+    	    				zgrid2.tableSpinner.hide();
+    	    				document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+    	    			}
+    				});
+	    	        
+	    			
+	    	        ////////////// GRID EVENTS //////////////
+	    	        zgrid2.addEvent('loadData', function(params) {
+	        	        params.filterId = 'dummy';
+	        	        if (zendCharts.getCurrAppId() != 0) {
+	        	        	params.filters = new Object();
+	        				params.filters.applicationIds = new Array();
+	        				params.filters.applicationIds.push(zendCharts.getCurrAppId());
+	        	        }
+	        	        params.limit = 15;
+	        	        params.order = 'severity';
+	        	        params.direction = 'DESC';
+	        	        params.totalCountMode = 'NO';
+	        	        zgrid2.loadRequest.get(params);
+	    	        });
+
+	    	        zgrid2.addEvent('descriptionOpen',function(params) {
+	    	        	eventInfo.loadData(params);
+	    	        });
+
+		       	    // last line
+	    	        zgrid2.tableSpinner.show();
+	    	    	zgrid2.loadData();
+
+					// initial currentTimeRange
+					if ($('time-range')) {
+						zendCharts.setCurrTimeRange($('time-range').options[$('time-range').selectedIndex].value);
+					}
+					if ($('statistics-server')) {
+						zendCharts.setCurrServer($('statistics-server').options[$('statistics-server').selectedIndex].value);
+					}
+
+	    	    	/// fire the event while only the graphs are listening
+	    			document.fireEvent('applicationSelected', {appId: zendCharts.getCurrAppId()});
+					$('dashboard-stats-p' + currentPage).addClass('loaded');
+	    			// add zgrid controlling to the event so that future calls will reload the events list too
+	    			document.addEvent('applicationSelected', zgrid2.reloadData.bind(zgrid2, {page: 1}));
+
+	    			<?php if(! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+	    			<?php //MARKETING ?>
+	    	    		$$('.zgrid_header-codeTracingEventGroupId').addClass('zgrid_header-disabled');
+	    	    		zgrid2.addEvent('updateComplete', function(){
+		    	    		$$('.zgrid_td-codeTracingEventGroupId').addClass('zgrid_td-disabled');
+        	    		});
+	    			<?php endif; ?>	
+
+	    			createUnsupportedTooltip();
+	    });
+
+	    function createUnsupportedTooltip() {
+	    	var tip = new FloatingTips('.unsupported-tip', {
+	    		html: true,
+	    		showDelay: 500,
+	    		hideDelay: 100,
+	    		content: 'title',
+	    		position: 'bottom',
+	    		center: false, // Place the tip aligned with target
+	    		arrowSize: 8, // A bigger arrow!
+	    		distance: -20,
+	    		hideOn: 'null'
+	    	});
+
+	    	tip.addEvent('show', function() {
+	    		$$('.floating-tip-wrapper').each(function(item) {
+	    	    	item.addEvent('mouseleave', function() {
+	    	    		tip._animate(item, 'out');
+	    	        });
+	    		});
+	    	});
+	    }
+
+	    function changeLimitedMessageColor(count) {
+	    	if (count % 2 == 0) {
+	    		$$('.limitedMessage').removeClass('odd');
+	    	} else {
+	    		$$('.limitedMessage').addClass('odd');
+	    	}
+
+	    	$$('.limitedMessage').removeClass('hidden');
+	    }
+	</script>
+	 
+	<div id="grid-action-bar" class="grid-action-bar">
+		<h2><?php echo _t('Latest Critical Events'); ?></h2>
+	</div>
+	 
+	<div id="mytable">
+	</div>
+	<?php if (! $this->isAllowed('dataRentention:timelimit', '2weeks')) : ?>
+	<div>
+	<?php // MARKETING ?>
+	<h2 class="limitedMessage hidden"><?php echo _t('Currently showing data from the previous two hours.  Want long-term data trending? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-dashboard') . '">', '</a>'));?></h2>
+	</div>
+	<?php endif; ?>
+</div>

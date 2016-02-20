@@ -1,0 +1,7 @@
+	<responseData>
+		<issues>
+<?php foreach($issues as $issueId => $issue) : /* @var $issue Issue\Container */?>
+<?php echo $this->issueXml($issue, $applications[$issue->getBaseUrl()]); ?>
+<?php endforeach; ?>
+        </issues>
+	</responseData>

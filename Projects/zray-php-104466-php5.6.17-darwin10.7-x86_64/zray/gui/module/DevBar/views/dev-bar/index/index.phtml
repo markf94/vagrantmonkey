@@ -1,0 +1,163 @@
+var LOAD_MICROTIMESTAMP = <?php echo time(); ?>000;
+<?php if ($tokenExpired) : ?>
+	var socket = new zdbEasyXDM.Socket({
+	    onReady:  function(){
+	    	socket.postMessage(JSON.stringify({action: 'error', value: '<?php echo _t('Your access token has expired. %sTell me what to do!%s', array('<a href="http://www.zend.com/server/redirect/helplink/troubleshooting" target="_blank">', '</a>')) ?>'}));
+	    }
+	});
+	<?php return; ?>
+<?php endif; ?>
+
+<?php
+
+$inDebugAll = false;
+if (isset($_COOKIE['debug_session_id']) && ! empty($_COOKIE['debug_session_id'])) {
+    $inDebugAll = true;
+}
+
+if (count($requests) == 0) {
+	$initData = '';
+	$pageId = '';
+	$requestId = '';
+	$requestStartTime = '';
+} else { 
+	
+	$requestData = current($requests);
+	
+	if (! $inDebugAll) {
+    	$requestMonitorEvents = array();
+    
+    	if(is_array($monitorEvents) && isset($monitorEvents[$requestData->getId()])){
+    		foreach ($monitorEvents[$requestData->getId()] as $monitorEvent) {
+    			foreach ($monitorEvent as $issue) {
+    				$requestMonitorEvents[] = $this->issueJson($issue, null, $eventsData[$requestData->getId()][0][$issue->getMaxEventGroup()->getEventsGroupId()]);
+    			}
+    		}
+    	}
+    	
+    	$requestMonitorEvents = (! empty($requestMonitorEvents)) ? implode(',', $requestMonitorEvents) : '';
+    	$initData = '{
+    		"RequestInfo": ' . $this->requestInfoJson($requestData) . ',
+    		"Runtime": ' . $this->runtimeJson($runtime[$requestData->getId()]) . ',
+    		"SqlQueries": ' . $this->sqlQueriesJson($sqlQueries[$requestData->getId()]) . ',
+    		"LogEntries": ' . $this->logEntriesJson($logEntries[$requestData->getId()]) . ',
+    		"exceptions": ' . $this->exceptionsJson($exceptions[$requestData->getId()]) . ',
+    		"MonitorEvents": [' . $requestMonitorEvents . '],
+    		"SuperGlobals": {
+    			"sessionOversized": '.$superglobals[$requestData->getId()]['oversizedSession'].'
+    		},
+    		"Notifications": ' . $this->notificationsJson($notifications) . ',
+    		"extraData": {
+    			"functionsCount": ' . $functionsCount[$requestData->getId()] . '
+    		},
+    		"hasCustomData": ' . json_encode($hasCustomData) . '
+    	}';
+	}
+	
+	$pageId = $requestData->getPageId();
+	$requestId = $requestData->getId();
+	$requestStartTime = $requestData->getStartTime();
+}
+
+use Zend\View\Model\ViewModel;
+
+$js = file_get_contents(__DIR__ . '/devbar.js');
+echo $js;
+?>
+
+if (typeof $zendDevBar != 'undefined') {
+	$zendDevBar('.zdb-server-info').remove();
+	$zendDevBar('#zdb-toolbar-group-serverinfo').remove();
+	
+	var zendDevBar = new $zendDevBar.ZendDevBar('<?php echo $baseUrl; ?>', '<?php echo $host; ?>', '<?php echo $pageId; ?>', '<?php echo $requestId; ?>', '<?php echo $requestStartTime; ?>');
+	var zray = new $zendDevBar.Zray();
+	
+	zendDevBar.useCredentials = <?php echo $useCredentials ? 'true' : 'false' ?>;
+	zendDevBar.ideSettings = <?php echo json_encode($ideConfig); ?>;
+	zendDevBar.zendDebuggerEnabled = <?php echo $zendDebuggerEnabled === true ? 'true' : 'false'; ?>;
+	zendDevBar.zendCodeTracingEnabled = <?php echo isset($zendCodeTracingExtension) && $zendCodeTracingExtension === true ? 'true' : 'false'; ?>;
+	
+	var requestsSeparated = <?php echo $requestsSeparated; ?>;
+	if (requestsSeparated) {
+	   zendDevBar.setRequestsSeparated(true);
+	}
+	
+	var showInIframe = <?php echo ($showInIframe) ? 'true' : 'false'; ?>;
+	var inIframe = <?php echo ($inIframe) ? 'true' : 'false'; ?>;
+	if (! showInIframe && inIframe) {
+		zendDevBar.disable();
+		zendDevBar.setInIframe(true);
+	}
+	
+	<?php
+	$producers = array();
+	//// for container and right hand settings panel to work, settingsViews producers must go in first 
+	if ($settingsViews->count()) {
+		foreach ($settingsViews as $viewModel) { /* @var $viewModel \Zend\View\Model\ViewModel */
+			if($viewModel instanceof ViewModel) {
+				$producers[] = $this->partial($viewModel->getTemplate(), $viewModel->getVariables());
+			}
+		}
+	}
+	if ($requestViews->count()) {
+		foreach ($requestViews as $viewModel) { /* @var $viewModel \Zend\View\Model\ViewModel */
+			if($viewModel instanceof ViewModel) {
+				$producers[] = $this->partial($viewModel->getTemplate(), $viewModel->getVariables());
+			}
+		}
+	}
+	if ($customData->count()) {
+		foreach ($customData as $viewModel) { /* @var $viewModel \Zend\View\Model\ViewModel */
+			if($viewModel instanceof ViewModel) {
+				$producers[] = $this->partial($viewModel->getTemplate(), $viewModel->getVariables());
+			}
+		}
+	}
+	?>
+	
+	<?php if (! $inDebugAll) : ?>
+	var initialData = [<?php echo $initData; ?>];
+	<?php endif; ?>
+	
+	zendDevBar.init();
+	
+	<?php if ($inDebugAll) : ?>
+	zendDevBar.setInDebugAll(true);
+	<?php endif; ?>
+	
+	zendDevBar.setActionsStatus(<?php echo !$disableActions ? 'false' : 'true'; ?>);
+	zendDevBar.setRequestsLimit(<?php echo $maxRequests; ?>);
+	zendDevBar.setShortcuts(<?php echo json_encode($shortcuts); ?>);
+	zendDevBar.setCustomDataConfig(<?php echo json_encode($customDataConfig); ?>);
+	zendDevBar.setContactZend('<?php echo $this->contactZend('server-6-ui-contact-zend-button'); ?>');
+	zendDevBar.setBlockedExtensions(<?php echo json_encode($blockedExtensions); ?>);
+	<?php if (!isAzureEnv() && !isZrayStandaloneEnv()) : ?>
+	zendDevBar.setStudioClientTimeout(<?php echo json_encode($studioClientTimeout); ?>);
+	<?php endif; ?>
+	zendDevBar.setTreeLimits(<?php echo $maxElementsPerLevel; ?>, <?php echo $maxElementsInTree; ?>);
+	
+	<?php if (! $bootstrapCompleted) : ?>
+	zendDevBar.setNotBootstrap();
+	<?php elseif ($licenseExpired) : ?>
+	zendDevBar.setLicenseExpired();
+	<?php endif; ?>
+	<?php if (getAzureLicense() == 'disabled' || (getAzureWebsiteLicense() != 'free' && getAzureLicense() == 'free')) : ?>
+	// disabled in the preview version
+	// zendDevBar.setAzureNotLicensed();
+	<?php endif;?>
+	
+	var producers = <?php echo json_encode($producers); ?>;
+	for (var i = 0; i < producers.length; i++) {
+		zendDevBar.insertProducer(producers[i]);
+	}
+	zendDevBar.applyCookieParams();
+
+	if (zendDevBar.cookieParams.collapsed) {
+		zendDevBar.collapseBar();
+	}
+	<?php if (! $inDebugAll) : ?>
+	zendDevBar.updateRequestsList(initialData);
+	
+	zendDevBar.loadRequestsList(true);
+	<?php endif; ?>
+}

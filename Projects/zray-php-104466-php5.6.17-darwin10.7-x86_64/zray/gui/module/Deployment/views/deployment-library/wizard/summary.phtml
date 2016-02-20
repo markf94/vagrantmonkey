@@ -1,0 +1,39 @@
+<?php $userParamsUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'Set-Default')); ?>
+<script type="text/javascript">
+	function changeIsDefault() {
+		dataObj = {'isDefault': ($('isDefault').get('checked')) ? 'TRUE' : 'FALSE'};
+		
+		var valid = false;
+		
+		var myRequest = new Request({
+			data: dataObj,
+			url: '<?php echo $userParamsUrl; ?>?wizardId=<?php echo $wizardId; ?>',
+			onComplete: function(response){
+			}
+		}).send();
+	
+		return true;
+	}
+	</script>
+
+	<table class="tableDescContent tableDescContent-Aligned float-left" id="deployment-summary">
+		<tbody>
+			<tr>
+				<td><?php echo _t('Library'); ?></td>
+				<td><?php echo $this->escapeHtml($libraryName); ?></td>
+			</tr>
+			<tr>
+				<td><?php echo _t('Library Version'); ?></td>
+				<td><?php echo $this->escapeHtml($version); ?></td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<input id="isDefault" name="isDefault" type="checkbox" value="TRUE" onchange="changeIsDefault()" />&nbsp;<label for="isDefault"><?php echo _t('Set as default version') ?></label>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	
+	<div class="float-right">
+		<?php echo $this->AppLogo($libraryName, $logo, 'application-wizard-logo'); ?>	
+	</div>

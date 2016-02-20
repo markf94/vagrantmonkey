@@ -1,0 +1,8 @@
+<responseData>
+    <rules>
+    <?php foreach($rules as $rule) : // @var $rule \PageCache\Rule ?>
+	<?php echo $this->CacheRuleXml($rule); ?>
+	<?php endforeach; ?>
+  </rules>
+  <total><?php echo count($rules); ?></total>
+</responseData>

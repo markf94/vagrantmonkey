@@ -1,0 +1,8 @@
+	<responseData>
+		<jobs>
+			<?php foreach ($jobs as $job) : ?>
+			<?php echo $this->JobXml($job, $applications, $statuses); ?>
+			<?php endforeach; ?>
+		</jobs>
+		<total><?php echo $jobs->getTotal(); ?></total>
+	</responseData>

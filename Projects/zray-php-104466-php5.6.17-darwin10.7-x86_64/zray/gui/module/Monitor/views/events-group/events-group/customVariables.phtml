@@ -1,0 +1,6 @@
+<ul>
+<li><strong><?php echo _t('User Data'); ?></strong>
+<?php echo $this->selectAll('custom-variables'); ?>
+<?php $userData = unserialize($event->getUserData()); ?>
+<ul><li id="custom-variables"><?php echo stripslashes($this->variablesTree($userData ? $userData : $event->getUserData())) ?></li></ul></li>
+</ul>

@@ -1,0 +1,481 @@
+<?php $this->headScript()->appendFile($this->basePath() . '/js/ToolTip.js'); ?>
+<?php $this->headScript()->appendFile($this->basePath() . '/js/FragmentManager.js'); ?>
+
+<?php echo $this->SearchField(); ?>
+<?php $page = 'components'; ?>
+<?php
+use Application\Module;
+Module::isCluster() ? $serverString = 'Servers' : $serverString = 'Server';
+?>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration") ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<script type="text/javascript">
+	var highlighted;
+	var highlightWordFlag = false;
+    var rowsChecked = 0;
+    var directiveInfo;
+
+	window.addEvent("load", function(){
+		persistantHeaders.addHeader('grid-action-bar');
+		
+		directiveInfo = <?php echo $this->zGridDirectives($this->basePath() . '/Api/configurationDirectivesList', $this->basePath() . '/Api/configurationValidateDirectives', $isAllowedToSaveDirectives ? 'true' : 'false'); ?>
+
+		// when description is opened check if 
+		directiveInfo.addEvent('descriptionOpened', function(data, element) {
+			if (highlighted && highlighted.trim() != '') {
+				data.data.responseData.directives.each(function(item) {
+					if (item.name.indexOf(highlighted) > -1) {
+						if (item.context == 'Daemon') {
+							data.tabPane.show(1);
+						}
+					}
+				});
+			}
+		});
+		
+		var searchField = new SearchField();
+		searchField.addEvent('searchClicked', function(data, element) {
+			runSearch();
+		});
+		
+		//////////////GRID CALLBACKS //////////////
+		var componentStatus = function(value, data) {
+			if (data.extStatus == 'Unsupported') {
+				return '<div id="extension-unsupported" class="zgrid-clickable unsupported-tip" title="Contact Zend to upgrade">' + value + '</div>';
+			}
+			
+			if (data.extension.installed == 'false') {
+				return '<div id="extension-not-installed" title="Component is not installed">NA</div>';
+			}
+
+			switch (data.extStatus) {
+				case "Loaded":
+					if (data.daemonStatus === 'OK' || data.daemonStatus === 'None') {
+						divClass = 'extension-loaded';
+						title = 'Component is loaded';
+					}					
+					else {
+						value = 'Error';
+						divClass = 'extension-error';
+						title = 'Component is in Error state';
+					}
+					break;
+				case "Warning":
+					divClass = 'extension-warning';
+					title = 'Component is in Warning state';
+					break;	
+				case "Off":
+					divClass = 'extension-off';
+					title = 'Component is turned off';
+					break;
+				default:
+					value = 'Error';
+					divClass = 'extension-error';					
+					title = 'Component is in Error state';
+					break;
+			}
+
+			if (value != 'Error' && value != 'Warning' && data.extension.restartRequired == 'true') {
+				divClass = 'extension-pending';
+				value = 'Pending';
+				title = 'Component is pending restart';
+			}
+
+			return '<div id="' + divClass + '" class="zgrid-clickable" title="' + title + '">' + value + '</div>';
+		}
+	
+		var messageList = function(value, data) {
+			if (data.extension.installed == 'false') {
+				var url = '';
+				if (data.name == 'Zend Java Bridge') {
+					url = '<?php echo $this->helplink('working_with_the_java_bridge') ?>';
+				} else if (data.name == 'Zend Guard Loader') {
+					url = '<?php echo $this->helplink('working_with_the_guard_loader') ?>';
+				}
+				
+				if (url != '') {
+					return 'This component is not installed. To install, see <a href="' + url + '">installation instructions</a>';
+				} else {
+					return 'This component is not installed';
+				}
+			}
+			
+			// ignore messages if the extension is off
+			if (data.extStatus == 'Off') {
+				return '';
+			}
+
+			var extMsgsSize = data.extension.messageList.length;
+			var daemonMsgsSize = data.daemon.messageList.length;
+			if ((extMsgsSize == 0 && daemonMsgsSize == 0)) {
+				return '';
+			} 
+			
+			var msgsSize = extMsgsSize + daemonMsgsSize;
+			if (msgsSize == 1) {
+				if (extMsgsSize == 1) {
+					var type 		= data.extension.messageList[0].type;
+					var nodeName 	= data.extension.messageList[0].nodeName;
+					var message 	= data.extension.messageList[0].message;
+				} else {
+					var type 		= data.daemon.messageList[0].type;
+					var nodeName 	= data.daemon.messageList[0].nodeName;
+					var message 	= data.daemon.messageList[0].message;
+				}
+
+				if (<?php echo Module::isCluster() ? 'true' : 'false'; ?>) {
+					return _t('<div><b>' + type + ' in server ' + nodeName + ':</b> ' + message + '</div>');
+				} else {
+					return _t('<div><b>' + type + ':</b> ' + message + '</div>');
+				}
+			}
+			return _t('<div>There are ' + msgsSize + ' messages</div>'); //@todo - would be nice to indicate about the severity of the messages
+		}
+		
+		var cmu2 = [
+					{
+						'title': _t('Name'),
+						'dataIndex': 'name',
+						'parser': zGrid2.prototype.string,
+						'width': '15%',
+						'sortable': false
+					},
+					{
+						'title': _t('Status'),
+						'dataIndex': 'extStatus',
+						'parser': componentStatus,
+						'width': '9%',
+						'sortable': false,
+						'ellipsis': false
+					},
+					{
+						'title': _t('Description'),
+						'dataIndex': 'description',
+						'parser': zGrid2.prototype.string,
+						'width': '39%',
+						'sortable': false
+					},
+					{
+						'title': _t('Messages'),
+						'dataIndex': 'extMessages',
+						'parser': messageList,
+						'width': '37%',
+						'sortable': false
+					},
+					<?php if ($isAllowedToSaveDirectives): ?>
+					{
+						'title': _t('Settings'),
+						'dataIndex': 'settings',
+						'parser': zGrid2.prototype.button
+					},
+					{
+						'title': _t('Clear cache'),
+						'dataIndex': 'clean',
+						'parser': zGrid2.prototype.button
+					},
+					{
+						'title': _t('Restart daemon'),
+						'dataIndex': 'restart',
+						'parser': zGrid2.prototype.button
+					}
+					<?php endif; ?>
+				];
+
+		<?php 
+			$options = array(
+				'multiSelect'	=> ($isAllowedToSaveDirectives || $isAllowedToEnable || $isAllowedToDisable),
+				'idColumn' 		=> 'name',
+			);
+		?>
+		zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $options); ?>
+
+		
+		////////////// Notification Center EVENTS //////////////
+		notificationCenter.addEvent('restartComplete', function() {
+			resetData();
+			runSearch();
+		});	
+
+
+		var url = '<?php echo "{$this->basePath()}/Api/configurationComponentsList"; ?>';
+    	zgrid2.loadRequest = new Request.WebAPI({
+			method: 'get',
+			url:url,
+			link:'cancel',
+			data: {type: 'Zend'},
+			onComplete: function(response) {
+				buildData(response.responseData.components);
+				zgrid2.setData(response.responseData.components);
+				
+				// if the search result is less than 3 rows - expand the rows
+				if (Object.keys(zgrid2.getRowsData()).length < 3) {
+					Object.keys(zgrid2.getRowsData()).each(
+							function(row) { 
+								if (!zgrid2.isDescriptionOpen(row)) {
+									zgrid2.expandRow(row, zgrid2.getRowData(row));
+								}
+							});
+				}
+
+				// fix for ZSRV-5875 and ZSRV-7484
+				var fragment = new FragmentManager();
+				fragment.removeUriFragment('grid');
+				highlightWordFlag = false;
+				highlighted = undefined;
+				
+				if ($('search_input').value) {
+					// highlight only if search term was entered - fix for ZSRV-7485
+					if ($('search_input').value.trim() != "") {
+						highlightWordFlag = true;
+						highlighted = $('search_input').value;
+					}
+				}
+			}
+		});
+		
+
+		zgrid2.addEvent('rowUpdated', function(params) {
+			if (params.data.extension.name === 'Zend Deployment' || params.data.extension.name === 'Zend Server Z-Ray' || params.data.extension.name === 'Zend URL Insight' || params.data.extension.dummy == 'true' || params.data.extension.installed == 'false') {
+				zgrid2.removeCheckbox(params.id);
+			}
+
+			<?php if ($isAllowedToSaveDirectives): ?>
+			
+			// hide "clean" button
+			if (params.data.extension.name == 'Zend Statistics') {
+				$('clean_' + params.id).set('title', 'Clear Statistics');
+			} else if(params.data.extension.name == 'Zend Server Z-Ray') {
+				$('clean_' + params.id).set('title', _t('Clear Z-Ray Data'));
+			} else if (params.data.extension.name != 'Zend OPcache' && 
+					params.data.extension.name != 'Zend Data Cache' && 
+					params.data.extension.name != 'Zend Page Cache' && 
+					params.data.extension.name != 'Zend Optimizer+') {
+				$('clean_' + params.id).setStyle('display', 'none');
+			}
+
+			// hide "settings" button
+			if (params.data.extension.name != 'Zend Job Queue' && 
+					params.data.extension.name != 'Zend Monitor' && 
+					params.data.extension.name != 'Zend Page Cache') {
+				$('settings_' + params.id).setStyle('display', 'none');							
+			} else {
+				$('settings_' + params.id).set('title', getSettingsData(params.data.name).linkName);
+			}
+
+			// hide "restart" button
+			if (	params.data.extension.name != 'Zend Java Bridge' && 
+					params.data.extension.name != 'Zend Job Queue' && 
+					params.data.extension.name != 'Zend Monitor' &&
+					params.data.extension.name != 'Zend Deployment' &&
+					params.data.extension.name != 'Zend Session Clustering') {
+				$('restart_' + params.id).setStyle('display', 'none');
+			}
+			<?php endif; ?>
+
+			// remove all buttons and checkbox if the component is not supported
+			if (params.data.extStatus == 'Unsupported') {
+				$('restart_' + params.id).set('title', _t('Restart daemon action is not supported'));
+				$('restart_' + params.id).set('disabled', true);
+
+				$('clean_' + params.id).set('title', _t('Clear cache action is not supported'));
+				$('clean_' + params.id).set('disabled', true);
+
+				$('settings_' + params.id).set('title', _t('Setup action is not supported'));
+				$('settings_' + params.id).set('disabled', true);
+				
+				zgrid2.removeCheckbox(params.id);
+			}
+		});
+
+		zgrid2.addEvent('loadData', function(params) {
+			zgrid2.preLoad();
+			zgrid2.loadRequest.get(Object.append(zgrid2.loadRequest.options.data, {filter: $('search_input').value}));
+		});
+		
+		zgrid2.addEvent('updateComplete', function(params) {
+			updateComplete();
+			createUnsupportedTooltip();
+		});	 
+
+		zgrid2.addEvent('buttonClick', function(params) {
+			if ($(params.type + '_' + params.rowId) && $(params.type + '_' + params.rowId).get('disabled')) {
+				// MARKETING
+    			document.fireEvent('toastAlert', {'message': 'This action is not available in this edition of Zend Server. Contact Zend to upgrade.'});
+				return;
+			}
+						
+			if (params.type == 'clean') {
+				if (window.confirm(_t('Clearing the component\'s cache will remove all stored data.\n\nAre you sure you wish to proceed?'))) {
+						
+					if (params.data.name == 'Zend Statistics') {
+						return clearStatistics();
+					}		
+					
+					var params = {
+			    		component: params.data.name
+		    		};
+	
+		    		var actionUrl = "<?php echo $this->basePath() . '/Api/cacheClear'; ?>";
+		    		
+		    		var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+	
+		    		onSuccess: function(response) {
+		    			document.fireEvent('toastNotification', {'message': '<?php echo _t("The cache was successfully cleared"); ?>'});
+		    			zgrid2.loadData();
+					},
+					onFailure: function() {
+						document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to clear the cache"); ?>'});
+					}});
+					
+		    		request.post();
+				}
+			}
+			
+			if (params.type == 'settings') {
+				location.href = getSettingsData(params.data.name).href;
+				return;
+			}
+			
+			if (params.type == 'restart') {
+				var daemonName = params.data.extension.name;
+				if (daemonName == 'Zend Session Clustering') {
+					var msg = 'Restarting the ' + daemonName + ' daemon will remove all existing sessions.\n\nAre you sure you wish to proceed?';
+				} else {
+					var msg = 'Restarting the ' + daemonName + ' daemon may cause some services to become temporarily unavailable.\n\nAre you sure you wish to proceed?';
+				}
+
+				if (window.confirm(_t(msg))) {
+					var params = {
+						daemon: params.data.daemonName
+		    		};
+
+		    		var actionUrl = "<?php echo $this->basePath() . '/Api/restartDaemon'; ?>";
+		    		
+		    		var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+
+		    		onSuccess: function(response) {
+		    			document.fireEvent('toastNotification', {'message': '<?php echo _t("The daemon was successfully restarted"); ?>'});
+		    			document.fireEvent('refreshNotifications');
+		    			zgrid2.loadData();
+					},
+					onFailure: function() {
+						document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to restart the daemon"); ?>'});
+					}});
+					
+		    		request.post();
+				}
+			}
+		});
+		
+		var fragment = new FragmentManager();
+		if (Object.getLength(fragment.getFragmentObject()) > 0) {
+			var searchFragment = fragment.getFragmentObject().search;
+			if (searchFragment) {
+				$('search_input').set('value', searchFragment);
+			}
+		}
+		
+	});
+
+function createUnsupportedTooltip() {
+	var tip = new FloatingTips('.unsupported-tip', {
+		html: true,
+		showDelay: 500,
+		hideDelay: 100,
+		content: 'title',
+		position: 'bottom',
+		center: false, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		distance: -20,
+		hideOn: 'null'
+	});
+
+	tip.addEvent('show', function() {
+		$$('.floating-tip-wrapper').each(function(item) {
+	    	item.addEvent('mouseleave', function() {
+	    		tip._animate(item, 'out');
+	        });
+		});
+	});
+}
+	
+function clearStatistics() {
+	var params = {};
+
+	var actionUrl = "<?php echo $this->basePath() . '/Api/statisticsClearData'; ?>";
+	
+	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+
+	onSuccess: function(response) {
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("Statistics were successfully cleared"); ?>'});
+		zgrid2.loadData();
+	},
+	onFailure: function() {
+		document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to clear Statistics data"); ?>'});
+	}});
+	
+	request.post();		
+}
+	
+function getSettingsData(name) {	
+	var data = {
+		href: '',
+		linkName: '',
+	};
+
+	if (name == 'Zend Job Queue') {
+		data.linkName = _t('Queue Setup');
+		data.href = baseUrl() + '/RecurringJobs/Index';
+	} else if (name == 'Zend Monitor') {
+		data.linkName = _t('Monitoring Rules');
+		data.href = baseUrl() + '/MonitorRules';
+	} else if (name == 'Zend Page Cache') {
+		data.linkName = _t('Caching Rules');
+		data.href = baseUrl() + '/PageCache/Index';
+	}
+
+	return data;
+}
+
+function buildData(data) {
+	data.each(function(component,columnIndex) {
+		data[columnIndex].name = component.extension.name;
+		data[columnIndex].description = component.extension.shortDescription;
+		data[columnIndex].longDescription = component.extension.longDescription;
+		data[columnIndex].extStatus = component.extension.status;
+		data[columnIndex].daemonStatus = component.daemon.status;
+		data[columnIndex].daemonName = component.daemon.name;
+		data[columnIndex].daemonLongDescription = component.daemon.longDescription;
+		data[columnIndex].extMessages = component.extension.messageList;
+		data[columnIndex].daemonMessages = component.daemon.messageList;
+		data[columnIndex].messageList =  component.extension.messageList.concat(component.daemon.messageList);
+	});
+}
+
+</script>
+
+<div class="grid-action-bar" id="grid-action-bar">
+	<?php if ($isAllowedToSaveDirectives): ?>
+		<button id="save_directives" disabled title="<?php echo _t("Save changes"); ?>" onclick="saveClick()">Save</button>
+	<?php endif ?>
+	<?php if ($isAllowedToEnable): ?>
+	<button id="enable" title="<?php echo _t("Enable component"); ?> " onclick="enable()" disabled>Enable</button>
+	<?php endif ?>
+	<?php if ($isAllowedToDisable): ?>
+	<button id="disable" title="<?php echo _t("Disable component"); ?>" onclick="disable()" disabled>Disable</button>
+	<?php endif ?>
+	<div style="float: right">
+		<div class="searchField" id="search" placeholder="<?php echo _t("Search..."); ?>"></div>
+	</div>
+</div>
+	
+<div id="mytable"></div>
+
+<?php require_once realpath(dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'extensions.phtml'); ?>

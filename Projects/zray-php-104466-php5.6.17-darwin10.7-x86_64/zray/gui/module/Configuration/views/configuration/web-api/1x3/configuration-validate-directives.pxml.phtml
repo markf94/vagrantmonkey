@@ -1,0 +1,18 @@
+<responseData> 
+   <prerequsitesValidation><?php echo $prerequsitesValidation ? '1' : '0' ?></prerequsitesValidation>
+   <validates>
+<?php foreach ($results as $directive => $result):?>
+     <validate>
+       <name><?php echo $this->escapeHtml($directive) ?></name>
+       <valid><?php echo $result ? 'Yes' : 'No' ?></valid>
+       <messageList>
+<?php if ($messages[$directive]) {
+	foreach ($messages[$directive] as $message): ?>
+			<error><![CDATA[<?php echo $message ?>]]></error>
+<?php endforeach;
+} ?>
+       </messageList>
+     </validate>
+<?php endforeach ?>
+   </validates>
+</responseData>

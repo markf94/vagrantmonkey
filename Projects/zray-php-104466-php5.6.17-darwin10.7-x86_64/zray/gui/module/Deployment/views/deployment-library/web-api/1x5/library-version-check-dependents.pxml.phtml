@@ -1,0 +1,10 @@
+<?php $libraries = $libraries ?: new \ZendServer\Set(array()); ?>
+<?php if (! isset($servers)) $servers = array(); ?>
+<?php if (! isset($prerequisites)) $prerequisites = null; ?>
+<responseData>
+    <prerequsitesCheck>
+        <valid><?php echo $valid ? 'Yes' : 'No' ?></valid>
+        <type><?php echo $type ?></type>
+        <identifier><?php echo $identifier ?></identifier>
+    </prerequsitesCheck>
+</responseData>

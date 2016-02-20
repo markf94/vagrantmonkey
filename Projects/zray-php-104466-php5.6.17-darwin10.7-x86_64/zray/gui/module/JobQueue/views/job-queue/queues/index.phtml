@@ -1,0 +1,705 @@
+<?php $isAuthorized = $this->isAllowed('route:JobQueueWebApi', 'jobqueueCreateQueue') && $this->isAllowed('route:JobQueueWebApi', 'jobqueueUpdateQueue'); ?>
+<script type="text/javascript">
+
+var defaultQueueId = <?php echo JobQueue\Db\Mapper::DEFAULT_QUEUE_ID; ?>;
+var selectedQueues = [];
+var editId = null;
+var allQueues = [];
+var queueStatuses = {'active': '1', 'suspended': '0'};
+var getQueueById = function(qId) {
+	for (var i=0, len=allQueues.length; i<len; i++) {
+		if (allQueues[i].id == qId) {
+			return allQueues[i];
+		}
+	}
+	return null;
+}
+
+function getStatus(value, data) {
+	if (value == "<?php echo \JobQueue\JobQueueInterface::QUEUE_ACTIVE; ?>") {
+		return '<div class="zgrid-status-ok" title="Active">Active</div>';
+	} else if (value == "<?php echo \JobQueue\JobQueueInterface::QUEUE_SUSPENDED; ?>") {
+		return '<div class="zgrid-status-disabled" title="Suspended">Suspended</div>';
+	} else if (value == "<?php echo \JobQueue\JobQueueInterface::QUEUE_DELETED; ?>") {
+		return '<div class="zgrid-status-error" title="Suspended">Deleted</div>';
+	} else {
+		return value;
+	}
+}
+
+function getPriority(value, data) {
+	var prioNames = ['Low', 'Below Normal', 'Normal', 'Above Normal', 'High'];
+	var strVal = prioNames[value];
+	if (value > 2) {
+		strVal = '<strong>' + strVal + '</strong>';
+	} else if (value < 2) {
+		strVal = '<span class="grayed">' + strVal + '</span>';
+	} 
+	return strVal;
+}
+
+var merge_options = function(obj1,obj2) {
+    var obj3 = {};
+    for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+    for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+    return obj3;
+}
+
+var displayModal = function(options) {
+	
+	// define default options
+	var defaultOptions = {
+		'content': 'Hello world content',
+		'buttons': [{
+			'text': 'Cancel',
+			'callback': function() {
+				this.hide();
+			},
+			'class': 'btn'
+		}]
+	};
+	var defaultButton = {
+		'text': 'Cancel',
+		'callback': function() {
+			this.hide();
+		},
+		'class': 'btn'
+	}
+	options = merge_options(defaultOptions, options);
+	
+	// create the modal object
+	simpleModal = new SimpleModal({
+		width: 673, 
+		closeButton: false, 
+		hideHeader: false, 
+		hideFooter: false, 
+		draggable: false, 
+		overlayClick: false,
+		template: '<div id="simple-modal-box-devbar-mode">' + 
+			'<div class="simple-modal-body">{_CONTENTS_}</div>' + 
+			'<div class="simple-modal-footer"></div>' + 
+			'</div>'
+	});
+	
+	// add buttons
+	for (var i = 0, totalButtons = options.buttons.length; i < totalButtons; i++) {
+		var button = merge_options(defaultButton, options.buttons[i]);
+		simpleModal.addButton(button.text, button.class, button.callback.bind(simpleModal));
+	}
+	
+	// display the modal
+	simpleModal.show({
+		'model': 'modal',
+		'title': options.title, 
+		'contents': options.content,
+	});
+};
+
+var deleteQueue = function(queueId, deleteRelated, callbackFn, failureCallbackFn) {
+	
+	// prevent deleting default queue
+	if (queueId == defaultQueueId) {
+		if (typeof(callbackFn) == 'function') callbackFn();
+		return;
+	}
+	
+	var data = {
+		id: queueId
+	};
+	
+	if (deleteRelated) {
+		data.delete_related_stuff = '1';
+	}
+	
+	var deleteQueueUrl = '<?php echo $this->url('jobqueueDeleteQueue'); ?>';
+	new Request.WebAPI({
+		method: 'post',
+		url: deleteQueueUrl,
+		onSuccess: function(response) {
+			if (typeof(callbackFn) == 'function') {
+				callbackFn(response);
+			}
+		},
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			var errorMessage = response.errorData.errorMessage;
+			if (typeof(failureCallbackFn) == 'function') {
+				failureCallbackFn(response);
+			}
+		}.bind(this),
+	}).post(data);
+}
+
+var suspendQueue = function(queueId, callbackFn) {
+	var queueData = getQueueById(queueId);
+	if (queueData.status != <?php echo \JobQueue\JobQueueInterface::QUEUE_ACTIVE; ?>) {
+		if (typeof(callbackFn) == 'function') {
+			callbackFn();
+		}
+		return;
+	}
+	
+	var suspendQueueUrl = '<?php echo $this->url('jobqueueSuspendQueue'); ?>';
+	new Request.WebAPI({
+		method: 'post',
+		url: suspendQueueUrl,
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+		}.bind(this),
+		onComplete: callbackFn
+	}).post({id: queueId});
+}
+
+var activateQueue = function(queueId, callbackFn) {
+	var queueData = getQueueById(queueId);
+	if (queueData.status != <?php echo \JobQueue\JobQueueInterface::QUEUE_SUSPENDED; ?>) {
+		if (typeof(callbackFn) == 'function') {
+			callbackFn();
+		}
+		return;
+	}
+	
+	var activateQueueUrl = '<?php echo $this->url('jobqueueActivateQueue'); ?>';
+	new Request.WebAPI({
+		method: 'post',
+		url: activateQueueUrl,
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+		}.bind(this),
+		onComplete: callbackFn
+	}).post({id: queueId});
+}
+
+// callback receives two bool parameters. 
+// 1. successful check?
+// 2. has related stuff?
+var queueHasRelatedStuff = function(queueId, callback) {
+	var results = [], sentResponse = false;
+	
+	var finishResponse = function(requestSuccessful, responseStatus) {
+		// avoid calling the callback twice in case of failure
+		if (sentResponse) return;
+		
+		if (!requestSuccessful) {
+			if (typeof(callback) == 'function') {
+				callback(false);
+				sentResponse = true;
+			}
+		}
+		
+		results.push(responseStatus);
+		if (results.length > 1) {
+			if (typeof(callback) == 'function') {
+				callback(true, results[0] || results[1]);
+			}
+		}
+	};
+	
+	// check related recurring jobs
+	new Request.WebAPI({
+		method: 'get',
+		url: "<?php echo $this->url('jobqueueRulesList'); ?>",
+		onSuccess: function(response) {
+			var hasRelatedRules = false;
+			if (response && response.responseData && response.responseData.rules) {
+				response.responseData.rules.forEach(function(ruleData) {
+					if (ruleData.queueId == queueId) {
+						hasRelatedRules = true;
+					}
+				});
+			}
+			
+			finishResponse(true, hasRelatedRules);
+		},
+		onFailure: function(XHRObject) {
+			console.error('failure', XHRObject.statusText || XHRObject.responseText);
+			finishResponse(false);
+		}
+	}).get();
+	
+	// check future jobs
+	new Request.WebAPI({
+		method: 'get',
+		url: "<?php echo $this->url('jobqueueJobsList'); ?>",
+		onSuccess: function(response) {
+			finishResponse(true, response && response.responseData && response.responseData.jobs && response.responseData.jobs.length > 0);
+		},
+		onFailure: function(XHRObject) {
+			console.error('failure', XHRObject.statusText || XHRObject.responseText);
+			finishResponse(false);
+		}
+	}).get({
+		"filter[queue_ids][0]": queueId,
+		"filter[status][0]":"Waiting",
+		"filter[status][1]":"Scheduled",
+	});
+}
+
+var deleteQueueDialog = function(queueId) {
+	var deleteAllowed = false;
+	
+	displayModal({
+		content: '<p>The queue will be permanently removed from your system.</p>' + 
+			'<div class="restart-server-note">Once performed, this action cannot be undone.</div>' + 
+			'<br /><br />' + 
+			'<div>' + 
+				'<label id="label-for-delete-queue-related-items" for="delete_related_items" class="hidden">' + 
+					'<input type="checkbox" name="delete_related_items" id="delete_related_items" /> Delete queued and recurring jobs associated with the queue,<br>that are still pending execution.' + 
+				'</label>' +
+				'<div id="checking-queue-related-stuff"><img src="/ZendServer/images/preload-16.gif" /> One moment... checking related rules and jobs</div>' +
+			'</div>',
+		buttons: [{
+			'text': 'Cancel',
+			'callback': function() { this.hide(); },
+		}, {
+			'text': 'Delete',
+			'callback': function() {
+				if (!deleteAllowed) return;
+				var modal = this;
+				
+				// spin the button
+				var theButton = document.getElementsByClassName('delete-queues-permanently-button');
+				if (theButton) {
+					theButton = theButton[0];
+					$(theButton).spin();
+				}
+				
+				var deleteRelated = document.getElementById('delete_related_items').checked;
+				deleteQueue(queueId, deleteRelated, function() {
+					modal.hide();
+					updateQueuesTable({}, function() {
+						activateButtons();
+					});
+				});
+			},
+			'class': 'btn primary delete-queues-permanently-button disabled'
+		}]
+	});
+	
+	// check if the queue has related items
+	// once done, manage the "delete-queues-permanently-button" button
+	queueHasRelatedStuff(queueId, function(successfulRequests, hasRelatedStuff) {
+		var enableDeleteButton = function(newStatus) {
+			var deleteButton = document.getElementsByClassName('delete-queues-permanently-button');
+			if (deleteButton) {
+				deleteButton = deleteButton[0];
+			}
+			if (deleteButton) {
+				if (newStatus === false) {
+					deleteButton.setAttribute('disabled', 'disabled');
+					deleteButton.classList.add('disabled');
+					deleteAllowed = false;
+				} else {
+					deleteButton.removeAttribute('disabled');
+					deleteButton.classList.remove('disabled');
+					deleteAllowed = true;
+				}
+			}
+		};
+		
+		var disableDeleteButton = function() {
+			enableDeleteButton(false);
+		}
+		
+		if (!successfulRequests) {
+			document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify a valid URL for the recurring job"); ?>'});
+			$('checking-queue-related-stuff').set('html', 'Error getting information');
+		} else {
+			$('checking-queue-related-stuff').addClass('hidden');
+			
+			if (hasRelatedStuff) {
+				$('label-for-delete-queue-related-items').removeClass('hidden');
+				document.getElementById('delete_related_items').addEventListener('click', function(e) {
+					var chkbox = e.target;
+					if (chkbox.checked) {
+						enableDeleteButton();
+					} else {
+						disableDeleteButton();
+					}
+				})
+			} else {
+				enableDeleteButton();
+			}
+		}
+	});
+};
+
+var suspendQueues = function() {
+	
+	displayModal({
+		content: '<p>The selected queues are going to be suspended.<Br>' +
+			'The related jobs will not be executed.<br>'+
+			'Suspend the selected queues?</p>',
+		buttons: [{
+			'text': 'Cancel',
+			'callback': function() { this.hide(); },
+		}, {
+			'text': 'Suspend',
+			'callback': function() {
+				var modal = this;
+				
+				// spin the button
+				var theButton = document.getElementsByClassName('suspend-queues-permanently-button');
+				if (theButton) {
+					theButton = theButton[0];
+					$(theButton).spin();
+				}
+				
+				// loop and suspend all selected queues
+				var totalSelectedQueues = selectedQueues.length;
+				for (var i=0, len=selectedQueues.length; i<len; i++) {
+					suspendQueue(selectedQueues[i], function() {
+						if (--totalSelectedQueues == 0) {
+							modal.hide();
+							updateQueuesTable({}, function() {
+								activateButtons();
+							});
+							$('queues_suspend').unspin();
+						}
+					});
+				}
+			},
+			'class': 'btn primary suspend-queues-permanently-button'
+		}]
+	});
+}
+
+var activateQueues = function() {
+	displayModal({
+		content: '<p>The selected queues are going to be activated.<Br>' +
+			'The related jobs will be executed normally<br>'+
+			'Activate the selected queues?</p>',
+		buttons: [{
+			'text': 'Cancel',
+			'callback': function() { this.hide(); },
+		}, {
+			'text': 'Activate',
+			'callback': function() {
+				var modal = this;
+				
+				// spin the button
+				var theButton = document.getElementsByClassName('activate-queues-button');
+				if (theButton) {
+					theButton = theButton[0];
+					$(theButton).spin();
+				}
+				
+				// loop and activate all selected queues
+				var totalSelectedQueues = selectedQueues.length;
+				for (var i=0, len=selectedQueues.length; i<len; i++) {
+					activateQueue(selectedQueues[i], function() {
+						if (--totalSelectedQueues == 0) {
+							modal.hide();
+							updateQueuesTable({}, function() {
+								activateButtons();
+							});
+							$('queues_activate').unspin();
+						}
+					});
+				}
+			},
+			'class': 'btn primary activate-queues-button'
+		}]
+	});
+}
+
+var getQueuesUrl = '<?php echo "{$this->basePath()}/Api/jobqueueGetQueues"; ?>';
+var updateQueuesTable = function(params, callbackFn) {
+	zgrid2.preLoad();
+	params = params || {};
+	return new Request.WebAPI({
+		method: 'get',
+		url: getQueuesUrl,
+		link: 'cancel',
+		onSuccess: function(response) {
+			
+			// update local variable with the queues
+			allQueues = [];
+			for (var i=0, len=response.responseData.queues.length; i<len; i++) {
+				allQueues.push(response.responseData.queues[i]);
+			}
+			
+			// add 2 dummy fields for "view" jobs and recurring jobs
+			var newQueues = []
+			response.responseData.queues.forEach(function(queueData) {
+				queueData['view_jobs'] = 1;
+				queueData['view_recurring_jobs'] = 1;
+				newQueues.push(queueData);
+			})
+			zgrid2.setData(newQueues, response.responseData.queues.length);
+		}.bind(this),
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+			zgrid2.postLoad();
+			zgrid2.setData([], 0);
+		}.bind(this),
+		onComplete: function() {
+			selectedQueues = [];
+			if (typeof(callbackFn) == 'function') {
+				callbackFn();
+			}
+		}
+	}).get(params);
+};
+
+// activate delete/activate/suspend buttons
+var activateButtons = function() {
+	<?php if (!$isAuthorized) { ?>
+    // disable activate/suspend buttons
+    $('queues_suspend').set('disabled', true);
+    $('queues_activate').set('disabled', true);
+	return;
+	<?php } ?>	
+	
+    var suspendedQueues = 0, activeQueues = 0, deleteQueues = 0;
+	for (var i=0, len=selectedQueues.length; i<len; i++) {
+		
+		var queueData = getQueueById(selectedQueues[i]);
+		
+		if (queueData.status == queueStatuses.active) {
+			activeQueues++;
+		}
+		if (queueData.status == queueStatuses.suspended) {
+			suspendedQueues++;
+		}
+		
+		// skip the default queue for "Delete" button
+		if (selectedQueues[i] == defaultQueueId) {
+			continue;
+		}
+		
+		deleteQueues++;
+	}
+
+    // enable activate/suspend buttons
+    $('queues_suspend').set('disabled', !(selectedQueues.length > 0 && activeQueues > 0));
+    $('queues_activate').set('disabled', !(selectedQueues.length > 0 && suspendedQueues > 0));
+    
+}
+
+window.addEvent("domready", function(){
+	
+	// display message if was passed as parameter (from "import" for example)
+	<?php if (isset($_GET['notification_message']) && !empty($_GET['notification_message'])) { ?>
+	document.fireEvent('toastNotification', {message: "<?php echo $_GET['notification_message']; ?>"});
+	<?php } ?>
+	
+
+	var queueInfo = <?php echo $this->zGridJobDetails($this->basePath() . '/Queues/queueInfo'); ?>;
+	var cmu2 = [{
+		'title': _t('Status'),
+		'dataIndex': 'status',
+		'parser': getStatus,
+		'width': '90px',
+		'sortable': true,
+		'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_STATUS; ?>'
+	}, {
+		'title': _t('Name'),
+		'dataIndex': 'name',
+		'parser': function(val, rec) {
+			return '<a href="<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'edit')); ?>?queue_id='+rec.id+'" title="edit queue '+val+'">' + val + '</a>';
+		},
+		'width': '40%',
+		'sortable': true,
+		'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_NAME; ?>'
+	}, {
+		'title': _t('Priority'),
+		'dataIndex': 'priority',
+		'parser': getPriority,
+		'width': '75px',
+		'sortable': true,
+		'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_PRIORITY; ?>'
+	}, {
+		'title': _t('Running Jobs'),
+		'dataIndex': 'running_jobs_count',
+		'parser': function(val, rec) {
+			return '<span queue_id="'+rec.id+'" stat_field="running_jobs">' + val + '</span>';
+		},
+		'width': '65px',
+		'sortable': true,
+		'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_RUNNING_JOBS_COUNT; ?>'
+	}, {
+		'title': _t('<span title="Number of jobs awaiting immediate execution or scheduled to be executed later">Pending Jobs<span>'),
+		'dataIndex': 'pending_jobs_count',
+		'parser': function(val, rec) {
+			return '<span queue_id="'+rec.id+'" stat_field="pending_jobs">' + val + '</span>';
+		},
+		'width': '65px',
+		'sortable': true,
+		'sortBy': '<?php echo \JobQueue\Filter\Dictionary::COLUMN_PENDING_JOBS_COUNT; ?>'
+	}, {
+		'title': _t('All Jobs'),
+		'dataIndex': 'view_jobs', // dataIndex isn't relevant, just used as a placehoder here
+		'parser': function(val, rec) {
+			var url = "<?php echo $this->url('default', array('controller' => 'JobQueue')); ?>";
+			url+= '#queue_ids=' + rec.id;
+			return '<a href="' + url + '">View</a>';
+		},
+		'width': '65px',
+		'sortable': false
+	}, {
+		'title': _t('Recurring Jobs'),
+		'dataIndex': 'view_recurring_jobs', // dataIndex isn't relevant, just used as a placehoder here
+		'parser': function(val, rec) {
+			var url = "<?php echo $this->url('default', array('controller' => 'RecurringJobs')); ?>";
+			url+= '#queue_ids=' + rec.id;
+			return '<a href="' + url + '">View</a>';
+		},
+		'width': '65px',
+		'sortable': false
+	}, 
+	<?php if ($isAuthorized) { ?>
+	{
+		'title': _t('Edit'),
+		'dataIndex': 'edit',
+		'parser': zGrid2.prototype.button,
+	}, 
+	{
+		'title': _t('Delete'),
+		'dataIndex': 'delete',
+		'parser': zGrid2.prototype.button,
+		'display': function(rec) {
+			return rec.id != <?php echo \JobQueue\Db\Mapper::DEFAULT_QUEUE_ID; ?>;
+		}
+	}
+	<?php } ?>	
+	];
+
+	<?php 
+	$options = array(
+		'sortedBy'      => 'id',
+		'direction'     => 'asc',
+		'idColumn'      => 'id',
+		'multiSelect'   => true,
+		'totalContainer' => 'grid-count-bar'
+	);
+	?>
+	
+	zgrid2 = <?php echo $this->zGrid2('mytable', 'cmu2', $options); ?>
+	
+	persistantHeaders.addHeader('mytable_tableHead');
+    
+	zgrid2.loadRequest = updateQueuesTable();
+
+	// load data event for sorting
+    zgrid2.addEvent('loadData', updateQueuesTable);
+	
+    zgrid2.addEvent('rowChecked', function(params) {
+    	var _selectedQueues = $('mytable')
+    	   .getElements('input[type=checkbox].zgrid-checkbox')
+    	   .filter(function(item) {
+	            return item.checked;
+	        })
+	        .map(function(item) {
+		        return item.get('value');
+	        });
+
+        // update local variable
+    	selectedQueues = [];
+		for (var i=0, len=_selectedQueues.length; i<len; i++) {
+			selectedQueues.push(_selectedQueues[i]);
+		}
+
+		// activate delete/activate/suspend buttons
+		activateButtons();
+    });
+
+    zgrid2.addEvent('buttonClick', function(params) {
+		queueId = params.data.id;
+    	if (params.type == 'edit') {
+    	    // open edit page
+    	    var editUrl = '<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'edit')); ?>?queue_id=' + queueId;
+    	    document.location.href = editUrl; 
+    	} else if (params.type == 'delete') {
+    	    // open delete dialog
+			deleteQueueDialog(queueId);
+    	}
+    });
+
+
+    zgrid2.addEvent('descriptionOpen',function(params) {
+    	queueInfo.loadData(params);
+    });
+
+    // update queues statistics
+    (function updateStatistics() {
+    	new Request.WebAPI({
+    		method: 'get',
+    		url: '<?php echo $this->url('jobqueueQueueStats'); ?>?disable_debug=1',
+    		link: 'cancel',
+    		onSuccess: function(response) {
+        		if (response && response.responseData && response.responseData.queueStats && response.responseData.queueStats.length > 0) {
+        			response.responseData.queueStats.forEach(function(qstat) {
+            			var el = document.querySelector('[queue_id="' + qstat.queue_id + '"][stat_field="pending_jobs"]');
+            			if (el) el.textContent = qstat.pending_jobs_count;
+            			el = document.querySelector('[queue_id="' + qstat.queue_id + '"][stat_field="running_jobs"]');
+            			if (el) el.textContent = qstat.running_jobs_count;
+        			});
+        		}
+    			setTimeout(updateStatistics, 5000);
+    		},
+    		onFailure: function(response) {
+    		}
+    	}).get();
+    })();
+    
+});
+
+</script>
+
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Job Queue is a job management system that provides offline
+            				asynchronous processing of tasks and activities that can be run independently of
+            				the end user experience. Using the Job Queue API you can delay the execution of "heavy" parts
+            				of your Web application that originate from direct user interaction with a Web server,
+            				helping you to significantly improve response time and reduce Web server load<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('jobs_component')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'JobQueue')) ?>"><?php echo _t("JobQueue"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<?php if (!$isAuthorized) { ?>
+<div class="warningTopMessage">Creating or modifying queues is allowed only to the administrator</div>
+<?php } ?>
+
+<?php // toolbar // ?>
+<div id="jobs-grid-actions-bar" class="grid-action-bar">
+	<button id="queues_add" title="<?php echo _t('Add Queue'); ?>" onclick="document.location.href='<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'add')); ?>'"
+		<?php if (!$isAuthorized) echo 'disabled'; ?>><?php echo _t('Add Queue'); ?></button>
+	<button id="queues_suspend" title="<?php echo _t('Suspend Selected'); ?>" disabled="disabled" onclick="suspendQueues()"><?php echo _t('Suspend Selected'); ?></button>
+	<button id="queues_activate" title="<?php echo _t('Activate Selected'); ?>" disabled="disabled" onclick="activateQueues()"><?php echo _t('Activate Selected'); ?></button>
+	<div class="buttons-on-right">
+    	<button id="queues_activate" title="<?php echo _t('Export/Backup queues data'); ?>" onclick="document.location.href='<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'export')); ?>'"><?php echo _t('Export'); ?></button>
+    	<button id="queues_activate" title="<?php echo _t('Import/Restore queues data'); ?>" onclick="document.location.href='<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'import')); ?>'"
+			<?php if (!$isAuthorized) { echo 'disabled'; } ?>><?php echo _t('Import'); ?></button>
+	</div>
+	<?php if (!$isJobQueueLoaded) { ?>
+	<span id="jobqueue-service-warning" class="glyphicons circle_exclamation_mark"><i></i>Job Queue service is currently disabled, and some actions may not be available</span>
+	<?php } ?>
+</div>
+
+<div id="grid-count-bar"></div>
+<div class="clear" id="mytable"></div>

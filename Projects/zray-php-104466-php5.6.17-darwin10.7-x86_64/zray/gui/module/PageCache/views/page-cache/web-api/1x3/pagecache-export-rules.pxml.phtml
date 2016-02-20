@@ -1,0 +1,8 @@
+<?php echo '<?xml version="1.0" ?>' ?>
+<cache_settings><dont_cache/>
+<cache>
+<?php foreach ($rules as $rule) : /* @var $rule \PageCache\Rule */ ?>
+<?php echo $rule->getXml() ?>
+<?php endforeach ?>
+</cache>
+</cache_settings>

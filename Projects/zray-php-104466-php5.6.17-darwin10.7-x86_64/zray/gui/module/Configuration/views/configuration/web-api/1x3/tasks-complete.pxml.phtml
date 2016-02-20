@@ -1,0 +1,11 @@
+<responseData>
+    <tasksComplete><?php echo $tasksIsComplete ? 'true' : 'false'?></tasksComplete>
+    <tasksPerServer>
+<?php foreach ($tasksPerServer as $server => $complete) :?>
+		<serverComplete>
+			<serverId><?php echo $server ?></serverId>
+			<complete><?php echo $complete ? 'true' : 'false'?></complete>
+		</serverComplete>
+<?php endforeach ?>
+    </tasksPerServer>
+</responseData>

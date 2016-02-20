@@ -1,0 +1,450 @@
+<script type="text/javascript">
+
+window.addEvent("load", function(){
+	
+	<?php echo $this->onOffButton(); ?>
+	
+	persistantHeaders.addHeader('grid-action-bar');
+	persistantHeaders.addHeader('mytable_tableHead');
+
+	document.addEvent('onbeforelogout', function(){
+		window.onbeforeunload = function() {
+		}
+	});
+	
+	document.addEvent('directives-changed', function(){
+		window.onbeforeunload = function(){
+			return "Your changes have not been saved yet.";
+		};
+	});
+	
+	if ($('save_directives')) {
+		$('save_directives').addEvent('click', function(){
+			window.onbeforeunload = function() {
+			}
+		});
+	}
+
+	directiveInfo.addEvent('descriptionOpened',function(params) {
+		if(typeof highlighted != 'undefined' && highlightWordFlag){
+			var highlighter = <?php echo $this->highlighter('#mytable_tableBody'); ?>;
+			highlighter.highlight(highlighted);
+		}
+		
+		if(typeof highlighted != 'undefined' && !highlightWordFlag){
+			var highlighter = <?php echo $this->highlighter('#mytable_tableBody'); ?>;
+			highlighter.unhighlight(highlighted);
+		}			
+	});	
+
+	if ($('save_directives') && typeof $('save_directives').spinner == 'undefined') {
+		$('save_directives').spinner = new Spinner($('save_directives'));
+		$('save_directives').spinner.hide();
+	}
+
+	if ($('enable') && typeof $('enable').spinner == 'undefined') {
+		$('enable').spinner = new Spinner($('enable'));
+		$('enable').spinner.hide();
+	}
+
+	if ($('disable') && typeof $('disable').spinner == 'undefined') {
+		$('disable').spinner = new Spinner($('disable'));
+		$('disable').spinner.hide();
+	}
+
+
+	var fragment = new FragmentManager();
+	if (Object.getLength(fragment.getFragmentObject()) > 0) {
+		var searchFragment = fragment.getFragmentObject().search;
+		if (searchFragment) {
+			$('search_input').value = searchFragment;
+			zgrid2.loadData();
+		}
+	}
+
+	zgrid2.addEvent('rowChecked',function(params) {
+		// for php extension the relevant field is params.data.loaded
+		// and for zend component it's  params.data.extension.loaded
+		var selectedRows = zgrid2.getSelectedRows();
+		var checked = Object.keys(selectedRows).length;
+		
+		//reset buttons state
+		$('enable').set('disabled', true);
+		$('disable').set('disabled', true);
+		
+		Object.each(selectedRows, function(component,componentKey) {
+			//Iteriate over each selected rows
+			var loaded = component.loaded;
+			if (loaded == undefined) {
+				loaded = component.extension.loaded;
+			}
+			if(loaded != "true"){
+				$('enable').set('disabled', false);
+			}else{
+				$('disable').set('disabled', false);
+			}
+			if (typeof component.extStatus != 'undefined' && component.extStatus.toLowerCase() == 'warning') {
+				$('enable').set('disabled', false);
+				$('disable').set('disabled', false);
+			}
+		});
+	});
+
+
+	zgrid2.addEvent('descriptionOpen',function(params) {
+		if (Object.getLength(fragment.getFragmentObject()) > 0) {
+			var directives = fragment.getFragmentObject();
+			if (typeof(directives['daemon-tab']) != 'undefined') {
+				params = Object.append(params, {
+					'daemonTab': true
+				});
+				fragment.removeUriFragment('daemon-tab');
+			}
+		}
+		
+		directiveInfo.loadData(params);
+	});
+
+
+	////////////// Notification Center EVENTS //////////////
+	notificationCenter.addEvent('restartComplete', function() {
+		resetData();
+		zgrid2.loadData();
+	});	
+	runSearch();
+});
+// end load
+
+if ($('save_directives')) {
+    $('save_directives').addEvent('checkSaveButton',
+    function(isEnabled) {
+    	if (isEnabled && isEnabled.isValid  && ($$('select.invalid, input.invalid').length == 0)) {
+    		$('save_directives').set('disabled', false);
+    	} else {
+    		$('save_directives').set('disabled', true);
+    	}
+    });
+}
+
+function updateComplete() {
+	setTimeout(function(){
+		if(typeof highlighted != 'undefined' && highlightWordFlag){
+			highlighter = <?php echo $this->highlighter('#mytable_tableBody'); ?>;
+			highlighter.highlight(highlighted);
+		}
+		if(typeof highlighted != 'undefined' && !highlightWordFlag){
+			highlighter = <?php echo $this->highlighter('#mytable_tableBody'); ?>;
+			highlighter.unhighlight(highlighted);
+		}				
+	},200);
+} 
+
+function resetData() {
+    if ($('enable')) {
+        $('enable').set('disabled', true);
+    }
+	if ($('disable')) {
+	    $('disable').set('disabled', true);
+	}
+	rowsChecked = 0;		
+}
+
+function checkTasksComplete(doneFunction, retry) {
+   	if (!retry) {
+   	   	retry = 0;
+   	}
+	var maxRetries = 50;
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/tasksComplete'; ?>';
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url,
+		data:{},
+		onComplete: function(response) {
+			if (undefined != response && response.responseData.tasksComplete == true) {
+				return eval(doneFunction)(true);
+			}
+			
+			retry++;  
+	    	if (retry > maxRetries) {
+	    		return eval(doneFunction)(false);
+	    	}
+	    		
+	    	checkTasksComplete.delay('700', this, [doneFunction, retry]);
+	
+		}
+	}).send();
+}
+
+function disable() {
+
+	if (! $('save_directives').get('disabled')) { /// we have directives' values to save
+		if (! window.confirm('<?php echo _t('You have made changes to directive values. These changes will be lost if you proceed') ?>')) {
+			return ;
+		}
+		$('save_directives').set('disabled', true);
+	}
+	
+    if ($('enable')) {
+        $('enable').set('disabled', true); // also disable the opposite action
+    }
+	if ($('disable')) {
+	    $('disable').spinner.show();
+	}
+
+	// ---
+	var disabledExtensions = new Object();
+	Object.keys(zgrid2.getSelectedRows()).each(function(item) {
+		disabledExtensions[item] = 'disabled';
+	});
+	
+	var params = {
+		"extensions": disabledExtensions
+	};
+
+	var request = new Request.WebAPI({
+		url: '<?php echo $this->basePath(); ?>' + '/Api/configurationValidateDirectives', 
+		data: params,
+		onComplete: function(response) {
+    		if (undefined != response) {
+        		
+    			var extensions = {"extensions": Array()};
+    			// fix the spaces
+    			Object.each(zgrid2.getSelectedRows(), function (extension) {
+    				extensions.extensions.push(extension.name);
+    			}.bind(this));
+
+    			var requestUrl = '<?php echo $this->basePath(); ?>' + '/Api/configurationExtensionsOff';
+        		if (response.responseData.prerequsitesValidation && response.responseData.prerequsitesPluginValidation) {
+        			var request = new Request.WebAPI({url: requestUrl, data: extensions});
+        			request.post();
+        			checkTasksComplete('disableDone');
+        		} else {
+            		if (!response.responseData.prerequsitesValidation) {
+            			var answerApp = confirm(_t('Disabling those extensions (' + response.responseData.prerequsitesConflicts + ') may break deployed applications due to prerequisites requirement. Do you wish to proceed ?'));
+            			if (! answerApp){
+            				$('enable').set('disabled', false); // also disable the opposite action
+            				$('save_directives').fireEvent('checkSaveButton', {'isValid': false});
+            				$('disable').spinner.hide();
+            				return;
+            			}
+            		}
+
+            		if (!response.responseData.prerequsitesPluginValidation) { 
+        				var answer = confirm(_t('Disabling those extensions contradicts the required prerequisites for a deployed plugin. Do you wish to disable the (' + response.responseData.brokenPlugin + ') plugin first?'));
+                    	
+            			if (! answer){
+            				$('enable').set('disabled', false); // also disable the opposite action
+            				$('save_directives').fireEvent('checkSaveButton', {'isValid': false});
+            				$('disable').spinner.hide();
+            				return;
+            			} else {
+            				var request = new Request.WebAPI({url: '<?php echo $this->basePath(); ?>' + '/Api/disablePlugins', data: {"plugins": [response.responseData.brokenPluginId]}});
+                	  		request.post();
+                	  		checkTasksComplete('disableDone');
+            			}
+            		}
+
+    				var request = new Request.WebAPI({url: requestUrl, data: extensions});
+        	  		request.post();
+        	  		checkTasksComplete('disableDone');
+        		}
+    		}
+		}
+	});
+	request.get();
+}
+
+function disableDone(data) {
+    if ($('disable')) {
+        $('disable').spinner.hide();
+    }
+
+    <?php if ($page == 'extensions'): ?>
+    	var extensionStr = 'extension';
+    	var extensionsStr = 'extensions';
+    <?php else: ?>
+    	var extensionStr = 'component';
+		var extensionsStr = 'components';
+	<?php endif; ?>
+	
+	if (data) {
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("Restart Zend {$serverString} to disable "); ?>' + extensionStr});
+	} else {
+		document.fireEvent('toastAlert', {'message': 'Failed to disable ' + extensionsStr});
+	}
+	document.fireEvent('refreshNotifications');
+	resetData();
+	zgrid2.loadData();
+}
+
+function enable() {
+
+	if (! $('save_directives').get('disabled')) { /// we have directives' values to save
+		if (! window.confirm('<?php echo _t('You have made changes to directive values. These changes will be lost if you proceed') ?>')) {
+			return ;
+		}
+		$('save_directives').set('disabled', true);
+	}
+	
+    if ($('disable')) {
+        $('disable').set('disabled', true); // also disable the opposite action
+    }
+	if ($('enable')) {
+	    $('enable').spinner.show();
+	}
+
+	var enabledExtensions = new Object();
+	Object.keys(zgrid2.getSelectedRows()).each(function(item) {
+		enabledExtensions[item] = 'enabled';
+	});
+
+	var params = {
+		"extensions": enabledExtensions
+	};
+
+	 <?php if ($page == 'extensions'): ?>
+	 	var extensionsStr = 'extensions';
+	 <?php else: ?>
+		var extensionsStr = 'components';
+	<?php endif; ?>
+		
+	var request = new Request.WebAPI({
+		url: '<?php echo $this->basePath(); ?>' + '/Api/configurationValidateDirectives', 
+		data: params,
+		onComplete: function(response) {
+    		if (undefined != response) {
+        		var urlRequest = '<?php echo $this->basePath(); ?>' + '/Api/configurationExtensionsOn';
+        		if (response.responseData.prerequsitesValidation) {
+        			var extensions = {"extensions": Array()};
+
+        			// fix the spaces
+        			Object.each(zgrid2.getSelectedRows(), function (component) {
+        				extensions.extensions.push(component.name);
+        			}.bind(this));
+        			var request = new Request.WebAPI({url: urlRequest, data: extensions});
+
+        			request.post();
+        			checkTasksComplete('enableDone'); 
+        		} else {
+        			var answer = confirm(_t('Enabling those ' + extensionsStr + ' may break deployed applications due to prerequisites requirment. Do you wish to proceed ?'));
+        			if (! answer){
+        				$('disable').set('disabled', false);
+        				$('enable').spinner.hide();
+        				return;
+        			} else {
+        				var extensions = {"extensions":Object.keys(zgrid2.getSelectedRows())};
+            	  		var request = new Request.WebAPI({url: urlRequest, data: extensions});
+
+            	  		request.post();
+            	  		checkTasksComplete('enableDone');
+        			}
+        		}
+    		}
+		}
+	});
+	request.get();
+}
+
+function enableDone(data) {
+    if ($('enable')) {
+        $('enable').spinner.hide();
+    }
+<?php if ($page == 'extensions'): ?>
+	var extensionsStr = 'extensions';
+<?php else: ?>
+	var extensionsStr = 'components';
+<?php endif; ?>
+    
+	if (data) {
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("Restart Zend {$serverString} to enable "); ?>' + extensionsStr});
+	} else {
+		document.fireEvent('toastAlert', {'message': 'Failed to enable ' + extensionsStr});
+	}
+	document.fireEvent('refreshNotifications');
+	resetData();
+	zgrid2.loadData();
+}
+
+function saveClick() {
+	
+    if ($('save_directives')) {
+        $('save_directives').spinner.show();
+    }
+
+	var submitData = new Object();
+	submitData.directives = new Object();
+	
+	$$('select.valid, input.valid').each(function(directive) {
+		submitData.directives[directive.name] = directive.value;
+	});
+	
+	var request = new Request.WebAPI({url: '<?php echo $this->basePath(); ?>' + '/Api/configurationStoreDirectives', data: submitData});
+
+	request.addEvent("complete", saveDone);
+	request.post();
+}
+
+function saveDirectiveDone() {
+	var params = {filter: $('search_input').value};
+
+	<?php if ($page == 'extensions'): ?>
+		params.type = 'PHP';
+		var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/configurationExtensionsList'; ?>';
+	<?php else: ?>
+		var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/configurationComponentsList'; ?>';		
+	<?php endif; ?>
+	
+	var request = new Request.WebAPI({
+		   method: 'get',
+		   url:url,
+		   data:params,
+		   onComplete: function(response) {
+			   zgrid2.loadData();
+				document.fireEvent('toastNotification', {'message': '<?php echo _t("The changes have been saved"); ?>'});
+			    if ($('save_directives')) {
+			        $('save_directives').spinner.hide();
+			    }
+			    document.fireEvent('refreshNotifications');
+			}
+	}).send();
+}
+
+function saveDone(data) {
+	if ($('save_directives')) {
+		$('save_directives').spinner.hide();
+	}
+	    
+   	if (data) {
+       if ($('save_directives')) {
+           $('save_directives').set('disabled', true);
+       }
+
+	   var params = {filter: $('search_input').value};
+	   <?php if ($page == 'extensions'): ?>
+	   	params.type = 'PHP';
+		var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/configurationExtensionsList'; ?>';
+	  <?php else: ?>
+		var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/configurationComponentsList'; ?>';		
+	  <?php endif; ?>
+
+		var request = new Request.WebAPI({
+			method: 'get',
+			url:url,
+			data:params,
+			onComplete: function(response) {
+				checkTasksComplete('saveDirectiveDone');
+			}
+		}).send();
+   	} else {
+	   document.fireEvent('toastAlert', {'message': 'Failed to save the directives'});
+   }	   
+}
+
+
+function runSearch() {
+	var fragment = new FragmentManager();
+	fragment.setUriFragment('search', $('search_input').get('value'));
+	zgrid2.loadRequest.get(Object.append(zgrid2.loadRequest.options.data, {filter: $('search_input').get('value')}));
+}
+
+</script>

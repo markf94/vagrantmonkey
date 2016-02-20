@@ -1,0 +1,9 @@
+"responseData":{
+"codeTracingTotalCount": <?php echo $tracesTotalCount ?>,
+"codeTracingList": [
+<?php $counter = 0; foreach($traces as $trace) : // @var $traces \ZendServer\Set @var $trace TraceFileContainer ?>
+<?php $comma = (++$counter < count($traces) ? ',' : '') ?>
+<?php echo $this->TraceFileJson($trace) ?>
+<?php echo $comma ?>
+<?php endforeach; ?>
+]}

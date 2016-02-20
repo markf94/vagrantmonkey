@@ -1,0 +1,9 @@
+<responseData>
+	<result><?php echo $result; ?></result>
+    <?php if (isset($id)) { ?>
+    <id><?php echo $id; ?></id>
+    <?php } ?>
+    <?php if ($result == 'error' && isset($error)) { ?>
+    <error><?php echo $error; ?></error>
+    <?php } ?>
+</responseData>

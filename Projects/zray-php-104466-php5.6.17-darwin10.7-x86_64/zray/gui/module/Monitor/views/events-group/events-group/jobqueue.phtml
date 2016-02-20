@@ -1,0 +1,22 @@
+<?php
+$xmlData = $event->getExtraData();
+try {
+	$xml = new SimpleXMLElement($xmlData);
+	switch ($eventsGroup->getEventType()) {
+		case ZM_TYPE_JQ_JOB_EXEC_ERROR:
+			echo $this->partial('events-group/events-group/jobExecutionErrorData.phtml', array('xml' => $xml));
+			break;
+		case ZM_TYPE_JQ_JOB_LOGICAL_FAILURE:
+			echo $this->partial('events-group/events-group/jobLogicalFailureData.phtml', array('xml' => $xml));
+			break;
+		case ZM_TYPE_JQ_JOB_EXEC_DELAY:
+			echo $this->partial('events-group/events-group/jobExecutionDelayData.phtml', array('xml' => $xml));
+			break;
+		case ZM_TYPE_JQ_DAEMON_HIGH_CONCURRENCY_LEVEL:
+			echo $this->partial('events-group/events-group/daemonHighConcurencyData.phtml', array('xml' => $xml));
+			break;
+	}
+	
+} catch (\Exception $e) {
+	\ZendServer\Log\Log::err('Could not parse Extra Data: %s', array($e->getMessage()));
+}

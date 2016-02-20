@@ -1,0 +1,642 @@
+<?php 
+
+$this->headScript()->appendFile($this->basePath('/js/TabPane.js'));
+$this->headScript()->appendFile($this->basePath('/js/TabPane.Extra.js'));
+
+$this->headLink()->appendStylesheet($this->basePath() . '/css/zmenu.css');
+$this->plugin('headLink')->appendStylesheet($this->basePath() . '/css/pageCache.css');
+$this->plugin('headLink')->appendStylesheet($this->basePath() . '/css/zgrid.css');
+$doneUrl = $this->url('default', array('controller' => 'PageCache'));
+$listUrl = $this->url('default', array('controller' => 'PageCache', 'action' => 'Index'));
+$conditionHostValue = $conditionPathValue = '';
+$cacheConditions = ($ruleContainer) ? $ruleContainer->getConditionsArray() : array();
+$splitByConditions = ($ruleContainer) ? $ruleContainer->getSplitByArray() : array();
+$ruleId = ($ruleContainer && !$duplicate) ? $ruleContainer->getId() : "-1";
+$extraPathValue = '';
+
+if ($ruleContainer) {
+	$conditionHostValue = $ruleContainer->getUrlHost();
+	$conditionPathValue = $ruleContainer->getUrlPath();
+}
+
+// fetch the Host,Url,extra url values if the rule is related to an application
+foreach ($applications as $app) {/* @var $app \Deployment\Application\Container */
+	if ($ruleContainer && $app->getApplicationId() == $ruleContainer->getAppId()) {
+		$parsedUrl = parse_url($this->applicationUrl($app->getBaseUrl()));
+		if (!isset($parsedUrl['path'])) $parsedUrl['path'] = '/';
+		$baseUrlPathPart = trim($parsedUrl['path'],'/');
+		$extraPathValue = isset($parsedUrl['path']) ? trim(substr($conditionPathValue, strlen($baseUrlPathPart)), '/') : '';
+		$conditionPathValue = (isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') :'');
+		$conditionHostValue = (isset($parsedUrl['host']) ? $parsedUrl['host'] :'');
+
+	} elseif ($appId && $appId != -1 && $appId ==  $app->getApplicationId()) {
+		$parsedUrl = parse_url($this->applicationUrl($app->getBaseUrl()));
+		$conditionHostValue = (isset($parsedUrl['host']) ? $parsedUrl['host'] :'');
+		$conditionPathValue = (isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') :'');
+	}
+}
+?>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<h1><?php echo ($ruleContainer) ? htmlspecialchars($ruleContainer->getName()) : _t("New rule"); ?></h1>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'PageCache')) ?>"><?php echo _t("Caching");  ?></a></li>
+			<li><a href="<?php echo $listUrl; ?>"><?php echo _t("Cache Rules");  ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="general-cache-details-top">
+		<h2><?php echo _t('General Details'); ?></h2>
+		
+		<table style="width: 400px; margin: 20px 0;">
+			<tbody>
+				<tr style="height: 28px;">
+					<td><?php echo _t('Rule Name'); ?></td>
+					<td>
+					<input type="text" id="rule-name" value="<?php echo ($duplicate) ? 'Duplication of ': ''; echo ($ruleContainer) ? $this->escapehtmlattr($ruleContainer->getName()) : ''; ?>" 
+					placeholder="e.g. MyRule" onchange="document.fireEvent('entry-changed');" />
+					</td>
+				</tr>
+				<tr style="height: 28px;">
+					<td><?php echo _t('Cache Duration'); ?></td>
+					<td><input type="text" id="duration" onchange="document.fireEvent('entry-changed');" value="<?php echo ($ruleContainer && $ruleContainer->getLifetime()) ? $ruleContainer->getLifetime() : '360'; ?>"/>
+					<span><?php echo _t('seconds'); ?></span></td>
+				</tr>
+				<tr>
+					<td><?php echo _t('Application'); ?></td>
+					<td>
+						<?php if ($ruleContainer || $appId) {
+								    $appName = 'Global';
+								    $hiddenAppId = '-1';
+								    foreach ($applications as $application) {
+								        if ($application->getApplicationId() == $appId || ($ruleContainer && $application->getApplicationId() == $ruleContainer->getAppId())) {
+	                                        $appName = $application->getUserApplicationName();
+	                                        $hiddenAppId = $application->getApplicationId();
+	                                        break;
+	                                    }
+								    }
+								    echo "<span id=\"application-name\" class=\"hidden\">$hiddenAppId</span>";
+								    echo "<span id=\"application-show-name\">{$this->escapehtml($appName)}</span>";
+						} else {
+							echo '<select id="application-name">';
+							echo '<option value="-1">' . _t('Global') . '</option>';
+							foreach ($applications as $app) {
+								echo "<option value=\"{$app->getApplicationId()}\">{$this->escapehtml($app->getUserApplicationName())}</option>";
+							}
+							echo '</select>';
+						}
+					
+					    ?>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<div id="tabsWrapper">
+		<ul class="tabs">                              
+			<li class="tab first active">Cache Conditions</li>
+			<li class="tab">Multiple Versions</li>
+		</ul>
+		<div class="content">
+		
+			<div class="cache-conditions" id="conditions_container">
+			<table class="conditions_container">
+				<tr>
+					<td><?php echo "Define a Web page to cache by building the URL in the entry fields. Use the URL of the page you want to cache.<br>
+									You can also add conditions that can further pinpoint what to cache."?></td>
+				</tr>
+				<tr>
+					<td>
+					<span id="condition-count">1</span><span><?php echo "Cache if URL"?></span>
+						<select id="match_type">
+							<?php
+								$existMatchType = '';
+								if ($ruleContainer) {
+									$existMatchType = $ruleContainer->getMatchType();
+								}
+								foreach ($dictionaryMatchType as $key => $value) {
+									$selected = "";
+									if ($existMatchType == $key) {
+										$selected ="selected";
+									}
+									echo "<option value=\"$key\" $selected>$value</option>"; 
+								}
+							?>
+					</select>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<div class="condition-panel">
+						<table class="conditionsUrl"><tr>
+							<td>
+							<input type="hidden" name="urlSchema" value="https?">
+							<?php 
+							// if this is the application rule
+							$hidden = '';
+							if (($appId && $appId != -1) || ($ruleContainer && $ruleContainer->getAppId() != -1)) {
+								$hidden = 'class="hidden"'; 
+								echo '<span>http(s)://' . htmlspecialchars($conditionHostValue . '/' . $conditionPathValue . '/') . '</span>';
+							} else {
+								echo '<span>http(s)://</span>';
+							}?>
+							
+							<?php 
+								$conditionHostValue = ($conditionHostValue) ? "value=\"" . htmlspecialchars($conditionHostValue) . "\"" : '';
+							?>
+							<input type="text" id="urlHost" onchange="document.fireEvent('entry-changed');" <?php echo $conditionHostValue; ?> <?php echo $hidden; ?>/>
+							</td>
+							<td><span <?php echo $hidden; ?>>/</span></td>
+							<?php 
+								$conditionPathValue = ($conditionPathValue) ? 'value="' . htmlspecialchars($conditionPathValue) . '"' : '';
+							?>
+							<td><input type="text" id="urlPath" onchange="document.fireEvent('entry-changed');" <?php echo $conditionPathValue; ?> <?php echo $hidden; ?>/></td>
+							<?php 
+							if (($appId && $appId != -1) || ($ruleContainer && $ruleContainer->getAppId() != -1)) {
+								echo '<td><input type="text" onchange="document.fireEvent(\'entry-changed\');" id="extraUrlPath" value="' . trim($this->escapehtmlattr($extraPathValue), '/') . '" /></td>';
+							}
+							?>
+							</tr>
+						</table>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td>
+					<span id="condition-count">2</span><span><?php echo "Cache if"?></span>
+						<?php $existConditionType = ($ruleContainer) ? $ruleContainer->getConditionsType() : 'Or';?>
+						<select id="conditions_type">
+							<?php 
+								foreach (array('or' => 'at least one', 'and' => 'all') as $conditionTypeValue => $conditionType) {
+									$selected = ($existConditionType == $conditionTypeValue) ? 'selected' : '';
+									echo "<option value=\"$conditionTypeValue\" $selected >$conditionType</option>"; 
+								}
+							?>
+					</select>
+					<span><?php echo _t('of the following queries are true')?></span>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<div class="condition-panel">
+						<table class="conditionsTable" id="conditionsTable">
+							<tr><td><span id="no_conditions"><?php echo "No further conditions on query string."?></span></td></tr>
+							<tr id="add-condition">
+								<td><button onclick="document.fireEvent('entry-changed');addNewCacheCondition();" title="Add a new caching condition"><?php echo "Add Condition";?></button></td>
+							</tr>
+						</table>
+						</div>
+					</td>
+				</tr>
+				
+			</table>
+		</div>
+		
+		</div>
+		<div class="content">
+			<div id="split_container">
+			<table class="split-container">
+				<tr>
+					<td colspan="2"><?php echo "If you want to manage a different cache version according to an additional parameter,
+									you can choose to create a separate cached page for all the caching conditions (Entire Query String, Request URI), or add each separate query string (Get, Server, Session or Cookie) one at a time."?></td>
+				</tr>
+				<tr>
+					<td><input type="radio" id="split-cache-single" name="split-cache" value="0" <?php echo (empty($splitByConditions) ? 'checked="checked"' : ''); ?> /></td>
+					<td><label for="split-cache-single"><?php echo _t("Create a single cached page"); ?></label></td>
+				</tr>
+				<tr>
+					<td><input type="radio" id="split-cache-multi" name="split-cache" value="1" <?php echo (! empty($splitByConditions) ? 'checked="checked"' : ''); ?> /></td>
+					<td><label for="split-cache-multi"><?php echo _t("Create a separate cached page for each value of the following queries"); ?></label></td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<div class="split-condition-panel">
+							<table class="splitTable" id="split_table">
+							<tr><td><span id="no_cache_quiries"><?php echo "No further queries"?></span></td></tr>
+							<tr id="add-split-condition">
+								<td><button onclick="addNewSplitCondition();" title="Add new split"><?php echo "Add Split Condition";?></button></td>
+							</tr>
+							<tr>
+								<td><div id="content-lock" <?php echo (!empty($splitByConditions) ? 'class="hidden"' : ''); ?>></div></td>
+							</tr>
+							</table>
+						</div>
+						</div>
+						
+					</td>
+				</tr>
+			</table>
+			
+		</div>
+		</div>
+	</div>
+
+<div id="page-cahce-edit-action-bar" class="grid-action-bar">
+	<?php if ( $this->isAllowedIdentity('route:PageCacheWebApi', 'pagecacheSaveRule')): ?>
+	<button id="save_rule" title="<?php echo _t("Save rule"); ?>" onclick="saveClick()"><?php echo _t("Save"); ?></button>
+	<?php else : ?>
+	<button id="save_rule" title="<?php echo _t("Not allowed to save rule"); ?>" disabled><?php echo _t("Save"); ?></button>
+	<?php endif;?>
+	<button id="close_rule" title="<?php echo _t("Close"); ?>" onclick="window.location='<?php echo $doneUrl ?>';"><?php echo _t("Close"); ?></button>
+	<?php if ($ruleId != -1): ?>
+		<?php if ( $this->isAllowedIdentity('route:PageCacheWebApi', 'pagecacheSaveRule')): ?>
+		<button id="dublicate_rule" title="<?php echo _t("Duplicate Rule"); ?>"  onclick="cacheActions(this)"><?php echo _t("Duplicate Rule"); ?></button>
+		<?php else : ?>
+		<button id="dublicate_rule" title="<?php echo _t("Not allowed to duplicate Rule"); ?>" disabled><?php echo _t("Duplicate Rule"); ?></button>
+		<?php endif;?>
+	<button id="clear_cache" title="<?php echo _t("Clear Cache"); ?>" onclick="cacheActions(this)"><?php echo _t("Clear Cache"); ?></button>		
+	<?php endif; ?>
+</div>
+
+</div>
+
+<script type="text/javascript">
+
+
+var allowedToClearRule = <?php echo $this->isAllowed('route:PageCacheWebApi', 'pagecacheClearCacheByRuleName') ? 'true' : 'false' ?>;
+var actionsTip;
+
+window.addEvent("load", function() {
+	persistantHeaders.addHeader('page-cahce-edit-action-bar');
+	
+	var tabPane = new TabPane('tabsWrapper', {}, function() {
+		return 0;
+    });
+	
+	document.addEvent('entry-changed', function(){
+		window.onbeforeunload = function(){
+			return "Your changes have not been saved yet.";
+    	};	
+	});
+
+    if ($('clear_cache')) {
+        $('clear_cache').set('disabled', (! allowedToClearRule));
+    }
+
+	$('split-cache-multi').addEvent('click', function (event){
+		$('content-lock').addClass('hidden');
+	});
+
+	$('split-cache-single').addEvent('click', function (event){
+		$('content-lock').removeClass('hidden');
+	});
+	
+	actionsTip = new FloatingTips('#actions-btn', {
+		// Content can also be a function of the target element!
+		content: function(e) { return $('cache-actions').get('html') },
+		html: true,
+		position: 'bottom', // Bottom positioned
+		center: true, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		showOn: 'click',
+	});
+
+	actionsTip.addEvent('show', function() {
+		$$('.floating-tip-wrapper').each(function(item) {
+        	item.addEvent('mouseleave', function() {
+        		actionsTip._animate(item, 'out');
+            }.bind(this));
+    	}.bind(this));
+    }.bind(this));
+    
+});
+
+var ruleConditions = <?php echo $this->json($cacheConditions); ?>;
+var splitByConditions = <?php echo $this->json($splitByConditions); ?>;
+
+var dictionaryGlobalMatchTypeJson = <?php echo $dictionaryGlobalMatchTypeJson; ?>;
+var dictionaryGlobalTypeJson = <?php echo $dictionaryGlobalTypeJson; ?>;
+var dictionarySplitGlobalTypeJson = <?php echo $dictionarySplitGlobalTypeJson; ?>;
+
+	addExistingConditions();
+	addExistingSplitConditions();
+
+	<?php if ($ruleId == -1 && !$duplicate): // new rule, but not duplicate?>
+		// by default we add 2 split conditions
+		addNewSplitCondition({'global': '_SERVER', 'element': 'QUERY_STRING'});
+		addNewSplitCondition({'global': '_SERVER', 'element': 'REQUEST_URI'});
+	<?php endif ?>
+	
+	function addExistingConditions() {
+		Object.each(ruleConditions, function(item) {
+			addNewCacheCondition(item);
+		});
+	}
+	
+	function addExistingSplitConditions() {
+		Object.each(splitByConditions, function(item) {
+			addNewSplitCondition(item);
+		});
+	}
+	
+	function addNewCacheCondition(condition) {
+
+		var type = '';
+		var element = '';
+		var global = '';
+		var value = '';
+		
+		if (condition) {
+			type = condition.type;
+			element = condition.element;
+			global = condition.global;
+			value = condition.value;
+		}
+		
+		var tableTr = new Element('tr');
+		var tdGlobalName = new Element('td');
+		var selectGlobalName = new Element('select', {'class': 'globalName'});
+
+		Object.each (dictionaryGlobalTypeJson, function (value, key) {
+			if (value == global) {
+				new Element('option', {'value': value, 'text':value, 'selected':'selected'}).inject(selectGlobalName);
+			} else {
+				new Element('option', {'value': value, 'text':value}).inject(selectGlobalName);
+			}
+		}.bind(this));
+		
+		selectGlobalName.inject(tdGlobalName);
+
+		var tdGlobalKey = new Element('td');
+		var inputGlobalKey = new Element('input', { 'type' : 'text', 'class' : 'globalKey', 'value' : element});
+		inputGlobalKey.inject(tdGlobalKey);
+
+		var tdGlobalMatch = new Element('td');
+		var selectGlobalMatch = new Element('select', {'class': 'globalMatch',
+			events: {
+				 change: function(item){
+		            if(item.target.value == 'exists' || item.target.value == 'not_exists') {
+		            	item.target.getParent('tr').getElement('input.globalValue').set('disabled', true);
+		            	item.target.getParent('tr').getElement('input.globalValue').value = '';
+			        } else {
+			        	item.target.getParent('tr').getElement('input.globalValue').set('disabled', false);
+		            }
+		        }
+		    }
+	    });
+		Object.each (dictionaryGlobalMatchTypeJson, function (matchTypeValue, matchTypeKey) {
+			if (matchTypeKey == type) {
+				new Element('option', {'value': matchTypeKey, 'text':matchTypeValue, 'selected' : 'selected'}).inject(selectGlobalMatch);
+			} else {
+				new Element('option', {'value': matchTypeKey, 'text':matchTypeValue}).inject(selectGlobalMatch);
+			}
+		}.bind(this));
+		selectGlobalMatch.inject(tdGlobalMatch);
+		
+		var tdGlobalValue = new Element('td');
+		var inputGlobalValue = new Element('input', { 'type' : 'text', 'class' : 'globalValue', 'value' : value});
+		inputGlobalValue.inject(tdGlobalValue);
+
+		var tdRemoveButton = new Element('td');
+		var removeButton = new Element('button', {
+		    'title': _t('Remove cache condition'),
+		    html: 'x',
+		    events: {
+		        click: function(){
+		            removeCacheCondition(this);
+		        },
+		      
+		    }
+		});
+		 
+		removeButton.inject(tdRemoveButton);
+
+		tdGlobalName.inject(tableTr);
+		tdGlobalKey.inject(tableTr);
+		tdGlobalMatch.inject(tableTr);
+		tdGlobalValue.inject(tableTr);
+		tdRemoveButton.inject(tableTr);
+
+		tableTr.inject($('add-condition'), 'before');
+
+		$('no_conditions').set('class', 'hidden');
+	}
+
+	function removeCacheCondition(element){
+		// tr1 - hidden span, tr2 - add_condition button, tr3 the single condition
+		if (element.getParent('table').getElements('tr').length == 3) {
+			$('no_conditions').erase('class');
+		}
+		element.getParent('tr').dispose();
+	}
+
+	function addNewSplitCondition(condition) {
+		var element = '';
+		var global = '';
+
+		if (condition) {
+			element = condition.element;
+			global = condition.global;
+		}
+		
+		var tableTr = new Element('tr');
+		var tdGlobalName = new Element('td');
+		var selectGlobalName = new Element('select', {'class': 'globalSplitName'});
+
+		Object.each (dictionarySplitGlobalTypeJson, function (value, key) {
+			if (key == 'entire' || key == 'uri') {
+				new Element('option', {'value': key, 'text' : value,
+					events: {
+						click: function(item) {
+							 tableTr.getElement('input.globalSplitKey').set('disabled', true);
+							 tableTr.getElement('input.globalSplitKey').value = '';
+				        }.bind(this)}
+				      
+				    }).inject(selectGlobalName);
+			    
+			} else if (value == global) {
+				new Element('option', {'value': value, 'text' : value, 'selected' : 'selected',
+					events: {
+						click: function(item) {
+							 tableTr.getElement('input.globalSplitKey').set('disabled', false);
+				        }.bind(this)}
+				      }).inject(selectGlobalName);
+			} else {
+				new Element('option', {'value': value, 'text' : value,
+					events: {
+						click: function(item) {
+							 tableTr.getElement('input.globalSplitKey').set('disabled', false);
+				        }.bind(this)}}).inject(selectGlobalName);
+			}
+		}.bind(this));
+		
+		selectGlobalName.inject(tdGlobalName);
+
+		var tdGlobalKey = new Element('td');
+		var inputGlobalKey = new Element('input', { 'type' : 'text', 'class' : 'globalSplitKey', 'value' : element});
+		inputGlobalKey.inject(tdGlobalKey);
+
+		var tdRemoveButton = new Element('td');
+		var removeButton = new Element('button', {
+		    'title': _t('Remove split condition'),
+		    html: 'x',
+		    events: {
+		        click: function(){
+		        	removeSplitCondition(this);
+		        },
+		      
+		    }
+		});
+		
+		removeButton.inject(tdRemoveButton);
+
+		tdGlobalName.inject(tableTr);
+		tdGlobalKey.inject(tableTr);
+		tdRemoveButton.inject(tableTr);
+
+		tableTr.inject($('add-split-condition'), 'before');
+
+		$('no_cache_quiries').set('class', 'hidden');
+	}
+
+	function removeSplitCondition(element){
+		// tr1 - hidden span, tr2 - split button, tr3 the single split condition
+		if (element.getParent('table').getElements('tr').length == 3) {
+			$('no_cache_quiries').erase('class');
+		}
+		element.getParent('tr').dispose();
+	}
+
+
+	function saveClick() {
+		window.onbeforeunload = function() {}
+		
+		var ruleName = $('rule-name').value;
+		// validate the rule name is not empty - otherwise fire a toast
+		if (! ruleName.trim()) {
+			document.fireEvent('toastAlert', {'message': 'The Rule Name cannot be empty'});
+			return;
+		}
+		
+		var conditions = [];
+		var conditionsTableRows = $('conditionsTable').getElements('tr');
+		for(var i=1; i < (conditionsTableRows.length - 1); i++) {
+			var conditionRow = conditionsTableRows[i];
+			var inputs = conditionRow.getElements('input');
+			var selects = conditionRow.getElements('select');
+
+			conditions.push( {	'global' 	: selects[0].value,
+								'element' 	: inputs[0].value,
+								'type' 		: selects[1].value,
+								'value'		: inputs[1].value});
+		}
+
+		var splitConditions = [];
+
+		// only if user choose the option of split cache copies
+		if ($$('input[name=split-cache]:checked').map(function(e) { return e.value}) == 1) {
+
+			var splitConditionsTableRows = $('split_table').getElements('tr');
+			for(var i=1; i < (splitConditionsTableRows.length - 2); i++) {
+				var conditionRow = splitConditionsTableRows[i];
+				var inputs = conditionRow.getElements('input');
+				var selects = conditionRow.getElements('select');
+	
+				splitConditions.push( {	'global' 	: selects[0].value,
+										'element'	: inputs[0].value});
+			}
+		}
+		
+		var urlPathValue = $('urlPath').value;
+		// if it's an application rule we pass only the extra path in submit
+		if ($('extraUrlPath')) {
+			urlPathValue = $('extraUrlPath').value;
+		}
+
+		var applicationName = '';
+		// fetch the application name or it's select value or hidden span text
+		if (! $('application-name').value) {
+			applicationName = $('application-name').textContent;
+		} else {
+			applicationName = $('application-name').value;
+		}
+		
+		var params = {
+				'ruleId'			: "<?php echo $ruleId; ?>",
+				'urlHost'			: $('urlHost').value,
+				'urlPath'			: urlPathValue,
+				'matchType'			: $('match_type').value,
+				'lifetime'			: $('duration').value,
+				'compress'			: "TRUE",
+				'name' 				: ruleName,
+				'applicationId' 	: applicationName,
+				'conditionsType' 	: $('conditions_type').value,
+				'conditions' 		: conditions,
+				'splitBy'			: splitConditions
+		};
+
+		var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/pagecacheSaveRule'; ?>';
+		// if it's an application rule we pass only the extra path in submit
+		<?php if (($appId && $appId != -1) || ($ruleContainer && $ruleContainer->getAppId() != -1)) : ?>
+			url = '<?php echo \Application\Module::config()->baseUrl . '/Api/pagecacheSaveApplicationRule'; ?>';
+		<?php endif; ?>
+
+		document.fireEvent('disableRestartTooltip', {}); // ZSRV-11752 disable restart tip
+		//make the request
+		var request = new Request.WebAPI({
+			method: 'post',
+			url: url,
+			data: params,
+			onSuccess: function(response) {
+				if (response != undefined) {
+					var ruleId = response.responseData.rulesInfo.rule.id;
+					// in save of new rule to reload to view the existing rule after success save
+					if (params.ruleId == -1) {
+						document.fireEvent('toastNotification', {'message': _t('Rule settings saved')});
+						Function.from(function(){window.location.replace(baseUrl() + '/PageCacheEditRule?id=' + ruleId)}).delay(1500);
+						return;
+					} else {
+						document.fireEvent('toastNotification', {'message': _t('To apply your changes, restart Zend Server, and clear the cache for this rule')});
+					}
+					document.fireEvent('refreshNotifications');
+				}
+			},
+			onFailure: function(response) {
+				var decoded = this.decodeResponse(response);
+				document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			}
+		}).send();	
+	}
+
+	function cacheActions(element)
+	{
+		switch(element.get('id')) {
+			case 'dublicate_rule': // Debug in IDE
+				window.location.replace(baseUrl() + '/PageCacheEditRule?id=' + <?php echo $ruleId?> + '&duplicate=true');
+				break;
+			case 'clear_cache': // Profile in IDE
+				clearCache();
+				break;
+		}
+
+		hideActionsTip();
+	}
+
+	function clearCache() {
+
+		var params = {
+			ruleName: $('rule-name').value
+	    };
+			
+    	var actionUrl = "<?php echo $this->basePath() . '/Api/pagecacheClearCacheByRuleName'; ?>";	
+    	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+
+    	onSuccess: function(response) {
+    		document.fireEvent('toastNotification', {'message': '<?php echo _t("The cache for current rule was successfully cleared"); ?>'});
+		},
+		onFailure: function() {
+			document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to clear the rule cache"); ?>'});
+		}});
+			
+    	request.post();
+	}
+
+	function hideActionsTip() {
+		if ($('actions-btn')) {
+			actionsTip.hide($('actions-btn'));
+		}
+	}
+</script>

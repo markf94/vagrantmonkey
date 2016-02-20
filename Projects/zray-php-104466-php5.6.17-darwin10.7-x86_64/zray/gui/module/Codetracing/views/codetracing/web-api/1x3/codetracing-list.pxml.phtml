@@ -1,0 +1,8 @@
+<responseData>
+    <codeTracingTotalCount><?php echo $tracesTotalCount ?></codeTracingTotalCount>
+    <codeTracingList>
+    <?php foreach($traces as $trace) : // @var $traces \ZendServer\Set @var $trace TraceFileContainer ?>
+	<?php echo $this->traceFileXml($trace); ?>
+	<?php endforeach; ?>
+  </codeTracingList>
+</responseData>

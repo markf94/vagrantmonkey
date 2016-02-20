@@ -1,0 +1,229 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/jobqueue_settings.css") ?>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Job Queue is a job management system that provides offline
+				asynchronous processing of tasks and activities that can be run independently of
+				the end user experience. Using the Job Queue API you can delay the execution of "heavy" parts
+				of your Web application that originate from direct user interaction with a Web server,
+				helping you to significantly improve response time and reduce Web server load<br/>
+				%sread more%s', array("<a href=\"{$this->helplink('jobs_component')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/8-zend-server-performance-features-embed?ecat=breadcrumbs&amp;eaction=8 Zend Server Performance Features">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/performance-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'JobQueue')) ?>"><?php echo _t("JobQueue"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<nav id="new-tabs-container">
+	<ul>
+		<li section="section_general" class="diagonal-tab active hidden">General</li>
+		<li section="section_events" class="diagonal-tab hidden">Events</li>
+	</ul>
+</nav>
+
+<div id="section_general" class="tab-section">
+	<div class="settings-form-wrapper">
+		<?php echo $this->ZForm($settingsForm, $directivesValues); ?>
+		<div class="form-row submit-button-row">
+			<input type="submit" id="settings_submit" title="<?php echo _t('Save'); ?>" onclick="submitForm();" value="<?php echo _t('Save'); ?>" />
+		</div>
+	</div>
+</div>
+
+<div id="section_events" class="tab-section force-hidden">
+	<div class="settings-form-wrapper">
+		<?php echo $this->ZForm($settingsEventsForm, $directivesValues); ?>
+		<div class="form-row submit-button-row">
+			<input type="submit" id="settings_events_submit" title="<?php echo _t('Save'); ?>" onclick="submitForm('events');" value="<?php echo _t('Save'); ?>" />
+		</div>
+	</div>
+</div>
+
+<script>
+
+// display desired section
+var displaySection = function(sectionName) {
+	
+	document.querySelector('#new-tabs-container li.active').classList.remove('active');
+	document.querySelector('#new-tabs-container li[section="'+sectionName+'"]').classList.add('active');
+	
+	[].forEach.call(document.querySelectorAll('.tab-section'), function(section) {
+		if (section.getAttribute('id') == sectionName) {
+			if (section.classList.contains('force-hidden')) {
+				section.classList.remove('force-hidden');
+			}
+		} else {
+			if (!section.classList.contains('force-hidden')) {
+				section.classList.add('force-hidden');
+			}
+		}
+	});
+}
+
+// tabs click
+window.addEventListener('DOMContentLoaded', function() {	
+	[].forEach.call(document.querySelectorAll('#new-tabs-container li'), function(liElem) {
+		liElem.addEventListener('click', function(e) {
+			var tab = e.target;
+			var sectionToShow = tab.getAttribute('section');
+			displaySection(sectionToShow);
+		});
+	});
+});
+
+
+function getFormValues() {
+	var vals = {};
+	var fieldNames = [<?php
+	$allElements = array_merge($settingsEventsForm->getElements(), $settingsForm->getElements());
+	$i = 0;
+	foreach ($allElements as $element) {
+		echo '"' . $element->getName() . '"';
+		if (++$i != count($allElements)) {
+			echo ', ';
+		}
+	}
+	?>];
+	
+	$$('.settings-form-wrapper input, .settings-form-wrapper select').each(function(elem, i) {
+		if (fieldNames.indexOf(elem.get('name')) == -1 || elem.get('disabled')) {
+			return;
+		}
+		
+		// check special case of jobs output
+		if (elem.get('name') == 'jobs_output') {
+			if (elem.get('checked')) {
+				if (elem.get('id') == 'jobs_output_all_input') {
+					vals['store_job_output'] = '1';
+					vals['store_only_failed_jobs_output'] = '0';
+				} else if (elem.get('id') == 'jobs_output_failed_input') {
+					vals['store_job_output'] = '1';
+					vals['store_only_failed_jobs_output'] = '1';
+				} else if (elem.get('id') == 'jobs_output_none_input') {
+					vals['store_job_output'] = '0';
+					vals['store_only_failed_jobs_output'] = '0';
+				}
+			}
+		} else if (elem.get('type') == 'checkbox') {
+		    vals[elem.get('name')] = elem.get('checked') ? '1' : '0';
+		} else if (elem.get('type') == 'radio') {
+			if (elem.get('checked')) {
+				vals[elem.get('name')] = elem.get('value');
+			}
+		} else {
+		    vals[elem.get('name')] = elem.get('value');
+		}
+	});
+	return vals;
+}
+
+function _submitGeneralTab(successFn, failureFn, completeFn) {
+	var formValues = getFormValues(), relevantFormValues = {};
+	for (fieldName in formValues) {
+		if (!/^job_/g.test(fieldName)) {
+			relevantFormValues['directives[zend_jobqueue.' + fieldName + ']'] = formValues[fieldName];
+		}
+	}
+	formValues = relevantFormValues;
+	
+	// send POST to the web API
+	new Request.WebAPI({
+		method: 'post',
+		url: '<?php echo $this->basePath(); ?>/Api/configurationStoreDirectives',
+		onSuccess: successFn,
+		onFailure: failureFn,
+		onComplete: completeFn
+	}).post(formValues);
+}
+
+function _submitEvents(successFn, failureFn, completeFn) {
+	// get only the relevant field values
+	var formValues = getFormValues(), relevantFormValues = {};
+	for (fieldName in formValues) {
+		if (/^job_/g.test(fieldName)) {
+			relevantFormValues[fieldName] = formValues[fieldName];
+		}
+	}
+	formValues = relevantFormValues;
+	
+	// send POST to the web API
+	new Request.WebAPI({
+		method: 'post',
+		url: '<?php echo $this->basePath(); ?>/Api/jobqueueUpdateEvents',
+		onSuccess: successFn,
+		onFailure: failureFn,
+		onComplete: completeFn
+	}).post(formValues);
+}
+
+function submitForm(formType) {
+	document.body.onbeforeunload = null;
+	
+	var onSubmitSuccess = function(response) {
+		if (response && response.responseData && response.responseData.result == 'success') {
+			document.fireEvent('toastNotification', {'message': 'Settings updated successfully'});
+		} else if (response && response.responseData && response.responseData.directives && response.responseData.directives.length > 0) {
+			document.fireEvent('toastNotification', {'message': 'Settings updated successfully'});
+		} else if (response && response.errorData && response.errorData.errorMessage) {
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+		} else {
+			document.fireEvent('toastAlert', {'message': 'Error updating settings'});
+		}
+	};
+	
+	var onSubmitFailure = function(response) {
+		try {
+			var response = JSON.decode(response.responseText);
+		} catch (e) {
+			var response = {};
+		}
+		var message = response && response.errorData && response.errorData.errorMessage ? response.errorData.errorMessage : response.status + ' ' + response.statusText;
+		document.fireEvent('toastAlert', {'message': message});
+	}
+	
+	var onSubmitComplete = function() {
+		if (formType == 'events') {
+			$('settings_events_submit').unspin();
+		} else {
+			$('settings_submit').unspin();
+		}
+	};
+	
+	var spinInitialized = false;
+    var sendParams = getFormValues(formType);
+	
+	if (formType == 'events') {
+		$('settings_events_submit').spin();
+		_submitEvents(onSubmitSuccess, onSubmitFailure, onSubmitComplete);
+	} else {
+		$('settings_submit').spin();
+		_submitGeneralTab(onSubmitSuccess, onSubmitFailure, onSubmitComplete);
+	}
+}
+
+window.addEvent('load', function() {
+	$('JobQueue_settings').addEvent('change', function() {
+		document.body.onbeforeunload = function() {
+			return 'Changes were made';
+		}	
+	});
+});
+
+</script>

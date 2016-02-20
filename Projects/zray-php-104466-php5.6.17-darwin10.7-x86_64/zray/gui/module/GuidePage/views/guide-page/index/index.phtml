@@ -1,0 +1,797 @@
+<?php $this->plugin ( 'headScript' )->appendFile ( $this->basePath('/js/deploymentWizard.js')); ?>
+<?php $this->headLink()->appendStylesheet($this->basePath('/css/guidePage.css'))?>
+<?php $this->headLink()->appendStylesheet($this->basePath('/css/prereq.css'))?>
+<?php $hideGuidePageUrl = $this->url('default', array('controller' => 'GuidePage', 'action' => 'Show-Guide-Page')); ?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/Fx.Scroll.Carousel.js' );?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/searchField.js' );?>
+<?php
+if ($deploymentSupported && $this->isAllowed('route:Wizard', 'index')) { 
+	$userAllowToDeploy = true; 
+} else {
+	$userAllowToDeploy = false;
+}
+?>
+
+<script type="text/javascript">
+var allowAutoPolling = false;
+
+var wizard = null;
+var simpleModel = null;
+var myCarousel;
+
+window.addEvent("domready", function(){
+	$$('#whats-new .whats-new-title').addEvent('click', function(item) {
+		new Fx.Scroll(window).toElement('welcome_blue');
+		$$('#whats-new').toggleClass('open');
+	});
+	$$('.whats-new-box nav#menu-nav a').addEvent('click', function(item) {
+		try{
+			item.event.preventDefault(); //prevent jumping to top
+		}catch(e){}
+		if (item.target.hasClass('disabled')||item.target.hasClass('active')) {
+			return;
+		}
+		$$('.whats-new-box nav#menu-nav a.active').removeClass('active');
+		$$('.welcome-content-inner.active').removeClass('active');
+
+		item.target.addClass('active');
+		$('welcome-' + item.target.get('data-content')).setStyle('opacity', '0');
+		$('welcome-' + item.target.get('data-content')).addClass('active');
+		$('welcome-' + item.target.get('data-content')).tween('opacity', '1');
+		
+		return;
+	});
+	
+	$$('[data-content="php"]')[0].click()
+	
+	$('showGuidePage').addEvent('click', function() {
+		dataObj = {'show': ($('showGuidePage').get('checked')) ? 'TRUE' : 'FALSE'};
+		
+		var valid = false;
+		
+		var myRequest = new Request({
+			data: dataObj,
+			url: '<?php echo $hideGuidePageUrl; ?>',
+			onComplete: function(response){
+			}
+		}).send();
+	
+		return true;
+	});
+	
+	$$('.video-box').addEvent('click', function(item) {
+		var target = item.target;
+		if ((target.nodeName != 'DIV' && target.nodeName != 'IMG') || ! target.hasClass('video-box')) {
+			target = target.getParent('div.video-box');
+		}
+
+		simpleModal = new SimpleModal({width: 700, closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\" style=\"display:block;\">{_TITLE_}</div>\
+				<div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+				</div>"});
+
+		
+		var content = '<iframe style="height: 400px; width: 600px;" src="' + target.get('href') + '" frameborder="0" allowfullscreen></iframe>';
+		
+		simpleModal.show({
+	      "model":	"modal",
+	      "title": _t('Zend Server') + '<div style="float: right; display:inline-block; cursor: pointer; margin-right: 5px;" onclick="simpleModal.hide()">x</div>',
+	      "contents": content
+	    });
+	});
+
+	window.addEvent("load", function(){
+		createUnsupportedTooltip();
+	});
+
+	document.addEvent('wizardComplete', function(options) {
+		window.location = '<?php echo $this->basepath('Deployment'); ?>';
+	});
+
+	
+
+	
+	
+});
+
+<?php
+$wizardUrl = $this->url ( 'default', array (
+		'controller' => 'Wizard',
+		'action' => 'Wizard' 
+) );
+?>
+
+function openWizard(name, version) {
+	<?php if ($userAllowToDeploy && $deploymentSupported) : ?>
+	var wizardUrl = '<?php echo $wizardUrl . '?wizardId=' . mt_rand(100000,999999); ?>';
+
+	if (version === undefined) {
+		version = '';
+	}
+
+	var downloadUrl = 'http://updates.zend.com/zpkai/index.php?name=' + name + '&version=' + version;
+	wizardUrl += '&action=download&url=' + downloadUrl + '&name=' + name + '&version=' + version;
+	
+	simpleModel = new SimpleModal({width: 673, closeButton: false, hideHeader: true, hideFooter: true, draggable: false, draggableContainer: 'wizard-title', overlayClick: false,
+		template: "<div class=\"contents\">{_CONTENTS_}</div>"});
+	simpleModel.show({
+      "model":"modal-ajax",
+      "param":{
+        "url":wizardUrl,
+        "onRequestComplete": function(){  }
+      }
+    });
+    <?php endif; ?>
+}
+
+function cancelDialog() {
+	simpleModel.hide();
+	wizard.wizardClosed();
+}
+
+function closeDialog() {
+	simpleModel.hide();
+}
+
+function cancelWizard() {
+	allowAutoPolling = false;
+}
+
+function createUnsupportedTooltip() {
+	var tip = new FloatingTips('.unsupported-tip', {
+		html: false,
+		showDelay: 500,
+		hideDelay: 100,
+		content: 'title',
+		position: 'bottom',
+		center: true, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+	});
+}
+</script>
+
+<div id="bread-wrp">
+	<div id="bread"><h1 style="display: block;">Getting Started</h1>
+	<ul>
+	</ul>   
+	</div>
+</div>
+      
+<div id="welcome-page">
+	<section id="welcome_slideshow">
+		<div class="container">
+			<div slide="1">
+				<div class="part-a">
+					<!-- TITLE -->
+					<h1><?php echo _t('Welcome to Zend Server') ?></h1>
+					<div id="welcome-version">Version <?php echo $zsVersion; ?>, <?php echo $this->editionString($license->getEdition()) . ($license->isEvaluation() ? ' Trial' : '') ?> Edition<?php echo $profile ? ', ' . ucfirst($profile) . ' ' . _t('profile') : ''; ?></div>
+					<!-- GETTING STARTED -->
+					<h2><?php echo _t('Start Here'); ?></h2>
+					<p class="font-md getting-started-summary"><?php echo _t('Deploy  an example application that includes monitoring and caching rules, events, recurring jobs, and more...'); ?></p>
+					<p>
+						<a href="javascript:void(0);" class="btn btn-deploy black-btn deploy-link" onclick="openWizard('<?php echo \Deployment\Controller\WizardController::DEMO_APP_NAME; ?>');" title="<?php echo _t('Deploy Zend Demo Application'); ?>"><?php echo _t('DEPLOY NOW'); ?></a>
+					</p>
+					<!-- APPLICATIONS LOGOS -->
+					<div id="apps-logos">
+						<h3 class="glyphicons circle_exclamation_mark"><i></i><?php echo _t('DEPLOY SAMPLE APPS'); ?></h3>
+						<div class="logos">
+							<a href="#" class="deploy-link" onclick="openWizard('Magento');" title="<?php echo _t('Deploy Magento'); ?>"><img src="<?php echo "{$this->basePath()}/images/welcome/magento.jpg"?>"/></a>
+							<a href="#" class="deploy-link" onclick="openWizard('Drupal');" title="<?php echo _t('Deploy Drupal'); ?>"><img src="<?php echo "{$this->basePath()}/images/welcome/drupal.jpg"?>"/></a>
+							<a href="#" class="deploy-link" onclick="openWizard('WordPress');" title="<?php echo _t('Deploy WordPress'); ?>"><img src="<?php echo "{$this->basePath()}/images/welcome/wordpress.jpg"?>"/></a>
+							<a href="#" class="deploy-link" onclick="openWizard('Joomla');" title="<?php echo _t('Deploy Joomla'); ?>"><img src="<?php echo "{$this->basePath()}/images/welcome/joomla.jpg"?>"/></a>
+							<a href="#" class="deploy-link" onclick="openWizard('Phpmyadmin');" title="<?php echo _t('Deploy phpMyAdmin'); ?>"><img src="<?php echo "{$this->basePath()}/images/welcome/phpmyadmin.jpg"?>"/></a>
+							<a href="#" class="deploy-link" onclick="openWizard('phpBB');" title="<?php echo _t('Deploy phpBB'); ?>"><img src="<?php echo "{$this->basePath()}/images/welcome/phpbb.jpg"?>"/></a>
+						</div>
+					</div>
+				</div><div class="part-b">
+					<div id="intro-zs-pc" class="video-box" href="http://www.zend.com/server/redirect/introducing-zend-server-8.5?ecat=guidePage&eaction=Introducing Zend Server 8.5"><img src="<?php echo "{$this->basePath()}/images/welcome/intro-zs.png"?>"/></div>
+				</div>
+			</div>
+		</div>
+	</section>
+	<section id="welcome_blue">
+		<div class="container">
+			<div id="cd-pc" class="video-box" href="http://www.zend.com/server/redirect/continuous-delivery-video?ecat=guidePage&eaction=continuous delivery video"><img src="<?php echo "{$this->basePath()}/images/welcome/cd-pc.png"?>"/></div>
+			<div class="cd">
+				<h3><?php echo _t('Continuous Delivery'); ?></h3>
+				<p><?php echo _t('Use Zend Server at every stage of your continuous delivery cycle to bring your applications all the way from development to production while maintaining flexibility, reducing risk and increasing quality.'); ?></p>
+			</div>
+			<nav>
+				<a href="http://www.zend.com/server/redirect/continuous-delivery-blueprint?ecat=guidePage&eaction=Continuous Delivery Blueprint" target="_blank" class="glyphicons pie_chart"><i></i><?php echo _t('Continuous Delivery Blueprint'); ?></a>
+				<a href="http://www.zend.com/server/redirect/continuous-delivery-patterns?ecat=guidePage&eaction=Zend Patterns" target="_blank" class="glyphicons sampler"><i></i><?php echo _t('Zend Patterns'); ?></a>
+				<a href="http://www.zend.com/server/redirect/chat?ecat=guidePage&eaction=Schedule an Assessment" target="_blank" class="glyphicons calendar"><i></i><?php echo _t('Schedule an Assessment'); ?></a>
+			</nav>
+		</div>
+	</section>
+	<section id="whats-new">
+		<div class="content">
+		    <div class="whats-new-center">
+			<header>
+				<h3>What's New</h3>
+				<a href="http://www.zend.com/en/products/server/whats-new" target="_blank">Read online</a>
+			</header>
+			<div class="clips">
+				<div class="clip">
+					<div class="frame">
+						<h4>Plugins</h4>
+						<img src="<?php echo $this->basePath(); ?>/images/welcome/new/gallery-video.jpg" class="thumb video-box" href="http://www.zend.com/server/redirect/introducing-zend-server-plugin-gallery?ecat=guidePage&eaction=Introducing the Plugins Gallery" />
+						<div class="desc">Zend Server is fully integrated with the new Plugins Gallery - a marketplace for plugins that extend Zend Server functionality and that have been developed by and for other Zend Server users for all to use.</div>
+						<a href="<?php echo $this->helpLink('plugins_concept'); ?>" class="learn-more" target="_blank">Learn More</a>
+						
+					</div>
+				</div>
+				<div class="clip">
+					<div class="frame">
+						<h4>Job Queues</h4>
+						<img src="<?php echo $this->basePath(); ?>/images/welcome/new/queues.jpg" class="thumb" />
+						<div class="desc">Multiple job queues allow you to manage groups of jobs that are functionally related, thus enabling you to efficiently set priorities per job groups as opposed to single jobs.</div>
+						<a href="<?php echo $this->helpLink('creating_a_queue'); ?>" class="learn-more" target="_blank">Learn More</a>
+					</div>
+				</div>
+				<div class="clip">
+					<div class="frame">
+						<h4>Application Awareness</h4>
+						<img src="<?php echo $this->basePath(); ?>/images/welcome/new/url_insight.jpg" class="thumb" />
+						<div class="desc">Zend Server now understands your applications better based on specific routing information. This awareness helps Zend Server aggregate monitoring events, and crystallize the top URL lists for URL Insight.</div>
+						<a href="<?php echo $this->helpLink('plugins_concept'); ?>" class="learn-more" target="_blank">Learn More</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		</div>
+		<div class="bottom">
+			<div class="whats-new-title">
+				<span class="opened">Close</span>
+				<span class="closed">What's New</span>
+			</div>
+			<div class="bar"></div>
+		</div>
+	</section>
+	<script type="text/javascript">
+		window.addEvent('load', function(){
+			var allowedToDeploy = <?php echo $userAllowToDeploy ? 'true' : 'false' ?>;
+			var deploymentAvailable = <?php echo $deploymentSupported ? 'true' : 'false' ?>;
+			
+			if ((! allowedToDeploy) || (! deploymentAvailable)) {
+				$$('.deploy-link').addClass('unsupported-tip');
+				if (! allowedToDeploy) {
+					$$('.deploy-link').addClass("disabled");
+					$$('.deploy-link').set('title', _t('You do not have the correct permissions for deploying applications'));
+				}
+				if (! deploymentAvailable) {
+					$$('.deploy-link').set('title', _t('Your system does not support deployment of applications via Zend Server'));
+				}
+				$$('.deploy-link').addClass("logosImageDisabled");
+			}
+
+			var searchField = new SearchField('searchField', {clearButton: false});
+			searchField.addEvent('searchClicked', function(data, element) {
+				if (data.value.trim() != '') {
+					var supportType = $('support-type').get('value');
+					var url = null;
+					if (supportType == 'support') {
+						url = 'http://files.zend.com/help/Zend-Server/zend-server.htm#search-';
+					} else if (supportType == 'kb') {
+						url = 'http://kb.zend.com/?s=';
+					} else {
+						url = 'http://forums.zend.com/search.php?terms=all&fid%5B%5D=51&keywords=';
+					}
+
+					var win = window.open(url + data.value.trim(), '_blank');
+					win.focus();
+				}
+			});
+
+			var select = new Element('select', {id: 'support-type'});
+			select.set('html', '<option value="kb" selected="selected"><?php echo _t('Knowledge Base'); ?></option><option value="support"><?php echo _t('Online Help'); ?></option><option value="forum"><?php echo _t('Forum'); ?></option>');
+			select.set('value','kb');
+			select.inject($('support-search_input'), 'after');
+			
+		});
+		</script>
+	<section id="welcome_whats-new">
+		<div class="container">
+			<h2><?php echo _t('GREAT!'); ?> <?php echo _t('What\'s Next?'); ?></h2>
+			<div class="whats-new-box">
+				<nav id="menu-nav">
+					<a href="#"  data-content="php" class="glyphicons chevron-right"><i></i><?php echo _t('PHP & WEB SERVER'); ?></a>
+					<?php if ($deploymentSupported) : ?>
+					<a href="#"  data-content="deployment" class="glyphicons chevron-right deploy-link"><i></i><?php echo _t('DEPLOYMENT'); ?></a>
+					<?php else : ?>
+					<a href="#"  data-content="deployment" class="disabled glyphicons chevron-right deploy-link"><i></i><?php echo _t('DEPLOYMENT'); ?></a>
+					<?php endif; ?>
+					<a href="#"  data-content="performance" class="glyphicons chevron-right"><i></i><?php echo _t('PERFORMANCE'); ?></a>
+					<a href="#"  data-content="troubleshooting" class="glyphicons chevron-right"><i></i><?php echo _t('TROUBLESHOOTING'); ?></a>
+					<a href="#"  data-content="devbar" style="color: #F90;" class="glyphicons chevron-right"><i></i><?php echo _t('Z-RAY'); ?></a>
+					<a href="#"  data-content="plugins" class="glyphicons chevron-right"><i></i><?php echo _t('PLUGINS'); ?></a>
+					<?php if ($showXmlToolkit) : ?>
+						<a href="#"  data-content="cluster" class="glyphicons chevron-right"><i></i><?php echo _t('XML TOOLKIT'); ?></a>
+					<?php else : ?>
+						<a href="#"  data-content="cluster" class="glyphicons chevron-right"><i></i><?php echo _t('CLUSTERING'); ?></a>
+					<?php endif; ?>
+					<a href="#"  data-content="statistics" class="glyphicons chevron-right"><i></i><?php echo _t('STATISTICS'); ?></a>
+					<a href="#"  data-content="integration" class="glyphicons chevron-right"><i></i><?php echo _t('INTEGRATION'); ?></a>
+					<?php if (!$isDeveloper) : ?>
+					<a href="#"  data-content="administration" class="glyphicons chevron-right"><i></i><?php echo _t('ADMIN AND COMPLIANCE'); ?></a>
+					<?php endif; ?>
+					<a href="#"  data-content="support" class="glyphicons chevron-right"><i></i><?php echo _t('SUPPORT'); ?></a>
+				</nav><div class="content">
+					<div id="welcome-php" class="welcome-content-inner active">
+						<h3><?php echo _t('PHP & WEB SERVER'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Zend Server provides a complete, reliable and secure PHP stack, bundling over 80 of the most popular PHP extensions and libraries. Whether on Apache, nginx or IIS - Zend Server provides you with a consistent PHP environment across all major operating systems, for both development and production.<br/>  
+								Easily manage your PHP configuration settings to fit the needs of your applications - whether on a single server or a large cluster.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline" style="margin-left: 20px;">
+								<div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/configuring-php?ecat=guidePage&eaction=Configuring your PHP Stack with Zend Server">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/php-config-screen.png">
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Configuring your PHP Stack with Zend Server'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<a href="<?php echo $this->basePath(); ?>/Extensions/phpExtensions"><?php echo _t('Configure extensions and directives'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/ServerInfo"><?php echo _t('View PHP Information'); ?></a>
+									<?php if (! $deploymentSupported) : ?>
+									<a href="javascript:void(0);" class="unsupported-tip" title="Your system does not support virtual hosts configurations via Zend Server"><?php echo _t('Configure virtual hosts'); ?></a>
+									<?php else : ?>
+									<a href="<?php echo $this->basePath(); ?>/Vhost"><?php echo _t('Configure virtual hosts'); ?></a>
+									<?php endif; ?>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<?php if ($deploymentSupported) : ?>
+					<div id="welcome-deployment" class="welcome-content-inner">
+						<h3><?php echo _t('DEPLOYMENT'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Streamline and automate the process of deploying applications using Zend Server Deployment.  
+								Eliminate key sources of deployment failures, and ensure consistency across development, staging and production, by using application packages containing your code, deployment scripts, dependencies, metadata and installation parameters.
+							</p>
+							<p>
+								Deploy your apps manually from within the Zend Server UI, or integrate automated deployment into your continuous delivery cycle using Zend Server's deployment APIs.<br/>
+								Code libraries can be abstracted out from apps and managed centrally, simplifying dependencies and updates.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/preparing-zpk-embed?ecat=guidePage&eaction=Packaging an application">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/zpk-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Packaging an application'); ?></div>
+								</div>
+								<?php if ($userAllowToDeploy) : ?><div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/deploying-applications-embed?ecat=guidePage&eaction=Deploying Applications">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/deploy-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Deploying Applications'); ?></div>
+								</div>
+								<?php endif;?>
+								<div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-libraries-embed?ecat=guidePage&eaction=Working with Libraries">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/libraries-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Working with Libraries'); ?></div>
+								</div>
+								<div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/vhost-management-embed?ecat=guidePage&eaction=Managing Virtual Hosts">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/vhost-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Managing Virtual Hosts'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<?php if ($userAllowToDeploy) : ?><a href="<?php echo $this->basePath(); ?>/Deployment#Deploy=1"><?php echo _t('Deploy an application'); ?></a><?php endif;?>
+									<a href="<?php echo $this->basePath(); ?>/Deployment#Define=1"><?php echo _t('Define an existing application'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/DeploymentLibrary#Deploy=1"><?php echo _t('Deploy a PHP library'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Vhost"><?php echo _t('Manage Virtual Hosts'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<?php endif; ?>
+					
+					<div id="welcome-performance" class="welcome-content-inner">
+						<h3><?php echo _t('PERFORMANCE'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Congratulations!  Now that you're using Zend Server, your apps are already running faster than before. You can squeeze even more performance out of them using the following features:<br/>
+								Running jobs using Zend Job Queue allows executing time-consuming jobs asynchronously, removing application bottlenecks and improving end user experience.
+							</p>
+							<p>
+								Using Zend Page Cache speeds up recurring access to PHP pages by caching the entire output of specific URLs.<br/>
+								Can't cache the entire page? Use the Zend Data Cache API to avoid computing the same data again and again.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/8-zend-server-performance-features-embed?ecat=guidePage&eaction=8 Zend Server Performance Features">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/performance-screen.png">
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('8 Zend Server Performance Features'); ?></div>
+								</div>
+								<div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/working-with-page-caching-in-zend-server-6-embed?ecat=guidePage&eaction=Working with Page Caching">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/page-cache-screen.png">
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Working with Page Caching'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<a href="<?php echo $this->basePath(); ?>/RecurringJobs/create"><?php echo _t('Create a new recurring job'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/ZendComponents/#grid=Zend--Data--Cache"><?php echo _t('Configure Data Cache directives'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/PageCache"><?php echo _t('Create and manage Page Cache rules'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/ZendComponents/#grid=Zend--Page--Cache"><?php echo _t('Configure Page Cache directives'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Queues/add/"><?php echo _t('Create a new queue'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<div id="welcome-troubleshooting" class="welcome-content-inner">
+						<h3><?php echo _t('TROUBLESHOOTING'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								When something goes wrong with your apps, you need to know about it. Whether it's a slow page or a runtime error - Zend Server helps you find out precisely what happened and when - as well as giving you all the information you need to fix it.<br/>
+                                When something does go wrong, Code Tracing provides you with the equivalent of a black-box containing the full function-by-function flow of the problematic PHP request.
+                                Use Zend Debugger or XDebug for remote debugging of PHP applications with your IDE.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<div class="welcome-content-screen welcome-content-screen-tiny" style="margin-right: 5px;">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-monitoring-rules-embed?ecat=guidePage&eaction=Working with Monitoring">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/monitor-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Working with Monitoring'); ?></div>
+								</div>
+								<div class="welcome-content-screen welcome-content-screen-tiny" style="margin-right: 5px;">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-events-embed?ecat=guidePage&eaction=Working with Events">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/events-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Working with Events'); ?></div>
+								</div>
+								<div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-code-tracing-in-zend-server-6-embed?ecat=guidePage&eaction=Working with Code Tracing">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/trace-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Working with Code Tracing'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<a href="<?php echo $this->basePath(); ?>/ZendMonitor"><?php echo _t('Configure Event Rules'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/CodeTracing"><?php echo _t('Submit a URL to manually trigger a trace'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/IDEIntegration"><?php echo _t('Select your preferred debugger'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Logs"><?php echo _t('Watch system logs'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<div id="welcome-devbar" class="welcome-content-inner">
+						<h3><?php echo _t('Z-RAY'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Z-Ray is an innovative tech that gives unprecedented and in-context visibility inside apps by showing exactly what constructs each page, allowing developers to detect errors early on in development.<br/>
+                                Z-Ray monitors the requests to the Web server, and supplies developers with detailed info on their code, including: PHP functions, SQL queries, request variables, log entries, performance metrics, and plenty more.<br/>
+                                Developing APIs, web services or mobile applications? On the Z-Ray Live! page, Z-Ray tracks and displays real-time information on non-browser based requests as well.<br/>
+                                Z-Ray also provides info on your favorite PHP app/framework (Magento, WordPress, Drupal, ZF1, ZF2, Symfony). Using our APIs, you can hook into Z-Ray's tracking mechanism and plug in an extension of your own.<br/>
+                                Use Z-Ray in production using a security mechanism that allows administrators to restrict access to Z-Ray according to IP, URL and time duration.
+							</p>
+						</div>
+						<div class="welcome-content-links" style="margin-top: 15px;">
+							<div class="dinline">
+								<div class="welcome-content-screen welcome-content-screen-tiny" style="margin-right: 5px;">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/introducing-z-ray?ecat=guidePage&eaction=Introducing the Z-Ray">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/devbar-introduction-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Introducing') . '<br/>' . _t('Z-Ray'); ?></div>
+								</div>
+								<div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/z-ray-overview?ecat=guidePage&eaction=Z-Ray Overview">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/z-ray-overview-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Z-Ray Overview'); ?></div>
+								</div>
+								<div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/extending-zray?ecat=guidePage&eaction=Extending Z-Ray">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/zray-apps.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Extending Z-Ray'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<a href="<?php echo $this->basePath(); ?>/Z-Ray/AccessMode/"><?php echo _t('Setup selective access'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Z-Ray/Settings/"><?php echo _t('Configure Z-Ray settings'); ?></a>
+									<a href="http://www.zend.com/server/redirect/extensibility-whitepaper" target="_blank"><?php echo _t('Create your own Z-Ray plugin'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/ZrayLive"><?php echo _t('Track non-browser based requests'); ?></a>
+								</nav>
+							</div>
+						</div>
+						<img src="<?php echo $this->basePath(); ?>/images/welcome/devbar.png" class="devbar-preview" >
+					</div>
+					<div id="welcome-plugins" class="welcome-content-inner">
+						<h3><?php echo _t('PLUGINS'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Use the new Plugin Gallery to extend Zend Server's functionality by installing plugins developed by, and for, Zend Server users.<br/> 
+                                Developed your own plugin? Submit it to the Gallery to share it with the entire community.<br/>
+                                Once installed, manage your plugins using full life-cycle support. Get notified of available updates or check for updates yourself, and easily redeploy, enable/disable, and remove plugins.
+							</p>
+						</div>
+						<div class="welcome-content-links" style="margin-top: 15px;">
+							<div class="dinline">
+							     <div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/introducing-zend-server-plugin-gallery?ecat=guidePage&eaction=Introducing the Plugins Gallery">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/gallery-screen.png"/>
+									</div>
+									<div class="video-box-desc"><?php echo _t('Introducing the Plugins Gallery'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<a href="http://www.zend.com/server/redirect/extensibility-whitepaper" target="_blank"><?php echo _t('Create your own plugin'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Plugins/"><?php echo _t('Manage plugins'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Plugins/Gallery"><?php echo _t('Browse and install more plugins'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					
+					<?php if ($showXmlToolkit) : ?>
+					<div id="welcome-cluster" class="welcome-content-inner">
+						<h3><?php echo _t('XML TOOLKIT'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								The open-source PHP Toolkit has been developed by IBM and Zend to help you extend PHP code to access IBM i resources.<br/> 
+								The Toolkit's XML Service back-end service, written in RPG and using a choice of transports, including ibm_db2 and odbc extensions, is designed to work either statelessly or statefully.<br/> 
+								Its stateful abilities enable developers to call RPG/COBOL/CL programs and APIs while retaining cursors, library lists, the QTEMP library, and more, to enable reuse of existing programs for web applications.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<nav>
+									<a href="javascript:void(0);" class="deploy-link" onclick="openWizard('<?php echo \Deployment\Controller\WizardController::SAMPLES_APP_NAME; ?>');" title="<?php echo _t('Deploy Samples Application'); ?>"><?php echo _t('Install XML Toolkit demo application'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<?php else : ?>
+					<div id="welcome-cluster" class="welcome-content-inner">
+						<h3><?php echo _t('CLUSTERING'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Need to scale up your website? A modern, robust and scalable architecture allows you to easily scale up your production environment and scale-out environments. Based on a de-centralized management system that is comprised of identical components, Zend Server ensures high availability and full support of cloud environments.<br/>
+								With Zend Session Clustering, session data is shared between multiple servers in your cluster, ensuring session continuity in case of system failure, and high availability of your system.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/managing-a-cluster-embed?ecat=guidePage&eaction=Managing a Zend Server Cluster">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/screen-small.png"/>
+									</div>
+									<div class="video-box-desc"><?php echo _t('Managing a Zend Server Cluster'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<?php if ($clusterSupported) : ?>
+									<a href="<?php echo $this->basePath(); ?>/Servers#Join=1"><?php echo _t('Join a cluster'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Servers"><?php echo _t('Manage your cluster'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/SessionClustering"><?php echo _t('Configure Session Clustering'); ?></a>
+									<?php else : ?>
+									<a href="javascript:void(0);" class="unsupported-tip" title="<?php echo _t('Zend Server on Mac OS X does not support clustering.'); ?>"><?php echo _t('Join a cluster'); ?></a>
+									<a href="javascript:void(0);" class="unsupported-tip" title="<?php echo _t('Zend Server on Mac OS X does not support clustering.'); ?>"><?php echo _t('Manage your cluster'); ?></a>
+									<a href="javascript:void(0);" class="unsupported-tip" title="<?php echo _t('Zend Server on Mac OS X does not support clustering.'); ?>"><?php echo _t('Configure Session Clustering'); ?></a>
+									<?php endif; ?>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<?php endif; ?>
+					<div id="welcome-statistics" class="welcome-content-inner">
+						<h3><?php echo _t('STATISTICS'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Zend Server supplies data you can use to monitor your applications and improve their performance.<br/> 
+								Looking for the most time consuming URL? How about the most frequently visited URL? URL Statistics gives you reports on specific URLs for PHP pages on your Web server, so you can get a clearer picture of how your application is performing over time.<br/>
+                                Zend Statistics is an additional monitoring tool that collects and displays important statistical data in the UI,  enabling you to closely keep track on how your deployed applications and servers are performing.  This information is reflected in a series of metrics displayed in graphical charts on the Dashboard page.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/working-with-url-insight?ecat=guidePage&eaction=Working with URL Insight">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/url-insights.png"/>
+									</div>
+									<div class="video-box-desc"><?php echo _t('Working with URL Insight'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<a href="<?php echo $this->basePath(); ?>/UrlInsight"><?php echo _t('Monitor URLs'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Dashboard"><?php echo _t('View dashboard metrics'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					
+					<div id="welcome-integration" class="welcome-content-inner">
+						<h3><?php echo _t('INTEGRATION'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Zend Server is fully API-enabled, meaning you can automate all of its various management actions, and integrate with external systems - including your Continuous Delivery cycle.<br/> 
+								Based on REST-based APIs, the built-in CLI Tools can be used to automate common setup operations on Linux, Mac, and IBM i.<br/>
+								Likewise, you can use the Zend Server PHP SDK to create and deploy application packages, and manage deployment targets.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<div class="welcome-content-screen" style="margin-right: 10px;">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/integration-and-webaapi-in-zend-server-6-embed?ecat=guidePage&eaction=Integration and Web API">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/webapi-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Integration and Web API'); ?></div>
+								</div>
+								<div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/working-with-cli-tools-embed?ecat=guidePage&eaction=Working with CLI Tool">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/cli-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc"><?php echo _t('Working with CLI Tool'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+									<a href="<?php echo $this->basePath(); ?>/ApiKeys"><?php echo _t('Manage Web API keys'); ?></a>
+									<a href="<?php echo $this->helpLink('web_api_reference_guide'); ?>" target="_blank"><?php echo _t('Web API Reference Guide'); ?></a>
+									<a href="javascript:void(0);" class="deploy-link" onclick="openWizard('<?php echo \Deployment\Controller\WizardController::WEBAPI_SAMPLES_APP_PACKAGE_NAME; ?>');" title="<?php echo _t('Deploy Samples Application'); ?>"><?php echo _t('Example scripts bundle'); ?></a>
+									<a href="http://www.zend.com/server/redirect/zend-server-api?ecat=guidePage&eaction=Zend Server API Library" target="_blank"><?php echo _t('Zend Server API Library'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<?php if (!$isDeveloper) : ?>
+					<div id="welcome-administration" class="welcome-content-inner">
+						<h3><?php echo _t('ADMIN AND COMPLIANCE'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Easily fine-tune settings for receiving emails, notifications, audits, and more, from Zend Server.<br/>
+                                Need to replicate your configuration settings across environments? (e.g. development to staging, or staging to production)  With Zend Server, you can export configuration settings from one environment to another with the click of a button, also enabling you to backup your configuration for future use.
+                                Zend Server helps you meet the governance and compliance standards of your organization.
+                                Use the Audit Trail to track changes made to your system configuration, whether made via the UI, API or directly on the file system.
+                                The user management system allows you to control access to Zend Server, and enables developers to safely access production metrics and diagnostics, with read-only permissions. Use the built-in user management, or authenticate against an existing corporate LDAP server.
+                                Get fixes to security problems (CVEs) under the Zend Server Long Term Support policy.							
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+							     <div class="welcome-content-screen welcome-content-screen-tiny" style="margin-right: 5px;">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/user-management-in-zend-server-6-embed?ecat=guidePage&eaction=User Management">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/user_management-screen.png">
+									</div>
+									<div class="video-box-desc"><?php echo _t('User Management'); ?></div>
+								</div>
+								<div class="welcome-content-screen welcome-content-screen-tiny" style="margin-right: 5px;">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/tracking-users-embed?ecat=guidePage&eaction=Tracking Users">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/tracking-users-screen.png">
+									</div>
+									<div class="video-box-desc"><?php echo _t('Tracking Users'); ?></div>
+								</div>
+								<div class="welcome-content-screen welcome-content-screen-tiny">
+									<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/backing-up-and-restoring-settings-in-zend-server-6-embed?ecat=guidePage&eaction=Backing Up and Restoring Settings">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/configuration-screen.png">
+									</div>
+									<div class="video-box-desc"><?php echo _t('Backing Up and<br/>Restoring Settings'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<nav>
+								    <a href="<?php echo $this->basePath(); ?>/Users"><?php echo _t('Administer users and authentication methods'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Audit"><?php echo _t('Watch the Audit trail'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/Settings"><?php echo _t('Configure general Zend Server settings'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/ImportExport"><?php echo _t('Backup, restore or reset system and PHP settings'); ?></a>
+									<a href="<?php echo $this->basePath(); ?>/License"><?php echo _t('Register a new Zend Server license'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+					<?php endif; ?>
+					<div id="welcome-support" class="welcome-content-inner">
+						<h3><?php echo _t('SUPPORT'); ?></h3>
+						<div class="text-wrapper">
+							<p>
+								Each edition of Zend Server comes with an SLA that includes support for PHP, Zend Framework, and the Zend value-add, providing varying levels of availability and response times based on your company's business needs.  Long Term Support, and the ability to request or prioritize custom fixes for PHP and Zend Framework, are available through Premium editions.<br/>
+								Zend can also help you leverage your investment in PHP and Zend technology in the best possible way, and provides a wide range of courses for PHP, Zend Framework and Zend Server.  Zend also offers consulting services, allowing you to gain access to some of the most experienced PHP architects for tasks such as architecture audits, security audits, and more.
+							</p>
+						</div>
+						<div class="welcome-content-links">
+							<div class="dinline">
+								<div class="welcome-content-screen">
+									<div class="video-box video-box-small" href="http://www.zend.com/server/redirect/zend-server-support?ecat=guidePage&eaction=Zend Server Support">
+										<img src="<?php echo $this->basePath(); ?>/images/welcome/videos/support-center-screen.png">
+										
+										
+									</div>
+									<div class="video-box-desc" style="height: auto; bottom: -15px;"><?php echo _t('Zend Server Support'); ?></div>
+								</div>
+							</div>
+							<div class="dinline">
+								<div id="supportSearchWrapper">
+									<div class="searchField" id="support-search" placeholder="Search..."></div>
+								</div>
+								<nav>
+									<?php if ($edition == \Configuration\License\License::EDITION_FREE) : ?>
+									<a href="javascript:void(0);" target="_blank" class="unsupported-tip" title="<?php echo _t('Opening a ticket is only possible in commercial editions of Zend Server.'); ?>"><?php echo _t('Open a Support Ticket'); ?></a>
+									<?php else : ?>
+									<a href="http://www.zend.com/server/redirect/zend-support-center?ecat=guidePage&eaction=Open a Support Ticket" target="_blank"><?php echo _t('Open a Support Ticket'); ?></a>
+									<?php endif; ?>
+									<a href="http://www.zend.com/server/redirect/zend-kb?ecat=guidePage&eaction=Zend Knowledge Base" target="_blank"><?php echo _t('Zend Knowledge Base'); ?></a>
+								</nav>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="display-checkbox">
+				<input type="checkbox" id="showGuidePage" <?php echo ($showGuide) ? 'checked="checked"' : ''; ?>/> <label for="showGuidePage" style="font-size: 12px;"><?php echo _t('Always display this page after login'); ?></label>
+			</div>
+		</div>
+	</section>
+	<footer>
+		<div class="container" style="text-align: center;">
+			<h2><?php echo _t('Learn more here'); ?>: </h2>
+			<nav>
+				<a href="<?php echo $this->helpLink('videos'); ?>" target="_blank" class="glyphicons play_button"><i></i><?php echo _t('Videos'); ?></a>
+				<a href="http://www.zend.com/server/redirect/webinars?ecat=guidePage&eaction=Webinars" target="_blank" class="glyphicons book"><i></i><?php echo _t('Webinars'); ?></a>
+				<a href="http://www.zend.com/server/redirect/zend-server-whats-new?ecat=guidePage&eaction=Whats new" target="_blank" class="glyphicons lightbulb"><i></i><?php echo _t('What\'s New?'); ?></a>
+				<a href="<?php echo $this->helpLink('') ?>" target="_blank" class="glyphicons headset"><i></i><?php echo _t('Online Help'); ?></a>
+				<a href="http://www.zend.com/server/redirect/zend-server-faq?ecat=guidePage&eaction=faqs" target="_blank" class="glyphicons circle_question_mark"><i></i><?php echo _t('FAQs'); ?></a>
+				<a href="http://www.zend.com/server/redirect/zend-forums?ecat=guidePage&eaction=forums" target="_blank" class="glyphicons conversation"><i></i><?php echo _t('Forums'); ?></a>
+			</nav>
+		</div>
+	</footer>
+</div>
+<script>
+    setTimeout(function(){
+        window.fireEvent('resize');
+    },500);
+</script>

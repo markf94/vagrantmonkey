@@ -1,0 +1,1329 @@
+<?php $this->plugin('headLink')->appendStylesheet($this->basePath() . '/css/monitorRule.css'); ?>
+<?php $monitorRules; /* @var $monitorRules \MonitorRules\Rule */ ?>
+<?php $doneUrl=$this->url('default', array('controller' => 'MonitorRules'));?>
+<?php $selectedValue = ''; ?>
+<?php $marketingLink = $this->contactZend('server-6-upgrade-dashboard'); ?>
+<?php
+foreach($monitorRulesOrig as $rule); /* @var $rule \MonitorRules\Rule */
+$parentId = $rule->getParentId();
+$ruleAppId = $rule->getAppId();
+$creator = $rule->getCreator();
+$triggers = array();
+$ruleTriggers = is_array($rule->getTriggers()) ? $rule->getTriggers() : array();
+foreach($ruleTriggers as $triggerData) {
+	$actions = array();
+	foreach ($triggerData->getActions() as $action) { /* @var $action \MonitorRules\Action */
+		$actionArray = array(
+				'type' => $action->getType(),
+				'url' => $action->getUrl(),
+				'sendToAddress' => $action->getSendToAddress(),
+				'tracingDuration' => $action->getTracingDuration()
+		);
+		$actions[] = $actionArray;
+	}
+	$trigger = array(
+			'severity' 	=> $triggerData->getSeverity(),
+			'actions' 	=> $actions,
+			'triggerId'	=> $triggerData->getId()
+	);
+	
+	// in case of no conditions but we have severity and actions we sttil want to see the trigger
+	if (! $triggerData->getConditions()) {
+		$triggers[] = $trigger;
+	}
+	
+	foreach($triggerData->getConditions() as $id => $condition) {
+		$trigger['id'] = $id;
+		$trigger['threshold'] = $condition->getOperand();
+		$trigger['attribute'] = $condition->getAttribute();
+		$triggers[] = $trigger;
+	}
+	
+}
+
+$listUrl = $this->url('default', array('controller' => 'MonitorRules'));
+$listUrl .= (isset($_GET['app'])) ? '#grid=app_' . $_GET['app'] : '';
+?>
+<div id="bread-wrp">
+	<div id="bread">
+        <h1><?php echo (isset($_GET['id'])) ? $this->escapehtml($monitorRules->getName()) : _t("New Rule"); ?></h1>
+        
+       <?php if (isset($_GET['id'])): // if not new rule show the rule's description?>
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php $desc = $monitorRules->getDescription(); if (! empty($desc)) : ?>
+                        	<?php echo $desc; ?>
+                        	<?php endif; ?>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+        <?php endif;?>
+		<ul>
+			<li><a href="<?php echo $this->url('home/dashboard') ?>"><?php echo _t("Monitoring");  ?></a></li>
+			<li><a href="<?php echo $listUrl; ?>"><?php echo _t("Monitoring Rules");  ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<script>
+var severities = {
+	'-1': 'notice',
+	'0': 'warning',
+	'1': 'critical'
+};
+
+var triggers = <?php echo json_encode($triggers)?>;
+var addIndex = 1;
+var rowsChecked = 0;
+var ruleAppId = <?php echo (empty($ruleAppId)) ? -1 : $ruleAppId; ?>;
+var ruleId = <?php echo (empty($ruleId)) ? -1 : $ruleId; ?>;
+var parentId = '<?php echo (empty($parentId)) ? '-1' : $parentId; ?>';
+var functionsList;
+var dictionaryRuleTypeToAttribute = <?php echo $dictionaryRuleTypeToAttribute?>;
+var attributeNames = <?php echo $attributeNames?>;
+var attributeListForNewTrigger = null;
+//save the select rule type as old type value to rollbak it if needed
+var oldRuleTypeValue = null;
+var triggersCount = 0;
+var triggerSingleSelect = false;
+var originParams = null;
+
+function createUnsupportedTooltip() {
+	var tip = new FloatingTips('.unsupported-help', {
+		html: true,
+		showDelay: 100,
+		hideDelay: 100,
+		content: 'title',
+		position: 'bottom',
+		center: false, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		distance: -20,
+		hideOn: 'null'
+	});
+
+	tip.addEvent('show', function() {
+		$$('.floating-tip-wrapper').each(function(item) {
+	    	item.addEvent('mouseleave', function() {
+	    		tip._animate(item, 'out');
+	        });
+		});
+	});
+}
+
+function createRuleHelpTooltip() {
+	var tip = new FloatingTips('.rule-help', {
+		showDelay: 100,
+		hideDelay: 200,
+		content: 'rel',
+		position: 'right',
+		center: true, // Place the tip aligned with target
+		arrowSize: 8 // A bigger arrow!
+	});
+}
+
+function getRuleParams() {
+	var params = {ruleId: String.from(ruleId)};
+
+	var newAppId = <?php echo (int) $appId ?>;
+	if (ruleId != -1 && newAppId != -1 && ruleAppId != newAppId) {
+		params.ruleId = "-1";
+	}
+
+	params.ruleProperties = {
+		rule_type_id: 	$('monitor-rule-type').get('value'),
+		rule_parent_id: '',
+		app_id:			newAppId,
+		name:			$('rule-name').get('value'),
+		enabled:		1,
+		description:	"<?php echo $monitorRules->getDescription()?>", // the description can contain the ' chars
+		url:			'',
+		creator:		<?php echo is_null($creator) ? 1 : $creator; ?>
+	};
+
+	if (parentId != '' && parentId != -1) {
+		params.ruleProperties.rule_parent_id = String.from(parentId);
+	} else if (ruleAppId == -1) {
+		if (params.ruleId != "-1") {
+			params.ruleProperties.rule_parent_id = '-1';
+		} else if (ruleId != "-1") {
+			params.ruleProperties.rule_parent_id = String.from(ruleId);
+		} else {
+			params.ruleProperties.rule_parent_id = '-1';
+		}
+	} else {
+		params.ruleProperties.rule_parent_id = '-1';
+	}
+
+	params.ruleTriggers = [];
+
+	// collect all text inputs for enabled triggers
+	var newTriggers = [];
+	$$('.monitor-box-main-content input[type="text"]').each(function(item) {
+		var eventTriggerEnabled = item.getParent('.monitor-trigger-container').getElement('input[id^="enable-disable-checkbox"]').get('checked'); 
+		if (eventTriggerEnabled) {
+			newTriggers.push(item);
+		};
+	});
+
+	$$('.monitor-trigger-container').each(function(item) {
+		var severity = '1';
+		if (item.hasClass('warning')) {
+			severity = '0';
+		} else if (item.hasClass('notice')) {
+			severity = '-1';
+		}
+
+		// check only non disabled containers
+		if (! item.hasClass('disabled')) {
+			if (item.getElements('.monitor-box-main-content')[0].getElements('input').length == 2) {
+				var triggerId = '';
+				triggers.each(function(item) {
+					if (item.severity == severity) {
+						triggerId = item.triggerId;
+					}
+				});
+				var elem = new Element('input', {'type': 'text', 'id': '', 'value': '', 'triggerid': triggerId, 'conditionid': '', 'severity': severity});
+				newTriggers.push(elem); 
+			}
+		}
+	});
+
+	newTriggers.each(function(item) {
+		var tempTrigger = {triggerProperties: {}, triggerConditions: [], triggerActions: []};
+
+		var conditionId = item.get('conditionid');
+		if (conditionId && conditionId != '') {
+			conditionId = conditionId.toInt();
+		} else {
+			conditionId = -1;
+		}
+		
+		var triggerId = item.get('triggerid');
+		if (triggerId && triggerId != '') {
+			triggerId = triggerId.toInt();
+		} else {
+			triggerId = -1;
+		}
+
+		var triggerSeverity = item.get('severity');
+		if (triggerSeverity && triggerSeverity != '') {
+			triggerSeverity = triggerSeverity.toInt();
+		} else {
+			triggerSeverity = -1;
+		}
+
+		var triggerProperties = { 
+				severity: triggerSeverity,
+				trigger_id: triggerId
+		};
+		tempTrigger.triggerProperties = triggerProperties;
+
+		var operand = item.get('value');
+		var attribute = item.get('id').split('_')[0];
+		
+		if ($('tresh_value_' + attribute + '_' + severities[triggerSeverity])) {
+			operand = $('tresh_value_' + attribute + '_' + severities[triggerSeverity]).get('value');
+		}
+
+		var triggerConditions = {};
+		if (triggerId) {
+			//add rule with conditions only if the attribute exists
+			if (attribute && attribute != '' && attribute != 'latent') {
+				triggerConditions = {
+					condition_id: 	conditionId,
+					operation:		'', // the operation should be translated according to the attribute or to be taken from the existing condition
+					attribute:		attribute,
+					operand:		operand.toInt() || '' //tresh_value_
+				};
+			} else {
+				triggerConditions = {};
+			}
+		}
+
+		tempTrigger.triggerConditions = [triggerConditions];
+
+		var triggerActions = {};
+
+		// send email
+		if ($('email_action_sendto_checkbox_' + severities[triggerSeverity]).get('checked')) {
+			var emailAddress = $('email_action_sendto').get('value').trim();
+
+			triggerActions = {
+				action_id: 		-1,
+				action_type:	0, // 0 = email
+				send_to:		emailAddress
+			};
+			tempTrigger.triggerActions.push(triggerActions);
+		}
+		// trace code
+		if ($('trace_code_' + severities[triggerSeverity]).get('checked')) {
+			triggerActions = {
+				action_id: 		-1,
+				action_type:	1 // 1 = trace code
+			};
+			tempTrigger.triggerActions.push(triggerActions);
+		}
+		// custom actions' collection
+		if ($('custom_action_url_checkbox_' + severities[triggerSeverity]).get('checked')) {
+			var customAction = $('custom_action_url').get('value').trim();
+			
+			var customActions = {
+				action_id: 		-1,
+				action_type:	3, // 3 = custom action
+				action_url: 	customAction
+			};
+			tempTrigger.triggerActions.push(customActions);
+		}
+
+		// trace code - latent
+		if ($('trace_code_' + severities[triggerSeverity]).get('checked') && $('standby_mode_duration_' + severities[triggerSeverity]).get('checked')) {
+			var duration = $('latent_' + severities[triggerSeverity]).get('value');
+			
+			tempTrigger.triggerActions.each(function(item, key) {
+				if (item.action_type == 1) {
+					item.action_type = 2;
+					item.tracing_duration = duration;
+				}
+			});
+		}
+
+
+		params.ruleTriggers.push(tempTrigger);
+	}.bind(this));
+
+
+	if (functionsList && functionsList.length > 0) {
+		var condition = {
+				condition_id: 	$('funcNames_id').value,
+				operation:		'', // the operation should be translated according to the attribute or to be taken from the existing condition
+				attribute:		'function-name',
+				operand:		functionsList.join("|")
+		};
+		params.ruleConditions = [condition];
+	}
+
+	var newRuleTriggers = [];
+	Object.each(params.ruleTriggers, function(item) {
+		newRuleTriggers.push(item);
+	});
+
+	if (ruleId == -1 && (params.ruleProperties.rule_parent_id == -1 || params.ruleProperties.rule_parent_id.trim() == '')) {
+		params.ruleProperties.creator = 1;
+	}
+
+	params.ruleTriggers = newRuleTriggers;
+
+	return params;
+}
+
+function saveClick() {
+	$$('.monitor-trigger-container.disabled').each(function(e){
+		e.getElements('input[type="text"]').set('value', '');
+	});
+
+	var params = getRuleParams();
+	
+	if (params.ruleProperties.name == '') {
+		document.fireEvent('toastAlert', {'message': 'You must enter rule name'});
+		return;
+	}
+	
+	// do not allow to save rule without a trigger being set
+	if (Object.getLength(params.ruleTriggers) == 0) {
+		document.fireEvent('toastAlert', {'message': 'Select a severity level and fill in the required fields for this event'});
+		return;
+	}
+	
+	if (params.ruleTriggers && typeof params.ruleTriggers != 'undefined') {
+		try {
+			params.ruleTriggers.each(function(trigger){
+				trigger.triggerActions.each(function(action){
+					if (action.action_type == 0 && action.send_to == '') { /// email trigger action with no destination
+						throw Error('You must enter email address');
+					} else
+					if (action.action_type == 3 && action.action_url == '') {/// custom trigger action with no destination
+						throw Error('You must enter Callback URL for custom action');
+					} else
+					if (action.action_type == 2 && action.tracing_duration == '') {/// custom trigger action with no destination
+						throw Error('You must enter standby mode duration');
+					}
+				});
+			});
+		} catch (error) {
+			document.fireEvent('toastAlert', {'message': error.message});
+			return;
+		}
+	}
+	
+	document.fireEvent('disableRestartTooltip', {}); // ZSRV-11752 disable restart tip
+	
+	var url = '<?php echo $this->basepath('/Api/monitorSetRule'); ?>';
+	//make the request
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: params,
+		onSuccess: function(response) {
+			if (response != undefined) {
+				ruleId = String.from(response.responseData.rules.pick().id);
+				ruleAppId = Number.from(response.responseData.rules.pick().appId);
+				parentId = Number.from(response.responseData.rules.pick().parentId);
+				if (params.ruleId == "-1") {
+					params.ruleId = String.from(ruleId);
+					params.ruleProperties.app_id = Number.from(ruleAppId);
+					params.ruleProperties.rule_parent_id = String.from(parentId);
+
+					originParams = params;
+					if (ruleAppId != '') {
+						window.location.replace(baseUrl() + '/MonitorEditRule?app=' + ruleAppId + '&id=' + ruleId + '#newRule=1');
+						return;
+					} else {
+						window.location.replace(baseUrl() + '/MonitorEditRule?id=' + ruleId + '#newRule=1');
+						return;
+					}
+				}
+			}
+			document.fireEvent('refreshNotifications');
+			document.fireEvent('toastNotification', {'message': _t('Rule settings saved')});
+			$('save_rule').set('disabled',true);
+				
+		}.bind(this),
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+
+	originParams = params;
+}
+
+function addTips() {
+    editTip = new FloatingTips('.edit-php-errors', {
+		// Content can also be a function of the target element!
+		content: function(e) {
+			// close all other tooltips
+			$$('.edit-php-errors').each(function(item) {
+				editTip.hide(item);
+			});
+			var rel = e.get('rel');
+    		var ruleTreshold = $('tresh_value_' + rel).get('value');
+    		
+    		functionsArray = getPhpFunctionsFromNumber(ruleTreshold);
+    		var result = '';
+
+			result += getFunctionsCheckBoxes(functionsArray, rel);
+			
+    		window.closeTip = function() {
+    			editTip.hide(e);
+    		}
+
+    		setTimeout(function() {
+        		$$('.phpErr input').addEvent('change', function(item) {
+        			listenToChanges(item);
+        		});
+    		}, 100);
+    		
+			result += '<button onclick="closeTip()">Close</button>'
+    		return result;
+    	},
+		html: true,
+		position: 'bottom', // Bottom positioned
+		center: true, // Place the tip aligned with target
+		arrowSize: 8, // A bigger arrow!
+		showOn: 'click',
+		hideOn: 'null',
+	});
+}
+
+function changeFunctionsArray(id){
+	editTip.hide($(id));
+}
+
+function toggleStandByBox(item) {
+	if (item.get('checked')) {
+		showStandByBox(item);
+	} else {
+		hideStandByBox(item);
+	}
+}
+
+function showStandByBox(item) {
+	item.getParent().getElement('.standby-container-disable-screen').addClass('hidden');
+}
+
+function hideStandByBox(item) {
+	item.getParent().getElement('.standby-container-disable-screen').removeClass('hidden');
+}
+
+function disableTrigger(item) {
+	item.getParent('.monitor-trigger-content').getElement('.monitor-trigger-disable-screen').removeClass('hidden');
+	
+	var mainContent = item.getParent('.monitor-trigger-content');
+	mainContent.getElements('input[type="checkbox"]').set('checked', false);
+	mainContent.getParent().addClass('disabled');
+
+	if (mainContent.getParent().hasClass('critical')) {
+		var triggerSeverity = 'Critical';
+	} else if (mainContent.getParent().hasClass('warning')) {
+		var triggerSeverity = 'Warning';
+	} else {
+		var triggerSeverity = 'Notice';
+	}
+
+	if ($('latent_' + triggerSeverity.toLowerCase()).get('oldValue')) {
+		$('latent_' + triggerSeverity.toLowerCase()).value = $('latent_' + triggerSeverity.toLowerCase()).get('oldValue');
+	} else {
+		$('latent_' + triggerSeverity.toLowerCase()).value = 120;
+	}
+}
+
+function toggleEmailBox() {
+	var emailChecked = $$('.email_action_sendto_checkbox').some(function(item) {
+		return item.get('checked');
+	});
+	if (emailChecked) {
+		$('email_action_sendto').set('disabled', false);
+	} else {
+		$('email_action_sendto').set('disabled', true);
+	}
+}
+
+
+var allowedCallback = <?php echo $this->isAllowed('data:useMonitorAction', 'custom') ? 'true' : 'false' ?>;
+function toggleCallbackURLBox() {
+	var emailChecked = $$('.custom_actions_active_checkbox').some(function(item) {
+		return item.get('checked');
+	});
+	if (emailChecked && allowedCallback) {
+		$('custom_action_url').set('disabled', false);
+	} else {
+		$('custom_action_url').set('disabled', true);
+	}
+}
+
+window.addEvent("load", function() {
+	persistantHeaders.addHeader('monitor-rules-edit-action-bar');
+	
+	$$('.enable-disable-checkbox').addEvent('change', function(item) {
+		if (item.target != undefined) {
+			item = item.target;
+		}
+
+		if (item.get('checked')) {
+			// is enabled
+			if (triggerSingleSelect) {
+				$$('.enable-disable-checkbox').each(function(checkbox){
+					if (item.get('id') != checkbox.get('id')) {
+						disableTrigger(checkbox);
+					}
+				});
+			}
+			item.getParent('.monitor-trigger-container').removeClass('disabled');
+			item.getParent('.monitor-trigger-content').getElement('.monitor-trigger-disable-screen').addClass('hidden');
+			
+		} else {
+			// is disabled
+			disableTrigger(item);
+		}
+
+		toggleEmailBox();
+	});
+
+	$$('.email_action_sendto_checkbox').addEvent('change', function(item) {
+		toggleEmailBox();
+	});
+	
+	$$('.trace_code_checkbox').addEvent('change', function(item) {
+		toggleStandByBox(item.target);
+	});
+
+	$$('.custom_actions_active_checkbox').addEvent('change', function(item){
+		toggleCallbackURLBox(item.target);
+	});
+	
+	createRuleHelpTooltip();
+	
+	var parsedHash = window.location.hash.substring(1);
+	if (parsedHash.contains('newRule=1')) {
+		document.fireEvent('toastNotification', {'message': '<?php echo ($parentId == -1) ? _t('New rule added') : _t('The overriding rule was successfully saved'); ?>'});
+		window.location.hash = parsedHash.replace('newRule=1', '');
+	}
+
+	updateAttribute();
+
+	<?php if (! $this->isAllowed('route:MonitorRulesWebApi', 'monitorSetRule')): ?>
+		$$('input').set('disabled', 'disabled');
+		$$('.closeChar').dispose();
+		$$('.monitor-trigger-disable').setStyle('display', 'none');
+		$('add-new-func-btn').set('disabled', 'disabled');
+	<?php endif; ?>
+
+    addTips();
+
+    originParams = getRuleParams();
+
+    window.onbeforeunload = function(){
+    	var currentParams = getRuleParams();
+    	if (JSON.encode(originParams) != JSON.encode(currentParams)) {
+			return "Your changes have not been saved yet.";
+    	}
+	};
+
+	addListenersToInputSelect();
+	
+	$('email_action_sendto').addEvent('keyup', function(item) {
+		listenToEmailChanges(item);
+	});
+	$('email_action_sendto').addEvent('paste', function(item) {
+		listenToEmailChanges(item);
+	});
+});
+
+function addListenersToInputSelect() {
+	$$('input,select').addEvent('change', function(item) {
+		listenToChanges(item);
+	});
+	$$('input,select').addEvent('paste', function(item) {
+		listenToChanges(item);
+	});
+	$$('input,select').addEvent('keyup', function(item) {
+		//if (e.id == 'mem-usage_notice' || e.id == 'mem-usage-percent-change_notice') {
+		//		if ($('mem-usage-percent-change_notice').value == "" && $('mem-usage_notice').value == "") {
+		listenToChanges(item);
+	});
+	
+}
+function listenToEmailChanges(item) {
+	// email is not empty
+	if (item.target.value != '') {
+		// also one of the send email checkboxes is choosen
+		if ( $('email_action_sendto_checkbox_warning').get('checked') ||
+		     $('email_action_sendto_checkbox_critical').get('checked') ||
+		     $('email_action_sendto_checkbox_notice').get('checked')) {
+		     
+			$('save_rule').set('disabled', false);
+		}
+	}
+}
+
+function listenToChanges(item) {
+	$('save_rule').set('disabled',false);
+	$$('.monitor-trigger-container:not(.disabled) table').each(function(container){
+		container.getElements('input').each(function(e){
+			if(e.value.trim()==''||(isNaN(e.value)&&e.id.indexOf('error-type')!=0)){
+				if($('mem-usage-percent-change_notice') && $('mem-usage_notice')) {
+					// exception for 'memory usage' rule when notice of memory usage or % can be empty field
+					if ($('mem-usage-percent-change_notice').value == "" && $('mem-usage_notice').value == "") {
+						$('save_rule').set('disabled',true);  
+					}
+				} else if($('exec-time-percent-change_notice') && $('exec-time_notice')) {
+					// exception for 'slow request execution' rule when notice of exec time or % can be empty field #ZSRV-15088
+					if ($('exec-time-percent-change_notice').value == "" && $('exec-time_notice').value == "") {
+						$('save_rule').set('disabled',true);  
+					}
+				}
+				else {
+					$('save_rule').set('disabled',true);
+				}
+			}
+		});
+	});
+}
+
+function checkboxIfValue() {
+	var idParts = this.id.match(/^(.+)\-(.+)$/);
+	idParts.shift();
+	var classId = idParts.pick();
+	var triggerId = idParts.getLast();
+	if (this.value == '') {
+		$(classId + '_checkbox-' + triggerId).set('checked', false);
+	} else {
+		$(classId + '_checkbox-' + triggerId).set('checked', true);
+	}
+}
+
+function getPhpFunctionsFromNumber(threshold){
+	var functionsArray = new Array();
+	if(threshold & <?php echo E_ERROR ?>) functionsArray.push("E_ERROR");
+	if(threshold & <?php echo E_WARNING ?>) functionsArray.push("E_WARNING");
+	if(threshold & <?php echo E_PARSE ?>) functionsArray.push("E_PARSE");
+	if(threshold & <?php echo E_NOTICE ?>) functionsArray.push("E_NOTICE");
+	if(threshold & <?php echo E_CORE_ERROR ?>) functionsArray.push("E_CORE_ERROR");
+	if(threshold & <?php echo E_CORE_WARNING ?>) functionsArray.push("E_CORE_WARNING");
+	if(threshold & <?php echo E_COMPILE_ERROR ?>) functionsArray.push("E_COMPILE_ERROR");
+	if(threshold & <?php echo E_COMPILE_WARNING ?>) functionsArray.push("E_COMPILE_WARNING");
+	if(threshold & <?php echo E_USER_ERROR ?>) functionsArray.push("E_USER_ERROR");
+	if(threshold & <?php echo E_USER_WARNING ?>) functionsArray.push("E_USER_WARNING");
+	if(threshold & <?php echo E_USER_NOTICE ?>) functionsArray.push("E_USER_NOTICE");
+	if(threshold & <?php echo E_STRICT ?>) functionsArray.push("E_STRICT");
+	if(threshold & <?php echo E_RECOVERABLE_ERROR ?>) functionsArray.push("E_RECOVERABLE_ERROR");
+	if(threshold & <?php echo E_DEPRECATED ?>) functionsArray.push("E_DEPRECATED");
+	if(threshold & <?php echo E_USER_DEPRECATED ?>) functionsArray.push("E_USER_DEPRECATED");
+	return functionsArray;
+}
+
+function getFunctionsCheckBoxes(functionsArray, ruleId){
+	var result = '';
+
+	var phpErrors = ["E_ERROR","E_WARNING","E_PARSE","E_NOTICE","E_CORE_ERROR","E_CORE_WARNING","E_COMPILE_ERROR","E_COMPILE_WARNING","E_USER_WARNING","E_USER_NOTICE","E_STRICT","E_RECOVERABLE_ERROR", "E_DEPRECATED","E_USER_DEPRECATED"];
+	for (var i = 0; i < phpErrors.length; i++){
+		result += '<div class="phpErr"> <input type="checkbox" '+ (functionsArray.indexOf(phpErrors[i]) != -1 ? 'checked="yes"' : '') +' onclick="changeTreshold(\''+ruleId+'\')" class="checkBox'+ruleId+'" name="'+phpErrors[i]+'"/> '+phpErrors[i]+'</div>';
+	}
+
+	return result;
+}
+
+function changeTreshold(ruleId){
+	var phpErrors = {E_ERROR : 1,E_WARNING : 2,E_PARSE : 4,E_NOTICE : 8,E_CORE_ERROR : 16,E_CORE_WARNING : 32,E_COMPILE_ERROR : 64,E_COMPILE_WARNING : 128,E_USER_WARNING:512,E_USER_NOTICE:1024,E_STRICT:2048,E_RECOVERABLE_ERROR:4096,E_USER_DEPRECATED:16384,E_DEPRECATED:8192};
+	var newTreshold = 0;
+	$$(".checkBox" + ruleId).each(function(element, index){
+		if($(element).checked){
+			newTreshold = newTreshold | phpErrors[$(element).name];
+		}
+	});
+
+	$(ruleId).value = getPhpFunctionsFromNumber(newTreshold);
+	$('tresh_value_'+ruleId).value = newTreshold;
+	$(ruleId).name = newTreshold;
+}
+
+function getAttributeUnits(attribute) {
+	
+	var units;
+
+	switch(attribute) {
+		case 'mem-usage-percent-change': 
+		case 'out-size-percent-change': 
+		case 'exec-time-percent-change': 
+			units = '%';
+			break;
+		case 'mem-usage':
+		case 'out-size': 
+			units = 'KB';
+			break;
+		case 'exec-time': 
+			units = 'ms';
+			break;
+		case 'function-name':
+		case 'error-type':
+		default:
+			units = '';
+			break;
+	}
+	
+	return units;
+}
+
+function setAttributeUnits(ruleId, attribute) {
+	var units = getAttributeUnits(attribute);
+	$('attribute-units-' + ruleId).set('html', units);
+}
+
+function updateAttribute(removeTriggersFlag) {
+	if ($('monitor-rule-type').value != 'function-error' && $('monitor-rule-type').value != 'function-slow-exec') {
+		$('functions-list-wrapper').addClass('hidden');
+	} else {
+		$('functions-list-wrapper').removeClass('hidden');
+	}
+
+	// check if the event type is one of the no-code-trace events
+	var noCodeTrace = ['tracer-write-file-fail', 'jq-job-exec-delay', 'jq-job-exec-error', 'jq-job-logical-failure'];
+
+	if (noCodeTrace.contains($('monitor-rule-type').value)) {
+		$$('.standby-container').addClass('hidden');
+   	} else {
+   		$$('.standby-container').removeClass('hidden');
+   	}
+
+	var customElementIds = ['custom_action_url_checkbox_critical', 'custom_action_url_checkbox_warning', 'custom_action_url_checkbox_notice', 'custom_action_url'];
+	<?php if (! $this->isAllowed('data:useMonitorAction', 'custom')): ?>
+		// MARKETING
+	 	var title = "<?php echo _t('Want to view line-by-line code execution and manage notifications for these events? <a href=\''. $marketingLink .'\' target=\'_blank\' >Contact Zend</a> to upgrade.') ?>";
+		Array.each(customElementIds, function (id, key) {
+			$(id).set('disabled', true);
+			$$('label[for="' + id + '"]').set('title', title);
+			$$('label[for="' + id + '"]').addClass('disabled');
+			$(id).addClass('unsupported-help');
+			$$('label[for="' + id + '"]').addClass('unsupported-help');
+		});
+	<?php else: ?>
+		Array.each(customElementIds, function (id, key) {
+			$(id).set('disabled', false);
+			$(id).erase('title');
+			$$('label[for="' + id + '"]').erase('title');
+			$$('label[for="' + id + '"]').removeClass('disabled');
+			$(id).removeClass('unsupported-help');
+			$$('label[for="' + id + '"]').removeClass('unsupported-help');
+		});
+	<?php endif; ?>
+
+	var emailElementIds = ['email_action_sendto_checkbox_critical', 'email_action_sendto_checkbox_warning', 'email_action_sendto_checkbox_notice', 'email_action_sendto'];
+	<?php if (! $this->isAllowed('data:useMonitorAction', 'email')): ?>
+		 // MARKETING
+	 	var title = "<?php echo _t('Want to view line-by-line code execution and manage notifications for these events? <a href=\''. $marketingLink .'\' target=\'_blank\' >Contact Zend</a> to upgrade.')?>";
+	 	Array.each(emailElementIds, function (id, key) {
+			$(id).set('disabled', true);
+			$(id).set('disabled', true);
+			$$('label[for="' + id + '"]').set('title', title);
+			$$('label[for="' + id + '"]').addClass('disabled');
+			$(id).addClass('unsupported-help');
+			$$('label[for="' + id + '"]').addClass('unsupported-help');
+		});
+	<?php else: ?>
+		Array.each(emailElementIds, function (id, key) {
+			$(id).set('disabled', false);
+			$(id).erase('title');
+			//reset checked
+			$(id).set('checked', false);
+			$$('label[for="' + id + '"]').erase('title');
+			$$('label[for="' + id + '"]').removeClass('disabled');
+			$(id).removeClass('unsupported-help');
+			$$('label[for="' + id + '"]').removeClass('unsupported-help');
+		});
+	<?php endif; ?>
+	$('email_action_sendto').set('disabled', true);
+	//reset the value also
+	$('email_action_sendto').value = '';
+	
+	var codeTraceCheckboxIds = ['trace_code_critical', 'trace_code_warning', 'trace_code_notice'];
+	var statuses = ['critical', 'warning', 'notice'];
+	<?php if (! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+	 	// MARKETING
+	 	var title = "<?php echo _t('Want to view line-by-line code execution and manage notifications for these events? <a href=\''. $marketingLink .'\' target=\'_blank\' >Contact Zend</a> to upgrade.')?>";
+	 	Array.each(codeTraceCheckboxIds, function (id, key) {
+			$(id).set('disabled', true);
+			$$('label[for="' + id + '"]').set('title', title);
+			$$('label[for="' + id + '"]').addClass('disabled');
+			$(id).addClass('unsupported-help');
+			$$('label[for="' + id + '"]').addClass('unsupported-help');
+		});
+	 	Array.each(statuses, function (id, key) {
+	 		$('standby_mode_duration_' + id).set('disabled', true);
+	 		$$('label[for="' + 'standby_mode_duration_' + id + '"]').addClass('disabled');
+	 		$('standby_mode_on_' + id).set('disabled', true);
+	 		$$('label[for="' + 'standby_mode_on_' + id + '"]').addClass('disabled');
+	 		$('latent_' + id).set('disabled', true);
+	 		$('latent_' + id).addClass('disabled');
+	 		$('standby_mode_duration_label2_' + id).addClass('disabled');
+	 	});
+	<?php else: ?>
+		Array.each(codeTraceCheckboxIds, function (id, key) {
+			$(id).set('disabled', false);
+			$(id).erase('title');
+			$$('label[for="' + id + '"]').erase('title');
+			$$('label[for="' + id + '"]').removeClass('disabled');
+			$(id).removeClass('unsupported-help');
+			$$('label[for="' + id + '"]').removeClass('unsupported-help');
+		});
+	 	Array.each(statuses, function (id, key) {
+	 		$('standby_mode_duration_' + id).set('disabled', false);
+	 		$$('label[for="' + 'standby_mode_duration_' + id + '"]').removeClass('disabled');
+	 		$('standby_mode_on_' + id).set('disabled', false);
+	 		$$('label[for="' + 'standby_mode_on_' + id + '"]').removeClass('disabled');
+	 		$('latent_' + id).set('disabled', false);
+	 		$('latent_' + id).removeClass('disabled');
+	 		$('standby_mode_duration_label2_' + id).removeClass('disabled');
+	 	});
+		
+	<?php endif; ?>
+	
+	// check if the event type is one of the single-severity-only events
+	var singleSeverityOnly = ['jq-daemon-high-concurrency', 'function-error', 'tracer-write-file-fail', 'custom', 'java-exception', 'jq-job-exec-error', 'jq-job-logical-failure', 'jq-job-exec-delay'];
+	if (triggerSingleSelect = singleSeverityOnly.some(function(item) {
+			return ($('monitor-rule-type').value == item);
+		}));
+
+	if (triggerSingleSelect) {
+		$('trigger_headline-multi_choice').hide();
+		$('trigger_headline-single_choice').show();
+	} else {
+		$('trigger_headline-multi_choice').show();
+		$('trigger_headline-single_choice').hide();
+	}
+	
+	attributeListForNewTrigger = {};
+
+	Object.each(dictionaryRuleTypeToAttribute[$('monitor-rule-type').value], function(attribute) {
+		if (attributeNames[attribute]) {
+			if (!attributeListForNewTrigger) {
+				attributeListForNewTrigger = {};
+			}
+			attributeListForNewTrigger[attribute] = attributeNames[attribute];
+		}
+	});
+
+	// create new triggers and populate with data if exists
+	$$('.monitor-trigger-container:not(.standby-container)').each(function(item) {
+		if (item.hasClass('critical')) {
+			var containerSeverity = 'critical';
+			var containerSeverityNum = '1';
+		} else if (item.hasClass('warning')) {
+			var containerSeverity = 'warning';
+			var containerSeverityNum = '0';
+		} else {
+			var containerSeverity = 'notice';
+			var containerSeverityNum = '-1';
+		}
+		
+		var triggersContent = '';
+		Object.each(attributeListForNewTrigger, function(trigger, triggerKey) {
+			if (triggerKey == 'error-type') {
+				var ruleId = triggerKey + '_' + containerSeverity;
+				var valueType = '<button class="edit-php-errors" rel="' + ruleId + '" id="' + triggerKey + '_' + containerSeverity + '_errors" name="' + triggerKey + '_' + containerSeverity + '_errors" style="position: relative; top: 0; left: 0; z-index: 0;">Edit</button><input type="hidden" value="" id="tresh_value_' + ruleId + '" name="tresh_value_' + ruleId + '"/>';
+				triggersContent += '<tr><td>' + trigger + ':</td><td><input type="text" class="hidden" id="' + triggerKey + '_' + containerSeverity + '" value="" triggerid="" conditionid="" severity="' + containerSeverityNum + '" /> ' + valueType + '</td></tr>';
+			} else {
+				var valueType = getAttributeUnits(triggerKey);
+				triggersContent += '<tr><td>' + trigger + ':</td><td><input type="text" id="' + triggerKey + '_' + containerSeverity + '" value="" triggerid="" conditionid="" severity="' + containerSeverityNum + '" /> <span style="font-size: 12px;">' + valueType + '</span></td></tr>';
+			}
+		});
+
+		// replace old content with new content
+		item.getElement('table').set('html', triggersContent);
+	});
+
+	Object.each(triggers, function(trigger) {
+		var severity = Number(trigger.severity) + 10; // orig values are 1,0,-1 - JS does not support negative array keys
+		var severityName = severities[trigger.severity];
+
+		if (trigger.attribute == 'error-type') {
+			$(trigger.attribute + '_' + severityName).set('value', getPhpFunctionsFromNumber(trigger.threshold));
+			$('tresh_value_' + trigger.attribute + '_' + severityName).set('value', trigger.threshold);
+		} else {
+			if (trigger.threshold != undefined) {
+				$(trigger.attribute + '_' + severityName).set('value', trigger.threshold);
+			}
+		}
+
+		if ($(trigger.attribute + '_' + severityName)) {
+			if (trigger.id) {
+				$(trigger.attribute + '_' + severityName).set('conditionid', trigger.id);
+			}
+			if (trigger.triggerId.toInt()) {
+				$(trigger.attribute + '_' + severityName).set('triggerid', trigger.triggerId.toInt());
+			}
+			if (trigger.severity) {
+				$(trigger.attribute + '_' + severityName).set('severity', trigger.severity);
+			}
+		}
+
+		trigger.actions.each(function(triggerAction) {
+			if (triggerAction.type == 0) { // 0 = email
+				$('email_action_sendto_checkbox_' + severityName).set('checked', true);
+				$('email_action_sendto').set('value', triggerAction.sendToAddress);
+			} else if (triggerAction.type == 1) { // 1 = code trace
+				$('trace_code_' + severityName).set('checked', true);
+				$('standby_mode_on_' + severityName).set('checked', true);
+				toggleStandByBox($('trace_code_' + severityName));
+			} else if (triggerAction.type == 3) { // 3 = custom action
+				$('custom_action_url_checkbox_' + severityName).set('checked', true);
+				$('custom_action_url').set('value', triggerAction.url);
+			} else if (triggerAction.type == 2) { // 2 = code tace latent
+				$('trace_code_' + severityName).set('checked', true);
+				$('standby_mode_on_' + severityName).set('checked', true);
+				toggleStandByBox($('trace_code_' + severityName));
+				
+				$('standby_mode_duration_' + severityName).set('checked', true);
+				$('latent_' + severityName).set('value', triggerAction.tracingDuration);
+				$('latent_' + severityName).set('oldValue', triggerAction.tracingDuration);
+			}
+			// after the settings the email sendto checkboxes to check if enable the email field
+			toggleEmailBox();
+		});
+	});
+
+	toggleCallbackURLBox();
+	this.checkBoxStatus();
+	addTips();
+	createUnsupportedTooltip();
+
+	// some inputs/selects were erased and created so we recreate the listerns
+	addListenersToInputSelect();
+	
+	return;
+}
+
+function checkBoxStatus(box) {
+	$$('.monitor-box-right').each(function(item) {
+		var disableBox = true;
+		item.getElements('.monitor-box-main-content input[type="text"]').each(function(inputField) {
+			if (inputField.get('value') != '') {
+				disableBox = false;
+			}
+		});
+		
+		item.getElements('input[type="checkbox"]').each(function(inputField) {
+			if (inputField.get('checked') == true) {
+				disableBox = false;
+			}
+		});
+		triggers.each(function(triggerItem) {
+			if (item.getParent('.monitor-trigger-container').hasClass(severities[triggerItem.severity])) {
+				disableBox = false;
+			}
+		});
+		
+		if (disableBox && !item.hasClass('disabled')) {
+			item.getParent('.monitor-trigger-content').getElement('.enable-disable-checkbox').fireEvent('change', item);
+			item.getParent('.monitor-trigger-content').getElement('.enable-disable-checkbox').set('checked', false);
+		} else if (!disableBox && item.hasClass('disabled')) {
+			item.getParent('.monitor-trigger-content').getElement('.enable-disable-checkbox').fireEvent('change', item);
+			item.getParent('.monitor-trigger-content').getElement('.enable-disable-checkbox').set('checked', true);
+		}
+	});
+}
+
+</script>
+<div id="edit-rule">
+<div class="general-details-top">
+	<ul>
+		<li>
+			<table>
+				<tbody>
+					<tr style="height: 28px;">
+						<td><?php echo _t('Rule Name'); ?></td>
+						<td>
+							<?php if (($appId == -1 && $monitorRules->getId() != '') || ! empty($parentId)) : ?>
+								<?php echo (! is_null($monitorRules)) ? $this->escapehtml($monitorRules->getName()) : ''; ?>
+								<input type="hidden" name="rule-name" id="rule-name" value="<?php echo (! is_null($monitorRules)) ? $this->escapehtmlattr($monitorRules->getName()) : ''; ?>" placeholder="e.g. New Rule name" />
+							<?php else : ?>
+								<input type="text" name="rule-name" id="rule-name" value="<?php echo (! is_null($monitorRules)) ? $this->escapehtmlattr($monitorRules->getName()) : ''; ?>" placeholder="e.g. New Rule name" />
+							<?php endif; ?>
+						</td>
+					</tr>
+					<tr> 
+						<td><?php echo _t('Type'); ?></td>
+						<td>
+							<?php if (($appId == -1 && $monitorRules->getId() != '') || ! empty($parentId)) : ?>
+								<?php 
+									foreach ($monitorRuleTypes as $id => $monitorRuleType) {
+										if ($monitorRules->getType() == $id) {
+											echo $monitorRuleType->getName();
+											echo '<input type="hidden" value="' . $monitorRuleType->getId() . '" name="monitor-rule-type" id="monitor-rule-type">';
+											break;
+										}
+									}
+								?>
+							<?php else : ?>
+								<select name="monitor-rule-type" id="monitor-rule-type" onchange="updateAttribute(true);" <?php echo (! empty($parentId)) ? 'disabled="disabled"' : ''; ?>>
+									<?php 
+									$selected = '';
+									foreach ($monitorRuleTypes as $id => $monitorRuleType) {
+										if (! $monitorRuleType->isEnabled()) {
+											continue;
+										}
+										
+										if (! $selectedValue) {
+											$selectedValue = $id;
+										}
+										
+										if (! is_null($monitorRules)) {
+											$selected = ($monitorRules->getType() == $id) ? 'selected="selected"' : '';
+											// save the select rule type as old type value to rollbak it if needed
+											$selectedValue = $id;
+										} else {
+											$selected = '';
+										}
+										
+										echo "<option value=\"{$id}\" {$selected}>{$monitorRuleType->getName()}</option>"; 
+									}
+									?>
+								</select>
+							<?php endif; ?>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</li>
+		<li>
+			<table>
+				<tbody>
+					<tr>
+						<td><?php echo _t('Application'); ?></td>
+						<td>
+						    <?php 
+							    $appName = 'Global';
+							    foreach ($applications as $application) {
+							        if ($application->getApplicationId() == $appId) {
+                                        $appName = $application->getUserApplicationName();
+                                    }
+							    }
+							    echo $this->escapehtml($appName);
+							    ?>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</li>
+		<li>
+			<table>
+				<tbody>
+					<tr>
+						<td><?php echo _t('Email'); ?></td>
+						<td>
+							<input type="text" class="email_action_sendto" id="email_action_sendto" value="<?php echo $defaultEmail; ?>" placeholder="name@example.com">
+							<div class="rule-help" rel="Use a comma separated list to send event details to multiple email addresses"></div>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo _t('Callback URL'); ?></td>
+						<td>
+							<input id="custom_action_url" class="custom_action_url" value="<?php echo $defaultCustomAction; ?>" type="text" placeholder="http://url.com/filename.php">
+							<div class="rule-help" rel="Enter a URL to execute a script when the event is triggered"></div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</li>
+	</ul>
+</div>
+
+<div style="margin-top: 10px;">
+		<div style="width: 800px; float: left;" id="wrappers-container">
+				<div style="clear: both;" id="trgs">
+					<h3 id="trigger_headline-multi_choice" class="hidden"><?php echo _t('Create an event when detected in the following triggers:');?></h3>
+					<h3 id="trigger_headline-single_choice" class="hidden"><?php echo _t('Select the severity level for this event:'); ?></h3>
+				<div style="clear: both; position: relative;">
+					<div class="monitor-trigger-container critical">
+						<div class="monitor-trigger-content">
+							<div class="monitor-box-left">
+								<input type="checkbox" class="enable-disable-checkbox" id="enable-disable-checkbox-critical" checked />
+							</div>
+							<div class="monitor-box-right">
+								<div class="monitor-trigger-disable-screen hidden"></div>
+								<div class="monitor-box-main-content">
+									<h2>Critical</h2>
+									<table>
+										<tr>
+											<td>Execute Time:</td>
+											<td><input type="text" /></td>
+										</tr>
+										<tr>
+											<td>Execute Time %:</td>
+											<td><input type="text" /></td>
+										</tr>
+									</table>
+									<div>
+										<input type="checkbox" class="email_action_sendto_checkbox" id="email_action_sendto_checkbox_critical" name="email_action_sendto_checkbox_critical"> <label for="email_action_sendto_checkbox_critical" id="email_action_sendto_checkbox_critical_label">Send email</label>
+										<input type="checkbox" class="custom_actions_active_checkbox" id="custom_action_url_checkbox_critical" name="custom_action_url_checkbox_critical"> <label for="custom_action_url_checkbox_critical" id="custom_action_url_checkbox_critical_label">Call URL</label>
+									</div>
+								</div>
+								<div class="standby-container">
+									<input type="checkbox" class="trace_code_checkbox" id="trace_code_critical" name="trace_code_critical">
+									<label id="trace_code_critical_label" for="trace_code_critical" >
+										Trace code <a class="rule-help" href="<?php echo $this->helplink('code_tracing_concept') ?>" target="_blank"></a>
+									</label>
+									<br />
+									<div class="standby-container-disable-screen"></div>
+									<input type="radio" name="standby_mode_critical" id="standby_mode_duration_critical" value="duration" checked="checked">
+									<label id="standby_mode_duration_label" for="standby_mode_duration_critical" >
+										Activate Code Tracing for
+									</label>
+									<div class="float-left" style="line-height: 12px;"><input class="float-left" type="text" value="120" id="latent_critical" /><label id="standby_mode_duration_label2_critical">  seconds after triggered events</label></div>
+									<input type="radio" name="standby_mode_critical" id="standby_mode_on_critical" value="on"> 
+									<label id="standby_mode_on_label" for="standby_mode_on_critical" >
+										Always activate Code Tracing for triggered events
+									</label>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div style="clear: both; position: relative;">
+					<div class="monitor-trigger-container warning">
+						<div class="monitor-trigger-content">
+							<div class="monitor-box-left">
+								<input type="checkbox" class="enable-disable-checkbox" id="enable-disable-checkbox-warning" checked />
+							</div>
+							<div class="monitor-box-right">
+								<div class="monitor-trigger-disable-screen hidden"></div>
+								<div class="monitor-box-main-content">
+									<h2>Warning</h2>
+									<table>
+										<tr>
+											<td>Execute Time:</td>
+											<td><input type="text" /></td>
+										</tr>
+										<tr>
+											<td>Execute Time %:</td>
+											<td><input type="text" /></td>
+										</tr>
+									</table>
+									<div>
+										<input type="checkbox" class="email_action_sendto_checkbox" id="email_action_sendto_checkbox_warning" name="email_action_sendto_checkbox_warning"> <label for="email_action_sendto_checkbox_warning" id="email_action_sendto_checkbox_warning_label">Send email</label>
+										<input type="checkbox" class="custom_actions_active_checkbox" id="custom_action_url_checkbox_warning" name="custom_action_url_checkbox_warning"> <label for="custom_action_url_checkbox_warning" id="custom_action_url_checkbox_warning_label" >Call URL</label>
+									</div>
+								</div>
+								<div class="standby-container">
+									<input type="checkbox" class="trace_code_checkbox" id="trace_code_warning" name="trace_code_warning">
+									<label id="trace_code_warning_label" for="trace_code_warning" >
+										Trace code <a class="rule-help" href="<?php echo $this->helplink('code_tracing_concept') ?>" target="_blank"></a>
+									</label>
+									<br />
+									<div class="standby-container-disable-screen"></div>
+									<input type="radio" name="standby_mode_warning" id="standby_mode_duration_warning" value="duration" checked="checked">
+									<label id="standby_mode_duration_label" for="standby_mode_duration_warning" >
+										Activate Code Tracing for
+									</label>
+									<div class="float-left" style="line-height: 12px;"><input class="float-left" type="text" value="120" id="latent_warning" /><label id="standby_mode_duration_label2_warning"> seconds after triggered events</label></div>
+									<input type="radio" name="standby_mode_warning" id="standby_mode_on_warning" value="on"> 
+									<label id="standby_mode_on_label" for="standby_mode_on_warning" >
+										Always activate Code Tracing for triggered events
+									</label>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div style="clear: both; position: relative;">
+					<div class="monitor-trigger-container notice">
+						<div class="monitor-trigger-content">
+							<div class="monitor-box-left">
+							<input type="checkbox" class="enable-disable-checkbox" id="enable-disable-checkbox-notice" checked />
+							</div>
+							<div class="monitor-box-right">
+								<div class="monitor-trigger-disable-screen hidden"></div>
+								<div class="monitor-box-main-content">
+									<h2>Notice</h2>
+									<table>
+										<tr>
+											<td>Execute Time:</td>
+											<td><input type="text" /></td>
+										</tr>
+										<tr>
+											<td>Execute Time %:</td>
+											<td><input type="text" /></td>
+										</tr>
+									</table>
+									<div>
+										<input type="checkbox" class="email_action_sendto_checkbox" id="email_action_sendto_checkbox_notice" name="email_action_sendto_checkbox_notice"> <label id="email_action_sendto_checkbox_notice_label" for="email_action_sendto_checkbox_notice" >Send email</label>
+										<input type="checkbox" class="custom_actions_active_checkbox" id="custom_action_url_checkbox_notice" name="custom_action_url_checkbox_notice"> <label id="custom_action_url_checkbox_notice_label" for="custom_action_url_checkbox_notice" >Call URL</label>
+									</div>
+								</div>
+								<div class="standby-container">
+									<input type="checkbox" class="trace_code_checkbox" id="trace_code_notice" name="trace_code_notice">
+									<label id="trace_code_notice_label" for="trace_code_notice" >
+										Trace code <a class="rule-help" href="<?php echo $this->helplink('code_tracing_concept') ?>" target="_blank"></a>
+									</label>
+									<br />
+									<div class="standby-container-disable-screen"></div>
+									<input type="radio" name="standby_mode_notice" id="standby_mode_duration_notice" value="duration" checked="checked">
+									<label id="standby_mode_duration_label" for="standby_mode_duration_notice" >
+										Activate Code Tracing for
+									</label>
+									<div class="float-left" style="line-height: 12px;"><input class="float-left" type="text" value="120" id="latent_notice" /><label id="standby_mode_duration_label2_notice">  seconds after triggered events</label></div>
+									<input type="radio" name="standby_mode_notice" id="standby_mode_on_notice" value="on"> 
+									<label id="standby_mode_on_label" for="standby_mode_on_notice" >
+										Always activate Code Tracing for triggered events
+									</label>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="functions-list-wrapper" class="hidden" style="padding-top: 1px;">
+			<?php
+				$functionNames = '';
+				if (0 < count($monitorRules->getConditions())) {
+					$condition = current($monitorRules->getConditions());
+					/****** Get the function list ready as a JS array ****/
+					$functionNames = explode('|',$condition->getOperand());
+					foreach($functionNames as &$name){
+						$name = '"' . $name . '"';
+					}
+					$functionNames = implode(",", $functionNames);
+					$conditionId = $condition->getId();
+					$showFunctions = explode('|',$condition->getOperand());
+				} else {
+					$conditionId = -1;
+					$showFunctions = array();
+				}
+			?>
+			<h3><?php echo _t('Create an event when detected in the following functions:'); ?></h3>
+			<div style="width: 400px; float: left;" id="functions-list-container">
+				<div id="all_funcs_top_wrapper">
+					<input id="funcNames_id" value="<?php echo $conditionId?>" />
+					<input id="addFuncs" name="addFuncs" onkeydown="if (event.keyCode == 13) document.getElementById('add-new-func-btn').click()" /> 
+					<button id="add-new-func-btn" onclick="addFunction($('addFuncs').value)"><?php echo _t('Add Function');  ?></button>
+				</div>
+				<div id="all_funcs_table_wrapper">
+					<table id="all_funcs_table" class="zgrid">
+					<?php foreach($showFunctions as $function):?>
+					<tr id="<?php echo $function;?>">
+						<td>			
+							<span class="closeChar" onclick="removeFunction('<?php echo $function;?>');"><?php echo _t('x'); ?></span>&nbsp;&nbsp;<?php echo $this->escapehtml($function);?>
+						</td>
+					</tr>
+					<?php endforeach;?>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="clear"></div>
+
+<script>
+// fixed the bug #ZSRV-15186 with backslashes in the functions names
+functionsList = [<?php echo str_replace('\\', '\\\\', $functionNames) ?>];
+// save the select rule type as old type value to rollbak it if needed
+oldRuleTypeValue = '<?php echo $selectedValue;?>';
+</script>
+
+<script type="text/javascript">
+	$('funcNames_id').hide();
+
+	function removeFunction(funcName){
+    	//functionsList is the JS global array of functions
+    	for (var i = 0; i < functionsList.length; i++){
+    	    if (functionsList[i] === funcName) { 
+    	    	functionsList.splice(i, 1);
+    	    	$(funcName).dispose(); //remove table row
+    	    	$('save_rule').set('disabled', false);
+    	        break;
+    	    }
+    	}
+	}
+
+	function addFunction(funcName){
+		funcName = funcName.trim();
+		if (funcName == '') {
+			return;
+		}
+
+		if (! funcName.match(/^\\?[a-zA-Z_]\w*(?:\\\w+)*([*]|(?:::([*]|(?:\w+)))?)$/)) {
+			document.fireEvent('toastAlert', {'message': 'The function name must match the pattern \'^\\?[a-zA-Z_]\w*(?:\\\w+)*([*]|(?:::([*]|(?:\w+)))?)$\''});
+			return;
+		}
+		
+		functionsList.push(funcName);
+		
+		//add row to table
+		var newRow  = new Element('tr', {id: funcName});
+		newRow.set('html','<td style="line-height: 23px; border-bottom: 1px solid #DFE3E4;"><span class="closeChar" onclick="removeFunction(\''+ funcName +'\');">x</span>&nbsp;&nbsp;' + funcName + '</td>');
+
+		var functionsTable = new HtmlTable($('all_funcs_table'));
+		functionsTable.push(newRow);
+		$('addFuncs').value = '';
+
+		$('save_rule').set('disabled',false);
+	}	
+</script>
+
+<div id="monitor-rules-edit-action-bar" class="grid-action-bar">
+	<?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorSetRule')): ?>
+	<button id="save_rule" title="<?php echo _t("Save rule"); ?>" disabled onclick="saveClick()"><?php echo _t("Save"); ?></button>
+	<?php endif; ?>
+	<button id="close_rule" title="<?php echo _t("Close"); ?>" onclick="window.location='<?php echo $listUrl; ?>';"><?php echo _t("Close"); ?></button>
+</div>

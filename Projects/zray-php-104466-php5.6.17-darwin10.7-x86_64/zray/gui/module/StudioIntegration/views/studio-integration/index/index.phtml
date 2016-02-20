@@ -1,0 +1,50 @@
+<script>
+// define the url for the script
+var DEBUGGER_SETTINGS_URL = "<?php echo $this->url('debuggerSettings'); ?>";
+var allowToEdit = <?php echo ($this->isAllowed('route:StudioWebApi', 'debuggerSettings')) ? 'true' : 'false'; ?>;
+
+</script>
+<?php
+$this->headscript()->appendFile("{$this->basepath()}/js/ipwidget.js");
+$this->headscript()->appendFile("{$this->basepath()}/js/valuesList.js");
+$this->headscript()->appendFile("{$this->basepath()}/js/debuggerSettings.js");
+$this->headlink()->appendStylesheet("{$this->basepath()}/css/ipwidget.css");
+$this->headlink()->appendStylesheet("{$this->basepath()}/css/studio.css");
+$this->headlink()->appendStylesheet("{$this->basepath()}/css/tags.css");
+?>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+        <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Zend Server provides built-in components which allow developers to easily and securely debug and profile PHP applications
+            				in development and production environments using an IDE.
+            				Using the integration between Zend Server and the IDE, you will also be able to export code traces and view monitoring
+            				events in the IDE<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('integrating_with_ides')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Logs')) ?>"><?php echo _t("Debugging"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="settings-form-wrapper bordered-form">
+	<?php echo $this->ZForm($debuggerSettings, $formData); ?>
+	<div class="form-row submit-button-row">
+		<input type="submit" id="settings_submit" title="<?php echo _t('Save and Restart'); ?>" value="<?php echo _t('Save and Restart Zend Server'); ?>" />
+	</div>
+</div>
+<br/>

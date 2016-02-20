@@ -1,0 +1,174 @@
+<?php
+// Use highcharts helper only to include the relevant libs. 
+// The creation is made on this page 
+$this->highcharts(null, null, null, null, 'onlyIncludes = true'); 
+?>
+<link rel="stylesheet" href="<?php echo $this->basePath('/css/urlinsight.css'); ?>" />
+
+<div id="bread-wrp">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                        <?php	
+                            echo _t('Zend Server helps you get an accurate picture of how your application
+                        			 and server are performing by allowing you to view detailed reports on specific requests
+                        			 for PHP pages located on your Web server. Monitor the most time consuming and
+                        			 most frequently visited URLs on your Web server, or view those URLs with the
+                        			 slowest response time. Then, use the data gathered by Zend Server to identify
+                        			 bottlenecks in your application and optimize performance.<br/>
+                        			%sread more%s', array(
+                        		"<a href=\"{$this->helplink('url_insight')}\" target=\"_blank\">",
+                        		'</a>' 
+                        	)); ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-url-insight?ecat=breadcrumbs&amp;eaction=Working with URL Insight">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/url-insights.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('home/dashboard') ?>"><?php echo _t("Monitoring"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="z-row z-filter-bar">
+    <dl>
+		<dt><?php echo _t('Application'); ?> </dt>
+		<dd>
+			<select id="application-select" onchange="urlsTables.load();writeApplicationSelectionCookie(this);">
+				<option value="0"><?php echo _t('All Applications'); ?></option>
+				<?php
+				if (!empty($applications)) {
+					foreach ($applications as $app) {
+						echo '<option value="', $app['applicationId'], '">', $app['userApplicationName'], '</option>';
+					}
+				} 
+				?>
+			</select>
+		</dd>
+		<dt><?php echo _t('Period'); ?></dt>
+		<dd>
+			<select id="period-select" onchange="urlsTables.load();writePeriodSelectionCookie(this);">
+				<option value="2"><?php echo _t('Last 2 Hours'); ?></option>
+				<option value="24"><?php echo _t('Last 24 Hours'); ?></option>
+				<option value="48"><?php echo _t('Last 48 Hours'); ?></option>
+				<option value="168"><?php echo _t('Last Week'); ?></option>
+				<option value="720"><?php echo _t('Last Month'); ?></option>
+				<option value="2160"><?php echo _t('Last 3 Months'); ?></option>
+				<option value="4320"><?php echo _t('Last 6 Months'); ?></option>
+				<option value="8640"><?php echo _t('Last Year'); ?></option>
+				<option value="43200"><?php echo _t('Last 5 Years'); ?></option>
+			</select>
+		</dd>
+	</dl>
+</div>
+
+<ul id="z-tabs">
+        <li id="z-tab-consuming-time" class="z-active-tab">Most Time Consuming</li>
+        <li id="z-tab-slowest">Slowest</li>
+        <li id="z-tab-most-popular">Most Popular</li>
+    </ul>
+
+<div id="z-tabs-wrapper">
+    <ul id="z-under-tabs-bar">
+        <li id="z-under-tab-urls"><span id="z-data-header-icon" title="Consuming Time"></span><span>Requests</span></li>
+        <li id="z-under-tab-trends"><span>Trends</span></li>
+        <li id="z-under-tab-url-info"><span>Info</span></li>
+    </ul>
+
+    <div class="z-row" id="z-content-area">
+        <div class="z-col-3" style="padding-left: 0;">
+            <table id="z-data-table" class="z-table">
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="z-col-7">
+            <div id="z-url-trend"></div>
+        </div>
+        <div class="z-col-2">
+            <table id="z-url-events-summary" class="z-info-table">
+                <tr><th>Number Of Requests</th><td id="z-url-info-samples">-</td></tr>
+                <tr><th>Min. Time</th><td id="z-url-info-min-time">-</td></tr>
+                <tr><th>Average Time</th><td id="z-url-info-avg-time">-</td></tr>
+                <tr><th>Max. Time</th><td id="z-url-info-max-time">-</td></tr>
+                <tr><th>Max. Memory</th><td id="z-url-info-max-memory">-</td></tr>
+                <tr><th>Average Memory</th><td id="z-url-info-avg-memory">-</td></tr>
+            </table>
+            <div id="z-full-url"><strong>Full URL Path:</strong><br><a id="z-full-url-url">-</a></div>
+        </div>
+    </div>
+</div>
+
+<div class="z-row">
+    <div id="z-zray-snapshot" class="z-zray-snapshot">
+    	<div class="z-zray-snapshot-curtain"></div>
+    	<div class="z-zray-snapshot-curtain-text">Loading...</div>
+    	<div><h2>Z-Ray Snapshots</h2><ul id="z-ray-snapshots-list"></ul></div>
+    	<iframe frameborder="0"></iframe>
+    </div>
+</div>
+
+<script type="text/javascript">
+var serverTimezoneOffset = <?php echo $serverTimezoneOffset; ?>;
+var clientTimezoneOffset = (-1) * (new Date()).getTimezoneOffset() * 60;
+var currentTimestamp = <?php echo time(); ?>;
+setInterval(function() { currentTimestamp++ }, 1000);
+var urlinsightGetUrlsUrl = '<?php echo $this->basePath('/Api/urlinsightGetUrls'); ?>';
+var urlinsightGetUrlInfoUrl = '<?php echo $this->basePath('/Api/urlinsightGetUrlInfo'); ?>';
+var urlinsightGetZraySnapshotsUrl = '<?php echo $this->basePath('/Api/urlinsightGetZraySnapshots'); ?>'
+var intervals = {
+	daily: <?php echo $dailyInterval; ?>,
+	weekly: <?php echo $weeklyInterval; ?>,
+	monthly: <?php echo $monthlyInterval; ?>
+};
+
+var writeApplicationSelectionCookie = function(app) {
+	// one day life
+    Cookie.write('ZS_INSITE_APPLICATION', app.value, {duration: 1});
+}
+
+var readApplicationSelectionCookie = function() {
+	var selectedApplication = Cookie.read('ZS_INSITE_APPLICATION');
+	
+    // by default the 'All Application' option is selected
+    if (!selectedApplication) {
+    	selectedApplication = 0;
+    }
+    
+    // select the saved selected option
+    $('application-select').value = selectedApplication;
+}
+
+var writePeriodSelectionCookie = function(period) {
+	// one day life
+    Cookie.write('ZS_INSITE_PERIOD', period.value, {duration: 1});
+}
+
+var readPeriodSelectionCookie = function() {
+    var selectedPeriod = Cookie.read('ZS_INSITE_PERIOD');
+    // by default the 'All Application' option is selected
+    if (!selectedPeriod) {
+    	selectedPeriod = 24;
+    }
+    // select the saved selected option
+    $('period-select').value = selectedPeriod;
+}
+
+readApplicationSelectionCookie();
+readPeriodSelectionCookie();
+
+
+</script>
+<script src="<?php echo $this->basePath('/js/urlinsight.js'); ?>"></script>

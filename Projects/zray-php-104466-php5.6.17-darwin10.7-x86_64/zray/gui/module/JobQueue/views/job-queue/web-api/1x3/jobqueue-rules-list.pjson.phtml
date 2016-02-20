@@ -1,0 +1,11 @@
+"responseData":{"rules":[
+	<?php
+	$rulesJson = array();
+	foreach($rules as $rule) {
+		$rulesJson[] = $this->JobsRuleJson($rule, $statuses, $priorities, $applications);
+	}
+	echo implode(',', $rulesJson);
+	?>
+	
+],
+"total": <?php echo isset($total) ? $total : $rules->getTotal(); ?>}

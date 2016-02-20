@@ -1,0 +1,14 @@
+<?php 
+if (!isset($priorities)) {
+	$priorities = array();
+}
+
+if (!isset($applications)) {
+	$applications = array();
+}
+
+if (!isset($statuses)) {
+	$statuses = array();
+}
+?>
+"responseData":{"rulesInfo":{"rule":<?php echo $this->JobsRuleJson($rule, $statuses, $priorities, $applications) ?>,"ruleDetails": <?php echo $this->JobsRuleDataJson($rule) ?>}}

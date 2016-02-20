@@ -1,0 +1,9 @@
+"responseData":{
+"extensions": [
+<?php // This view serves other Extension related actions, such as configurationExtensionsOn ?>
+<?php $counter = 0;  foreach($extensions as $ext) :  // @var $extensions \ZendServer\Set @var $ext ExtensionContainer?>
+<?php $comma = (++$counter < count($extensions) ? ',' : '') ?>
+<?php echo $this->ExtensionJson($ext) ?>
+<?php echo $comma ?>
+<?php endforeach; ?>
+]}

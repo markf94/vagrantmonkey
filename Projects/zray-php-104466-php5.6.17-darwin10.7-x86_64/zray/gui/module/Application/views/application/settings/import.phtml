@@ -1,0 +1,93 @@
+<style>
+html{
+	overflow:hidden;
+	font-family: Arial, Helvetica, sans-serif;
+	color: #404040;
+}
+
+body {
+	margin: 0;
+}
+fieldset {
+	width: 500px;
+	margin: 12px;
+	vertical-align: middle;
+	border: 1px solid #E3E3E3;
+	position: relative;
+	background: white;	
+	display: block;
+	-webkit-margin-start: 2px;
+	-webkit-margin-end: 2px;
+	-webkit-padding-before: 0.35em;
+	-webkit-padding-start: 0.75em;
+	-webkit-padding-end: 0.75em;
+	-webkit-padding-after: 0.625em;
+	font-size: 13px;
+}
+#iframe table{
+	font-size: 13px;
+}
+.toast {
+	max-width:600px;
+	padding: 8px 35px 8px 35px;
+	margin-bottom: 18px;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+	border: 1px solid #FBEED5;
+	-webkit-border-radius: 4px;
+	border-radius: 4px;
+	font-weight: bold;
+	box-shadow: 2px 2px 5px #888888;
+	font-size:12px;
+}
+
+.toast.hidden {
+	display:none;
+}
+
+.toast.notification {
+	background:#EDF7E5 url('<?php echo $this->basePath(); ?>/images/ok-message-icon.png') 7px center no-repeat;
+	border-color: #50b404;
+	color: #50b404;
+}
+
+.toast.alert {
+	background: #FFEEE5 url('<?php echo $this->basePath(); ?>/images/error-message-icon.png') 7px center no-repeat;
+	border-color: #FF5400;
+	color: #FF5400;
+}
+.toast .content {
+	float:left;
+	border: 0px;
+	background: transparent;
+}
+</style>
+
+
+
+<div id="iframe" style="width:525px; padding:2px;">
+<script>
+<?php if($message): ?>
+	parent.document.fireEvent('toastAlert', {'message': "<?php echo _t(addslashes($message)); ?>"});
+<?php endif; ?>
+
+<?php if(isset($configurationIsImported) && $configurationIsImported): ?>
+	parent.document.fireEvent('toastNotification', {'message': '<?php echo _t('Configuration was imported'); ?>'});
+<?php endif; ?>
+</script>
+
+
+
+<table>
+	<tbody>
+		<tr>
+			<td>Select an exported configuration file you wish to upload to your server.</td>
+			<td style="text-align: right;">
+				<form action="<?php echo $this->basePath() . '/Settings/import'; ?>" method="post" enctype="multipart/form-data">
+				<input type="file" name="file" id="file" /> 
+				<br />
+				<button name="submit" class="btn" style="float:left; margin-top:5px;">Upload</button>
+				</form>				
+			</td>
+		</tr>
+	</tbody>
+</table>

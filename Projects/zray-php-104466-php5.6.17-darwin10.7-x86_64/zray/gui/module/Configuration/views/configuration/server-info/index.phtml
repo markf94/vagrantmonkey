@@ -1,0 +1,192 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/serverInfo.css")?>
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Extensions', 'action' => 'phpExtensions')) ?>"><?php echo _t("PHP") ?></a></li>
+		</ul>   
+	</div>
+</div>
+
+<script type="text/javascript">
+var infoStack = [];
+
+function checkInfoPage() {
+	var phpinfoIFrame = document.getElementById('info-iframe');
+	var content = phpinfoIFrame.contentWindow.document.body.innerHTML;
+    if (content != infoStack[infoStack.length - 1]) {
+        if (content == '' && infoStack.length > 0) {
+        	infoStack.pop();
+        	phpinfoIFrame.contentWindow.document.body.innerHTML = infoStack[infoStack.length - 1];
+        } else if (content != '') {
+        	infoStack.push(content);
+        }
+    }
+}
+
+function updatePageData(serverData) {
+	var serverInfo = 'Zend Server Version: ' + serverData.zsversion + '<br>Zend Framework: ' + serverData.zfversion;
+	if (serverData.zf2version) {
+		serverInfo += ', ' + serverData.zf2version;
+	}
+	
+	if(serverData.gatewayversion) {
+		serverInfo += '<br>Zend Server Gateway: ' + serverData.gatewayversion;
+	}
+	
+	if (serverData.toolkitversion) {
+		serverInfo += '<br>IBMi Toolkit: ' + serverData.toolkitversion;
+	}
+	serverInfo += '<br>Build: ' + serverData.build;
+
+	updateIframeContent(addCustomCss(serverData.phpinfo, serverInfo));
+	
+    infoStack = [];
+}
+
+function updateIframeContent(content) {
+	$('info-iframe').setStyle('height', '50px');
+
+	var phpinfoIFrame = document.getElementById('info-iframe');
+    phpinfoIFrame.contentWindow.document.body.innerHTML = content;
+
+    $('info-iframe').setStyle('height', document.getElementById('info-iframe').contentWindow.document.body.scrollHeight);
+    $('info-iframe').setStyle('width', document.getElementById('info-iframe').contentWindow.document.body.scrollWidth);
+}
+
+function addCustomCss(content, serverInfo) {
+	var newCss = '\
+		<style type="text/css">\
+			table {	width: 100%; }\
+			.h { background: #e4e4e4; }\
+			h1 { font-size: 16px; color: #888888; }\
+			h2 { font-size: 14px; text-align: left; color: #888888; margin-left: 3px;}\
+			.e, .v, table:first-child .h { background: transparent; word-break: break-word;}\
+			tr.h ~ tr td { background: #f2f6f7; }\
+			.e { color: #888888 }\
+			td { border: 0px; border-bottom: 1px solid #d3d3d3; max-width: ' + (window.innerWidth - 500) + 'px; word-wrap: break-word; overflow-wrap: break-word; }\
+			td, th { padding-left: 10px; }\
+			th, .center th { border: 0px; text-align: left !important; font-weight: normal; color: #888888; }\
+			.subHeader { color: #888888; font-size: 16px; margin-top: -11px; font-weight: normal;}\
+		</style>';
+	content = content.replace('<body>', '<body>' + newCss);
+
+	content = content.replace('</h1>', '</h1><div class="subHeader">' + serverInfo + '</div>');
+
+	// change zend engine's logo and link to new tab
+	content = content.replace('href="http://www.zend.com/"', 'href="http://www.zend.com/" target="_blank"'); // change before handling zend server link
+	content = content.replace('src="/ZendServer/index.php?=PHPE9568F35-D428-11d2-A769-00AA001ACF42"', 'src="/ZendServer/images/Zend-Engine-logo.png" style="max-width: 200px;"');
+	content = content.replace('src="data:image/gif;base64,R0lGODlhcQBIANUAAA0NDgEDBgIFCS5EXhUdJwUPGgQKER0rOgABAgkZKiZpqxhDbQ0kOwobLQkZKSNgnSBXjh1PghpGchQ2Vx1NfAoaKiJYjQoYJgsaKQECAzdQaS0/UTE1OQUPGAkaKh5ViiFclRpJdQocLSBZjh5UhhpIcw8qQxc+YwwgMwcVIQkaKQgXIwcZJTM6PwIEBRkaGjEyMv9mAP///8zMzMfHx7+/v6urq5KSknNzc1VVVTw8PDc3NyYmJgcHBwMDAwAAACwAAAAAcQBIAAAG/8CZcEgsGo/IpHJ5/DGf0KiU+Ks6p9Kr0KrFer9GbReM7IrJ6O95Zt262durUy5uD8/rtL58h7vlf3+AcHlsdoR7iU12eIhzbXVVfpOTgGOKiWNrkpKUhZ99iJijl4d5kFSdXKmdb6OvsFOXsbS1oba4ubq7vL1DNjg6ODW+xVg3OTw/AisCOMbQSsA6AD8FDAsjIwwv0d5DNcnLIhMU2uclPzbf3jwC2Ofx585MwTfssD8n8vwjKDpLcggo8OMZPkw8GPSTN6HKCxg5hhHJ8WOCv4IHFeEwsDAeiQULJjBYUQXGM4oWtTU0mDGNjR/mOi48gcJKynMrW+oBcFNmP/8SJnri/JFDJ5kaL0T4XLqwYVGjWGy8MFCCqVWGRKFKsQGgAImrYIc+1bqEq9ewaEc0vEc2CdKzacOmY9vWxjoiMAx81Sajr9+/MhaE2Iu2hAAexPraJUbGxo3HkB/f/XKjCgBhwH5kOwcYsAoU5dKSMIBYSN8cOSZvxRGjtevXOnREZDwFhogSE1AYqKIwXl8VBlKoUNHXgAEUJwhfJVGgtGkZsek+Afa6uvUY0bFUjEdhgnJtIUwwmLDAb4cU3tM2pz2jb/YnN67Lr/4eSuWYPkmEGDyiL4MODITgm1+CkdBZgSh00xkMOkiHRHzWxSahDvNJyN4SG6HV1wSfJcf/GWAMdObfCQv8IOILDUoj34QTrhgbS0zAgEJYfqGgQnp8yXACA8N9NkFfHQRX4wl+6cADDH2h6KBdz7jIYosRShjFdmD5B6CAH/JIHkgh9JUCeuXJAOBpPDTYF4MO4mDCAU5KmMMNxNDAWpSx2QdTlTJwiNxeIhbYnwzDZeMlcTLAAAOc7qVIxAsVsrjkdRNCkeFVNd5ImIgqmCDgbyoICiihZd5gQ189KDoDDTcYcN1lE+JAgxE2QCrlEzLi+V+Af+4XpnHCafpnoL8SWugNOwD5gqg4oMbDCtahkAGD9RUBIX2xjbUElUyJ6BcDJoQJ2AldfuppoCJe0IEOB5hw/wIEKFRQnQgesJrDhUTI+iJ8d2arbXGdjhDub6BxOm6nJvzVwMEMSCDBAw+AwIAHr3kgQgdl5vAqEjXYq4NqSeAgAFjd2djjyL7qJ9JwDCQXnq/+mqBpCQXsWIEHKVPwQcMgOOyAaw4k0EAKGCmhsbVKVLbCBFUtte+GC+ylH5df6cffCFIbKAMJJ5A4GARcdz2BA2CH3YAIDABA7y8aO1g0NeOEttDSgLJMowwuh9D13VwDFTbYCZjQMEBIDO3FNACY0NFvwY3M72ZoLWCACRTgLfnXYTPwAQgKmFAUDjjQ1SbHtfXWz29gggSSSHKHRcIKJkAAguR4R/C1CJFD8P+AAiykABoCQrQJoxc4FHC4uPLod+DUfxI4mF8O/AhYgXj/JdjNEUSgwAMY1ECDxjpcDEZl330IrDzapvyViCn7FUD5yXXdWcqXg3D7CdPCNqHaWNSA7YDPIw+kkH1BTo3OA6QA9UUAIvhfCoZEAgj0ZUdhA03tRvAAEvhuDzpQCj8wJTcvgamAVgqYDIQTpgIkcIQfFFOAHCgDBjTPdFvj2gPaRDQy4CBf5JMBr4bTQeINinTe+U0BCiYDBzSgL2BbAAtT4IA+xbBrIODe2cDwghltEIVb8p8PPyWwPxlAAERsgAeQ6AAlklFEDtAUFKNIp9iADlXJQs2bbuA9Jdz/ED/i69eHwgUsTvkFPVb7QQUk0BcPNLGIZWRhEsPFqzTazXUzbKOphBCrNnaujkUwS/jgFqItkqszCKDdGRFpRlJa7VuDiaQliVBJ7t0LVl0JX/K0ZYAuCuyUfrEGBUaZREUmEgL/KiJoIqBKagljCPUz5pN+N4MaxLIj4RmZNINSN/BUE2s86gsADBABEJSgbit7ZDjzFgKRgC1lEJgPdiw2g2Ta70lvOkINeACXhTzNdPgUDAX24zR+asN4MjiSAS73AX5WjZxPhMA9Q/ABdbYGVY1aJuiGsBFZxqUjhhFGDlwgP4aN4HWwC2nXLOjQiLJIInbUy0Wt4pQa2IUH/ydQwARmKr8RiDSkJW3T/TCJMXpadKX/ZEBWKEqAFgDgBjCYgAJAetO75VSZjuKpEuYpgKQBlR8lYqZdhsCBhTG1qSR96pMkREcvUNWq/CBPXOixBA5QIGdN5dpTsTPWBkk1CmftR0N+YACkhUUEgJOGD0jwVa7l7LCvy2ld33TXKeQ1HiuxQQ5eUIUVoEBdS5kAAJ7gghM84G45Y9jtSgCCCHjAA2PzwGHqOqF4KuKxagkaJTmngxcIzycU+AH+iFADFCwVtCAgTwRQEIALQEAEIlBBB15QJtbKZrdpqAEMqhrbGiIThx0pgHWJgAMJ/NawDxhADzj3DBioSwQGAIfADpyLUloIpCbbHQJPlsIAGCxhBxa4HcM6at865qCcRFlsWXORA5MwIYMyWQADBBBfIdzgBRpAwVtvpzkjhCM1lHQMZKb4DY/xozsiEMAPeNDeJNDAMT/YwAkkwICJcpgsL9mMgglyGRxMlAmiAoCN2zIFeoZ4xK6NLo+nYIMX3XjISNZKEAAAOw=="', 'src="/ZendServer/images/Zend-Engine-logo.png" style="max-width: 200px;"');	
+
+	// change zend server's logo and link
+	content = content.replace('href="http://www.php.net/"', 'href="http://www.zend.com" target="_blank"');
+	content = content.replace('src="/ZendServer/index.php?=PHPE9568F34-D428-11d2-A769-00AA001ACF42"', 'src="/ZendServer/images/zend-server-logo-large.png" style="max-width: 200px; margin-top: 20px;"');
+	content = content.replace('src="data:image/gif;base64,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"', 'src="/ZendServer/images/zend-server-logo-large.png" style="max-width: 200px; margin-top: 20px;"');
+	
+	return content; 
+}
+
+function setInfoIframeSize() {
+	
+	var containerSize = $('content-container').getSize();
+	//$('info-div').setStyle('width', containerSize.x - sidebar);
+	$('info-iframe').setStyle('width', containerSize.x - 20);
+
+	// window size - breadcrums - general details
+	var iframeHeigth = window.getSize().y - document.getElementById('bread').getSize().y - 65;
+	$('info-div').setStyle('height', iframeHeigth - 15);
+
+}
+
+//set the chart width when page is resized
+window.addEvent('resize', function(){
+	setInfoIframeSize();
+});
+
+window.addEvent('load', function(){
+
+	setInterval('checkInfoPage()', 200);
+	
+	setInfoIframeSize();
+
+	if ($('info-iframe') && typeof $('info-iframe').spinner == 'undefined') {
+		$('info-iframe').spinner = new Spinner($('info-iframe'));
+		$('info-iframe').spinner.show();
+	}
+
+	var getServerInfoRequest = new Request.WebAPI({
+		url: "<?php echo "{$this->basePath()}/Api/getServerInfo" ?>",
+		method: 'get',
+		onSuccess: function(response) {
+			$('info-iframe').spinner.hide();
+			updatePageData(response.responseData.serverData);
+			window.fireEvent('resize');
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': _t('Failed to retrieve server info: {errorMessage}', decoded.errorData)});
+			document.fireEvent('displayToolbar', {success: false});
+		}
+	});
+
+	getServerInfoRequest.setOptions({data: {'serverId' : <?php echo $servers->current()->getNodeId();?>}});
+	getServerInfoRequest.send();
+	if ($('server-' + <?php echo $servers->current()->getNodeId();?>)) {
+		$('server-' + <?php echo $servers->current()->getNodeId();?>).addClass('active');
+	}
+
+	$$('#serverId').addEvent('change', function(e) {
+		var serverId=e.target.value;
+		$('info-iframe').spinner.show();
+
+		<?php if ($servers->count() > 1) : ?>
+		var clusterMode = true;
+		<?php else : ?> 
+		var clusterMode = false;
+		<?php endif; ?>
+
+		if (clusterMode && e.target.get('id') == 0) {
+			$('info-iframe').spinner.hide();
+			updateIframeContent(' ');
+		} else {
+			getServerInfoRequest.setOptions({
+				data: {'serverId' : serverId},
+				onSuccess: function(response) {
+					document.fireEvent('toastNotification', {'message': _t('Updated server info for server: ' + e.target.textContent)});
+					$('info-iframe').spinner.hide();
+					updatePageData(response.responseData.serverData);
+				}.bind(this)});
+			getServerInfoRequest.send();
+		}
+	}.bind(this));
+
+	
+	window.fireEvent('resize');
+});
+
+</script>
+	
+<div id="content-container">
+	<?php if ($servers->count() > 1) : ?>
+	<select id="serverId">
+		<?php foreach ($servers as $server) : /* @var $server \Servers\Container */?>
+		<div>
+				<?php
+					$ip = $server->getNodeIp();
+					if (!$ip) {
+						$ip='';
+					}else{
+						$ip='('.$ip.')';
+					}
+					echo "<option value=\"{$server->getNodeId()}\"> {$server->getNodeName()} $ip</option>";
+				 ?>
+			
+		</div>
+		<?php endforeach ?>
+	</select>
+	<?php endif; ?>
+	<div id="info-div" class="float-right">
+	<div id="main-apps-status-actions">
+		
+		<iframe id="info-iframe" scrolling="no" seamless="seamless" style="border: 0px; height:500px; margin:auto; overflow-x:hidden;"></iframe>
+	</div>
+</div>

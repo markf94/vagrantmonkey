@@ -1,0 +1,10 @@
+<ul class="mui-vars">
+<?php
+$event; /* @var $event EventsGroup\DataContainer */
+$eventsGroup; /* @var $eventsGroup EventsGroup\Container */
+$mvcData = $event->getMvcData();
+?>
+<li class="mui-vars-open"><strong onclick="toggleContent('<?php echo 'route-details-' . "Route"; ?>')"><?php echo "Route"?></strong>
+<?php echo $this->selectAll('route-details-' . "Route"); ?>
+</a><ul id="route-details-<?php echo "Route"; ?>"><li><?php echo $this->variablesTree($mvcData)?></li></ul></li>
+</ul>

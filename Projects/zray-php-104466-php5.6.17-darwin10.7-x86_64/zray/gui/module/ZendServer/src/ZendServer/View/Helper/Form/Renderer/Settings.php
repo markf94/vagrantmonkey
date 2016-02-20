@@ -1,0 +1,82 @@
+<?php
+namespace ZendServer\View\Helper\Form\Renderer;
+
+use Zend\View\Helper\AbstractHelper,
+	Zend\Form\Element;
+
+class Settings extends AbstractHelper {
+
+	/**
+	 * @return Table
+	 */
+	public function __invoke() {
+		return $this;
+	}
+	
+	/**
+	 * @return string
+	 */
+	public function openTag() {
+		return '<table class="zend-form-table">';
+	}
+	
+	/**
+	 * @return string
+	 */
+	public function closeTag() {
+		return '</table>';
+	}
+	
+	/**
+	 * @param Element $element
+	 * @return string
+	 */
+	public function element(Element $element) {
+		$label = is_null($element->getLabel()) ? '' : $this->getView()->FormLabel($element);
+		
+		$type = $element->getAttribute('type');
+		$value = $this->getView()->FormElement($element);
+		$errors = $this->getView()->FormElementErrors($element);
+		
+		$required = '';
+		if (!is_null($element->getAttribute('required'))) {
+			$required = ' class="required-field" ';
+		}
+		
+		$type = $element->getAttribute('type');
+		if ($type == 'hidden') {
+			return $value;
+		}
+		
+		if ($type == 'submit') {
+			return '<tr><td colspan="2">' . $value . '</td></tr>';
+		}
+		
+		$description = '';
+		if (!is_null($element->getAttribute('description'))) {
+			$description = '<div class="zend-form-table-description">' . $element->getAttribute('description') . '</div>';
+		}
+		
+		$subSectionAttribute = $element->getOption('sub-section-parent') === true ? ' sub-section-parent="true"' : 
+            ($element->getOption('sub-section') === true ? ' sub-section="true"' : '');
+		
+		// check label only type
+		if ($type == 'label') {
+			return <<<ELEMENT
+			<tr>
+				<td class="zend-form-label-element" colspan="3">{$label}</td>
+			</tr>
+ELEMENT;
+		}
+		
+		return <<<ELEMENT
+<tr {$subSectionAttribute}>
+	<td {$required}>{$label}</td>
+	<td>{$value}</td>
+</tr>
+<tr {$subSectionAttribute} class="settings-row-description">
+	<td colspan="2">{$description}</td>
+</tr>
+ELEMENT;
+	}
+}

@@ -1,0 +1,9 @@
+<responseData>
+    <logFileMetaData>
+    	<lineNumber><?php echo $lineNumber ?></lineNumber>
+    	<fileSize><?php echo $fileSize ?></fileSize>
+    	<lastModified><?php echo $this->webapiDate($lastModified) ?></lastModified>
+    	<lastModifiedTimestamp><?php echo $lastModified; ?></lastModifiedTimestamp>
+    </logFileMetaData>
+    <logFileLines><?php echo $this->LogFileLines($logLines);?></logFileLines>        
+</responseData>

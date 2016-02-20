@@ -1,0 +1,9 @@
+"responseData":{"rules": [
+<?php 
+$counter = 0; 
+foreach($rules as $rule) : /* @var $rule \MonitorRules\Rule */
+    $comma = (++$counter < count($rules) ? ',' : '');
+    echo $this->ruleJson($rule, true);
+    echo $comma;
+endforeach; ?>
+]}

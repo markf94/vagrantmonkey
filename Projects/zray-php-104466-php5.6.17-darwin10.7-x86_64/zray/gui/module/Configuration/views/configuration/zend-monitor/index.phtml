@@ -1,0 +1,288 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css") ?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/monitor-settings.css") ?>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('home/dashboard') ?>"><?php echo _t("Monitoring") ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<?php if (! $this->isAllowedEdition('data:hideMarketingContent')) { ?>
+	<?php if (! $this->isAllowed('data:useEmailNotification')) { ?>
+		<div>
+		<h2 class="limitedTopMessage"><?php echo _t('Want events to trigger code tracing, emails and customized actions? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-monitor') . '">', '</a>'));?></h2>
+		</div>
+	<?php } ?>
+<?php } ?>
+
+<nav id="new-tabs-container">
+	<ul>
+		<li section="section_events" class="diagonal-tab active hidden">Events</li>
+		<li section="section_url_insight" class="diagonal-tab hidden">URL Insight</li>
+	</ul>
+</nav>
+
+<div id="section_events" class="tab-section">
+	<div class="settings-form-wrapper">
+		<a href="<?php echo \Application\Module::config()->baseUrl; ?>/ZendComponents/#grid=Zend--Monitor" class="monitor-advanced-settings-link"><?php echo _t('Advanced Monitor Settings'); ?></a>
+		<?php echo $this->ZForm($monitorSettingsForm, $monitorSettingsFormData); ?>
+	</div>
+	<div class="settings-wrapper">
+	   <?php if ($this->isAllowedIdentity('route:ConfigurationWebApi', 'configurationStoreDirectives')): ?>
+	   <input type="submit" value="Save" id="monitor-settings-form-submit" />
+	   <?php endif; ?>
+	</div>
+</div>
+
+<div id="section_url_insight" class="tab-section force-hidden">
+	<div class="settings-form-wrapper">
+		<?php echo $this->ZForm($urlInsightSettingsForm, $urlInsightSettingsFormData); ?>
+		<div class="settings-wrapper">
+		    <?php if ($this->isAllowedIdentity('route:ConfigurationWebApi', 'configurationStoreDirectives')): ?>
+			<input type="submit" value="Save" id="url-insight-settings-form-submit" />
+			<?php endif; ?>
+		</div>
+	</div>
+</div>
+
+<script>
+(function() {
+
+	<?php if (! $this->isAllowedIdentity('route:ConfigurationWebApi', 'configurationStoreDirectives')): ?>
+	$$('#monitor-settings input').set('disabled', true);
+	$$('#url-insight-settings input').set('disabled', true);
+	<?php endif; ?>
+	
+	// display desired section
+	var displaySection = function(sectionName) {
+		
+		document.querySelector('#new-tabs-container li.active').classList.remove('active');
+		document.querySelector('#new-tabs-container li[section="'+sectionName+'"]').classList.add('active');
+		
+		[].forEach.call(document.querySelectorAll('.tab-section'), function(section) {
+			if (section.getAttribute('id') == sectionName) {
+				if (section.classList.contains('force-hidden')) {
+					section.classList.remove('force-hidden');
+				}
+			} else {
+				if (!section.classList.contains('force-hidden')) {
+					section.classList.add('force-hidden');
+				}
+			}
+		});
+	}
+	
+	// tabs click
+	window.addEventListener('DOMContentLoaded', function() {	
+		[].forEach.call(document.querySelectorAll('#new-tabs-container li'), function(liElem) {
+			liElem.addEventListener('click', function(e) {
+				var tab = e.target;
+				var sectionToShow = tab.getAttribute('section');
+				displaySection(sectionToShow);
+			});
+		});
+		
+		// set help link
+		var helpLink = document.getElementById('plugin_concept_help_link')
+		helpLink && helpLink.setAttribute('href', '<?php echo $this->helplink('plugins_concept'); ?>');
+	});
+	
+	
+	// manage `z-ray snapshots interval`. display it only when `enable z-ray snapshots` is on
+	// zray_snapshots_mode
+	var showHideZrayIntervals = function() {
+		var snapshotsEnabled = document.getElementById('zray_snapshots_mode_enable_input').checked;
+		
+		// get the form row element
+		var formRow = document.getElementById('zray_snapshots_interval');
+		while (formRow && !formRow.classList.contains('form-row')) {
+			formRow = formRow.parentNode;
+		}
+		if (!formRow) return;
+		
+		if (snapshotsEnabled) {
+			if (formRow.classList.contains('hidden')) formRow.classList.remove('hidden');
+		} else {
+			if (!formRow.classList.contains('hidden')) formRow.classList.add('hidden');
+		}
+	};
+	
+	// run on change
+	[].forEach.call(document.getElementsByName('zray_snapshots_mode'), function(el) {
+		el.addEventListener('change', showHideZrayIntervals);
+	});
+	
+	// run on load
+	showHideZrayIntervals();	
+	
+	// manage code-tracing warning
+	var showHideCodeTracingWarning = function() {
+		codeTracingNote = document.getElementById('code_tracing_for_events_enable_input').parentNode.nextSibling;
+		
+		var codeTracingEnabled = document.getElementById('code_tracing_for_events_enable_input').checked;
+		if (codeTracingEnabled) {
+			codeTracingNote.innerHTML = '<span class="warningIcon"></span> Code Tracing needs to be activated for each event rule from the '+
+				'<a href="<?php echo $this->url('default', array('controller' => 'MonitorRules')); ?>">Events Rules page</a>';
+		} else {
+			codeTracingNote.innerHTML = ' ';
+		}
+	};
+	
+	// run on change
+	[].forEach.call(document.getElementsByName('code_tracing_for_events'), function(el) {
+		el.addEventListener('change', showHideCodeTracingWarning);
+	});
+	
+	// run on load
+	showHideCodeTracingWarning();
+	
+	// get values from the form
+	var getUrlInsightFormValues = function() {
+		return {
+			'zend_url_insight.enable': document.getElementById('url_insight_enable_input').checked ? '1' : '0',
+			'zend_url_insight.zray_enable': document.getElementById('zray_snapshots_mode_enable_input').checked ? '1' : '0',
+			'zend_url_insight.zray_dumps_interval': document.getElementById('zray_snapshots_interval').value,
+		}
+	};
+	
+	var getMonitorSettingsFormValues = function() {
+		var obj = {
+			'zend_monitor.event_tracing_mode': document.getElementById('code_tracing_for_events_enable_input').checked ? '2' : '0',
+			'zend_monitor_ui.expiration_days': document.getElementById('delete_events_occur').value,
+		};
+
+		if (document.getElementById('aggregate_by_route_input').checked) {
+			obj['zend_monitor.aggregate_by_route'] = 1;
+			obj['zend.monitor_generate_unique_events'] = 0;
+			
+		} else if (document.getElementById('aggregate_by_url_input').checked) {
+			obj['zend_monitor.aggregate_by_route'] = 0;
+			obj['zend.monitor_generate_unique_events'] = 0;
+			
+		} else {
+			obj['zend_monitor.aggregate_by_route'] = 0;
+			obj['zend.monitor_generate_unique_events'] = 1;
+		}
+		
+		return obj;
+	}
+	
+	// url insite settings form submit
+	document.getElementById('url-insight-settings-form-submit').addEventListener('click', function(e) {
+		
+		document.body.onbeforeunload = null;
+		
+		$('url-insight-settings-form-submit').spin();
+		new Request.WebAPI({
+			url: '<?php echo "{$this->basepath()}/Api/configurationStoreDirectives" ?>',
+			onSuccess: function(response){
+				document.fireEvent('toastNotification', {message: 'Updated successfully'});
+			},
+			onFailure: function(response){
+				response = JSON.decode(response.response);
+				document.fireEvent('toastAlert', {
+					message: '<?php echo _t('Error updating settings: {errorMessage}') ?>'.substitute(response.errorData)
+				});
+			},
+			onComplete: function() {
+				$('url-insight-settings-form-submit').unspin();
+			}
+		}).post({directives: getUrlInsightFormValues()});
+	});
+	
+	var urlInsightForm = document.getElementById('url-insight-settings');
+	urlInsightForm.addEventListener('change', function() {
+		document.body.onbeforeunload = function() {
+			return 'Changes were made to the form';
+		};
+	});
+	
+	// monitor settings form submit
+	document.getElementById('monitor-settings-form-submit').addEventListener('click', function(e) {
+		document.body.onbeforeunload = null;
+		
+		$('monitor-settings-form-submit').spin();
+		var requestsRunning = 3,
+			componentUpdated = false,
+			directivesUpdated = false,
+			defaultsUpdated = false;
+		
+		var onUpdateFinish = function() {
+			if (--requestsRunning > 0) return;
+			
+			$('monitor-settings-form-submit').unspin();
+			
+			var msg = 'Updated successfully';
+			var alertType = 'toastNotification';
+			if ((directivesUpdated && !defaultsUpdated) || (!directivesUpdated && defaultsUpdated)) {
+				msg = 'Some of the settings were not saved';
+				alertType = 'toastAlert';
+			} else if (!directivesUpdated && !defaultsUpdated) {
+				msg = 'Update error';
+				alertType = 'toastAlert';
+			}
+			
+			document.fireEvent(alertType, {message: msg});
+		};
+		
+		// update monitor component enable/disable
+		var enableMonitorComponentWebAPI = 'configurationExtensionsOn';
+		if (document.getElementById('monitor_disable_input').checked) {
+			var enableMonitorComponentWebAPI = 'configurationExtensionsOff';
+		}
+		new Request.WebAPI({
+			url: '<?php echo "{$this->basepath()}/Api/" ?>' + enableMonitorComponentWebAPI,
+			onSuccess: function(response){
+				componentUpdated = true;
+				onUpdateFinish();
+			},
+			onFailure: function(response){
+				response = JSON.decode(response.response);
+				document.fireEvent('toastAlert', {
+					message: '<?php echo _t('Error updating monitor on/off: {errorMessage}') ?>'.substitute(response.errorData)
+				});
+				onUpdateFinish();
+			}
+		}).post({extensions: ['Zend Monitor']});
+		
+		// update directives
+		new Request.WebAPI({
+			url: '<?php echo "{$this->basepath()}/Api/configurationStoreDirectives" ?>',
+			onSuccess: function(response){
+				directivesUpdated = true;
+				onUpdateFinish();
+			},
+			onFailure: function(response){
+				response = JSON.decode(response.response);
+				document.fireEvent('toastAlert', {
+					message: '<?php echo _t('Error updating settings: {errorMessage}') ?>'.substitute(response.errorData)
+				});
+				onUpdateFinish();
+			}
+		}).post({directives: getMonitorSettingsFormValues()});
+		
+		// update monitor defaults
+		new Request.WebAPI({
+			url: '<?php echo "{$this->basepath()}/Api/setZendMonitorDefaultSettings" ?>',
+			onSuccess: function(response){
+				defaultsUpdated = true;
+				onUpdateFinish();
+			},
+			onFailure: function(response){
+				response = JSON.decode(response.response);
+				document.fireEvent('toastAlert', {
+					message: '<?php echo _t('Error updating settings: {errorMessage}') ?>'.substitute(response.errorData)
+				});
+				onUpdateFinish();
+			}
+		}).post({
+			'defaultEmail': document.getElementById('monitoring_rule_default_email').value,
+			'defaultCustomAction': document.getElementById('monitoring_rule_default_callback_url').value,
+			'applyToExisting': document.getElementById('applyToExisting').checked ? '1' : '0',
+		});
+	});
+	
+})();
+</script>

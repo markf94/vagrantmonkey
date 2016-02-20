@@ -1,0 +1,137 @@
+<?php $trace = $trace ?: new \Codetracing\TraceFileContainer(array()); ?>
+<?php $application = $application ?: new \Deployment\Application\Container(array()); ?>
+<?php $server = $server ?: new \Servers\Container(array()); ?>
+<?php $issue = $issue ?: new \Issue\Container(array()); ?>
+<?php $eventRow = $eventRow ?: array(); ?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/codetracing.css"); ?>
+
+<script type="text/javascript">
+
+function getType(value) {
+	var value = "<?php echo $trace->getReason(); ?>";
+
+    switch (value) {
+    	case 'CodeRequest':
+    		return 'Code request';
+    	case 'MonitorEvent':
+    		return 'Event based';
+    	case 'ManualRequest':
+    		return 'Manual request';
+    	case 'Segfault':
+    		return 'Segmentation fault';
+    }
+}
+</script>
+
+
+<div id="bread-wrp">
+	<div id="bread">
+	   <h1><?php echo _t("%s: %s%s", array($trace->getId(), $trace->getHost(), $trace->getUrl())) ?></h1>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Logs')) ?>"><?php echo _t("Debugging");  ?></a></li>
+			<li><a href="<?php echo "{$this->basePath()}/CodeTracing"?>"><?php echo _t("Code Tracing"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+
+<div class="general-details-top">
+	<h2><?php echo _t('Summary'); ?></h2>
+	<ul>
+		<li>
+			<table>
+				<tbody>
+					<tr>
+						<td><?php echo _t('Time'); ?></td>
+						<td><?php echo $this->uiDate($trace->getDate()); ?></td>
+					</tr>
+					<tr>
+						<td><?php echo _t('Type'); ?></td>
+						<td><b><script type="text/javascript">document.write(getType())</script></b></td>
+					</tr>
+				</tbody>
+			</table>
+		</li>
+		<li>
+			<table>
+				<tbody>
+					<tr>
+						<td><?php echo _t('Server') ?></td>
+						<td><?php echo $server->getNodeName(); ?></td>
+					</tr>
+					<tr>
+						<td><?php echo _t('File Size'); ?></td>
+						<td><b><?php echo $this->fileSize($trace->getTraceSize()); ?></b></td>
+					</tr>
+				</tbody>
+			</table>
+		</li>
+		<li>
+			<table>
+				<tbody>
+					<tr>
+						<td><?php echo _t('Application'); ?></td>
+						<td>
+<?php if ($application->getApplicationId()): ?>
+						<a href="<?php echo $this->url('default', array('controller' => 'Deployment')) ?>#grid=<?php echo $application->getApplicationId() ?>"><?php echo $this->escapehtml($application->getUserApplicationName()); ?></a>
+<?php endif ?>
+						</td>
+					</tr>
+					<tr>
+						<td><?php echo _t('Event'); ?></td>
+						<td>
+<?php if ($issue->getId()): ?>
+							<b><a href="<?php echo $this->url('default', array('controller' => 'Issue')) ?>?issueId=<?php echo $issue->getId() ?>"><?php echo $issue->getRuleName() ?></a></b>
+<?php elseif ($trace->getReason() == \Codetracing\TraceFileContainer::DUMP_REASON_MONITOR_EVENT): ?>
+							<?php echo _t('Deleted event') ?>
+<?php endif ?>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</li>
+	</ul>
+</div>
+<?php 
+
+$params = array(
+	"id" => $trace->getId(),
+ 	"url" => "{$this->basePath()}/CodeTracing",
+	'event' => isset($eventRow['event_id']) ? $eventRow['event_id'] : ''
+);
+$query = http_build_query($params);
+$swfurl = "{$this->basePath()}/flex/tracingGui.swf";
+
+?>
+<div id="code_trace_ui_container">
+	<object classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000' 
+		codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0'
+		width='100%' height='100%'>
+		<param name='flashVars' value='<?php echo $query; ?>'>
+   		<param name='src' value='<?php echo $swfurl ?>'>
+   		<param name="wmode" value="opaque">
+		
+		<embed pluginspage='http://www.macromedia.com/go/getflashplayer'
+		width='100%' height='100%'
+		flashVars='<?php echo $query; ?>'
+		wmode="opaque"
+		src='<?php echo $swfurl ?>'/>
+	</object>
+</div>
+
+<script type="text/javascript">
+
+window.addEvent('resize', function(){
+	var windowHeight = window.getSize().y;
+	var navBarHeight = $('topbar').getSize().y;
+
+	var breadCrumbsHeight = $('bread-wrp').getSize().y;
+	var generalDetailsHeight = $$('.general-details-top').pick().getSize().y;
+	
+	$('main-container').setStyle('height', (windowHeight - (navBarHeight)) + 'px');
+	$('code_trace_ui_container').setStyle('height', (windowHeight - (generalDetailsHeight + breadCrumbsHeight + navBarHeight) - 20) + 'px');
+});
+window.addEvent('load', function(){
+	window.fireEvent('resize', {});
+})
+</script>

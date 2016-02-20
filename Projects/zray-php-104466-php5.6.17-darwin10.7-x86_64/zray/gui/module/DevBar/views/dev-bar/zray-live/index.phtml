@@ -1,0 +1,59 @@
+<div id="bread-wrp">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+			<i></i>
+			<div class="page-description-content-wrapper">
+				<div class="triangle"></div>
+				<div class="page-description-content">
+				<table>
+					<tr>
+						<td>
+							<?php 
+							if (isAzureEnv() || isZrayStandaloneEnv()) {
+								echo _t('View real-time info on all the requests being made to the Web server, including non-browser based requests, 
+									such as APIs, Web services, and mobile requests. All the information recorded by Z-Ray, such as request execution time, 
+									events, exceptions, errors, database queries, functions, request headers, and more, is displayed in one central location.');
+							} else {
+								echo _t('View real-time info on all the requests being made to your Web server,
+								including non-browser based requests, such as APIs, Web services, and mobile requests.
+								All the information recorded by Zend Server and Z-Ray, such as request execution time,
+								events, exceptions, errors, database queries, functions, request headers, and more, is displayed in one
+								central location.<br/>
+									%sread more%s', array("<a href=\"{$this->helplink('zray_live')}\" target=\"_blank\">",'</a>'));
+							}
+							?>
+						</td>
+						<td>
+						</td>
+					</tr>
+				</table>
+				</div>
+			</div>
+		</div>
+		<?php if (!isZrayStandaloneEnv()) { ?>
+		<ul>
+		  <li><a href="<?php echo $this->url('default', array('controller' => 'ZrayLive')) ?>"><?php echo _t("Z-Ray") ?></a></li>
+		</ul>
+		<?php } ?>
+	</div>
+</div>
+<div class="container" id="main-container" style="margin-top:20px; padding-top: 20px;">
+<?php if ($disablePage) : ?>
+<h2 class="limitedTopMessage"><?php echo isAzureEnv() ? 'Z-Ray Live! is not supported in the ' . ucfirst(getAzureLicense()) . ' edition.' : 'Z-Ray Live is disabled by edition.'; ?></h2>
+<?php else : ?>
+<?php 
+if (intval($zrayEnabled) > 0) {
+
+	// secure mode - display message
+	if (intval($zrayEnabled) == 2) {
+		?><h2 class="limitedTopMessage">Z-Ray is currently in Selective Mode. Only requests allowed access will be displayed. You can change the Z-Ray access mode the <strong><a href="<?php echo (isAzureEnv() || isZrayStandaloneEnv()) ? $this->basePath('/Z-Ray/Mode/') : $this->basePath('/Z-Ray/AccessMode/#panel=devbar-tokens'); ?>">Settings page</a></strong>.</h2><?php
+	}
+	
+	echo $this->zrayInject('', $this->ServerUrl()); 
+} else {
+	?><h2 class="limitedTopMessage">Z-Ray is currently in Disabled Mode. To view request information, enable Z-Ray from the <strong><a href="<?php echo $this->basePath('/Z-Ray/AccessMode/#panel=devbar-access'); ?>">Access Mode page</a></strong>.</h2><?php
+}
+?>
+<br/>
+<?php endif; ?>
+</div>

@@ -1,0 +1,10 @@
+<responseData>
+	<components>
+	    <?php foreach($components as $component) :?>
+	    <component>
+		<?php echo $this->extensionXml($component['extension']); ?>
+		<?php echo $this->daemonXml($component['daemon']); ?>
+		</component>
+		<?php endforeach; ?>
+	</components>
+</responseData>

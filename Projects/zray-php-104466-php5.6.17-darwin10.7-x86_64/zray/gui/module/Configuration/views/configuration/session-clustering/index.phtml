@@ -1,0 +1,178 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/sessionClustering.css") ?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css") ?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/tags.css") ?>
+<?php $this->headScript()->appendFile($this->basePath('js/valuesList.js')) ?>
+
+<script type="text/javascript">
+scAllowed = <?php echo $scAllowed = $this->isAllowed('data:components', 'Zend Session Clustering') ? 'true' : 'false' ?>;
+clusterHandlerActive = <?php echo $clusterHandlerActive ? 'true' : 'false' ?>;
+sessionClusteringActive = <?php echo $sessionClusteringActive ? 'true' : 'false' ?>;
+</script>
+
+<div id="bread-wrp" <?php echo ($this->isAllowed('data:components', 'Zend Session Clustering')) ? 'class="page-description"' : ''; ?>>
+	<div id="bread">
+	   <?php if ($this->isAllowed('data:components', 'Zend Session Clustering')): ?>
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Session Clustering sets up a distributed session management system for cluster-based applications.
+            				With Session Clustering, session data is shared between multiple servers in your cluster,
+            				ensuring session continuity in case of system failure and high availability of your system<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('session_clustering_concept')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+        <?php endif; ?>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Servers')) ?>"><?php echo _t("Servers") ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="settings-form-wrapper bordered-form">
+	<?php if (! $this->isAllowed('data:components', 'Zend Session Clustering')): ?>
+	<span class="warningTopMessage warningTopLeftMessage"><?php echo _t('Want to share sessions accross multiple servers? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-session-clustering') . '">', '</a>'));?></span>
+	<?php elseif ($inCluster && (! $clusterHandlerActive) &&  $sessionClusteringActive): ?>
+	<span id="change_session_handler-box" class="warningTopMessage warningTopLeftMessage">
+		<?php echo _t('Session Clustering is currently disabled since the PHP session handler directive is set to \'%s\'.', array($sessionSaveHandler)) ?> 
+		<a id="change_session_handler-link" href="javascript:void(0)"><?php echo _t('Click here') ?></a>
+		<?php echo _t("to automatically change the value to 'cluster' and enable Session Clustering.") ?>
+	</span>
+	
+	<script type="text/javascript">
+	window.addEvent('load', function(){
+		$('change_session_handler-link').addEvent('click', function() {
+			if (window.confirm("<?php echo _t('Changing the value of the \'session.save.handler\' directive to \'cluster\' will remove all user session information. Are you sure you wish to proceed?') ?>")) {
+				$('change_session_handler-link').removeEvents('click'); 
+				new Request.WebAPI({
+					'url': '<?php echo $this->basepath('Api/configurationStoreDirectives') ?>',
+					'onSuccess': function(response){
+						$('change_session_handler-box').hide();
+						document.fireEvent('disableFields', {disable: false});
+					},
+					'onFailure': function(response) {
+						response = JSON.decode(response.responseText);
+						document.fireEvent('toastAlert', {'message': 'Could not store new save_handler value: {errorMessage}'.substitute(response.errorData)});
+					}
+				}).post({'directives': {'session.save_handler': 'cluster'}});
+			}
+		});
+	});
+	</script>
+<?php elseif (! $sessionClusteringActive): ?>
+	<span id="change_session_handler-box" class="limitedTopMessage"><?php echo _t('Session clustering is inactive or not installed') ?></span>
+<?php elseif (! $inCluster): ?>
+	<span class="limitedTopMessage"><?php echo _t('Session Clustering is currently disabled since this server is not associated with a cluster'); ?></span>
+<?php endif ?>
+	
+	<h3><?php echo _t('Session Clustering Settings'); ?></h3>
+	
+	<?php echo $this->form()->openTag($form->setAttribute('id', 'sc_settings-form')) ?>
+	<div class="form-row">
+		<span class="zform-label"><label><?php echo _t('Session Lifetime'); ?></label></span>
+		<span class="zform-element"><?php echo $this->formnumber($form->get('zend_sc.session_lifetime')); ?>&nbsp;<small class="suffix">Seconds</small></span>
+		<p><?php echo _t('Set the expiration timeout limit for sessions')?></p>
+	</div>
+	
+	<div class="form-row">
+		<span class="zform-label"><label><?php echo _t('Garbage collection interval'); ?></label></span>
+		<span class="zform-element"><?php echo $this->formnumber($form->get('zend_sc.garbage_collection_delta')); ?>&nbsp;<small class="suffix">Seconds</small></span>
+		<p><?php echo _t('Set the time interval between cleanups of expired sessions'); ?></p>
+	</div>
+	
+	<div class="form-row">
+		<span class="zform-label"><label><?php echo _t('Allowed hosts:') ?></label></span>
+		<div>
+			<?php if ($form->get('zend_sc.ha.cluster_members')->getValue()) { ?>
+			<?php echo $this->formhidden($form->get('zend_sc.ha.cluster_members')->setAttribute('id', 'cluster_members')) ?>
+			<script type="text/javascript">
+				window.addEvent('load', function(){
+					var clusterMembersList = new valuesList($('cluster_members'), {'readonly': true});
+				});
+			</script>
+			<?php } else { ?>
+			<span><?php echo _t('This server is not associated with a cluster')  ?></span>
+			<?php } ?>
+		</div>
+		<p><?php echo _t('List of servers allowed to access session clustering')?></p>
+	</div>
+	<div class="form-row">
+		<span class="zform-element"><?php echo $this->formCheckbox($form->get('zend_sc.ha.use_broadcast')->setAttribute('id','directives-use_broadcast')) ?></span>
+		<span class="zform-label"><label for="directives-use_broadcast"><?php echo _t('I want to use Session Clustering in the Cloud') ?></label></span>
+		<p><?php echo _t('Select to use unicast transmissions to facilitate communication between Session Clustering daemons in the cloud')?></p>
+	</div>
+
+	<div class="form-row">
+		<input id="session_clustering_submit-btn" type="submit" value="<?php echo _t('Save') ?>"/>
+		<span id="session_clustering_submit-errors" class="settings-error"></span>
+	</div>
+	<?php echo $this->form()->closeTag() ?>
+	
+	
+	<script type="text/javascript">
+	window.addEvent('load', function(){
+		document.addEvent('disableFields', function(event){
+			$('sc_settings-form').getElements('input').set('disabled', event.disable);
+		});
+
+		<?php if ((! $scAllowed) || (! $clusterHandlerActive) || (! $sessionClusteringActive)): ?>
+		document.fireEvent('disableFields', {disable: true});
+		<?php endif ?>
+
+		$('session_clustering_submit-btn').addEvent('click', function(){
+			this.spin();
+
+			var params = $('sc_settings-form').toObj();
+			if($('directives-use_broadcast').checked) {
+				params['zend_sc.ha.use_broadcast'] = $('directives-use_broadcast').value;
+			}
+			if (params['zend_sc.ha.cluster_members']) {
+				delete params['zend_sc.ha.cluster_members'];
+			}
+			
+			new Request.WebAPI({
+				url: '<?php echo $this->basePath('/Api/configurationStoreDirectives') ?>',
+				'onSuccess': function(response) {
+					$('session_clustering_submit-errors').textContent = '';
+					checkTasksComplete();
+				},
+				'onFailure': function(response) {
+					$('session_clustering_submit-btn').unspin();
+					response = JSON.decode(response.responseText);
+					$('session_clustering_submit-errors').textContent = response.errorData.errorMessage;
+				}
+			}).post({'directives': params});
+			return false;
+		});
+	});
+	
+	function checkTasksComplete() {
+		var url = '<?php echo $this->basePath('/Api/tasksComplete') ?>';
+		var request = new Request.WebAPI({
+			url: url,
+			data:{},
+			onComplete: function(response) {
+				if (undefined != response && response.responseData.tasksComplete == true) {
+					$('session_clustering_submit-btn').unspin();
+					document.fireEvent('toastNotification', {'message': '<?php echo _t("Your new settings have been saved"); ?>'});
+					return ;
+				}
+			
+				checkTasksComplete.delay('700');
+			}
+		}).get();
+	}
+	
+	</script>
+
+</div>

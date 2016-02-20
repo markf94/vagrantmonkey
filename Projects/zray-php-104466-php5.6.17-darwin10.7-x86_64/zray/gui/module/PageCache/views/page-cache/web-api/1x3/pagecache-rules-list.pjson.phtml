@@ -1,0 +1,11 @@
+"responseData":{"rules":[
+	<?php
+	$rulesJson = array();
+	foreach($rules as $rule) { /* @var $rule \PageCache\Rule */
+		$rulesJson[] = $this->CacheRuleJson($rule);
+	}
+	echo implode(',', $rulesJson);
+	?>
+	
+],
+"total": <?php echo count($rules) ?>}

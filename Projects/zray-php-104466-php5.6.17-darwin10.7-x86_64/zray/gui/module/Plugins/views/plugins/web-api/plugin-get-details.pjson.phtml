@@ -1,0 +1,20 @@
+<?php $plugin = $plugin ?: new \Plugins\PluginContainer(new \ZendDeployment_Application()); ?>
+<?php $servers = $servers ?: array(); ?>
+<?php $prerequisitesIsValid = isset($prerequisitesIsValid) ? $prerequisitesIsValid : false; ?>
+<?php 
+
+$serversJson = array();
+foreach ($servers as $id => $serverData) {
+	$serversJson[$id] = $serverData;
+}
+$serversJson = $this->json($serversJson);
+?>
+
+"responseData":{"pluginDetails":{
+    "pluginInfo": <?php echo $this->pluginInfoJson($plugin);?>,
+    "pluginPackage": {
+    	"prerequisitesValidation": "<?php echo $prerequisitesIsValid ? 'true' : 'false'; ?>",
+        "prerequisites": "<?php echo $prerequisites; ?>"
+    },
+    "servers" : <?php echo $serversJson;?>
+}}

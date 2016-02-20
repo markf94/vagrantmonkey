@@ -1,0 +1,40 @@
+<?php $this->headLink()->appendStylesheet($this->basepath('css/error.css')) ?>
+<div class="box-wrapper">
+	<div class="box-header"><h1><?php echo _t('500 - Internal Server Error') ?></h1></div>
+	<div class="box-body">
+		<h2><?php echo _t('The server encountered an internal error and was unable to complete your request') ?></h2>
+		<ul class="vertical-list">
+			<li><?php echo _t('Try to ')  ?><a id="reload-link" href="javascript:void(0)"><?php echo _t('reload page')  ?></a></li>
+			<li><?php echo _t('Revisit the ')  ?><a id="previous-link" href="javascript:void(0)"><?php echo _t('previous page')  ?></a></li>
+			<li><?php echo _t('Go to the ')  ?><a id="dashboard-link" href="<?php echo $this->basepath('/') ?>"><?php echo _t('Dashboard page')  ?></a></li>
+		</ul>
+			
+<?php if(isset($this->exception) && $this->exception instanceof Exception): ?>
+		<div class="more-information">
+			<h3 class="more-information-header"><?php echo _t('More information') ?></h3>
+			<div class="display-box">
+			    <h3><?php echo _t('Message:'); ?></h3>
+			    <pre><?php echo $this->exception->getMessage() ?></pre>
+<?php if ($this->exception->getPrevious()): ?>
+<?php $previous = $this->exception->getPrevious() ?>
+<?php do { ?>
+				<pre><?php echo $previous->getMessage() ?></pre>
+<?php } while ($previous = $previous->getPrevious());?>
+<?php endif ?>
+
+<?php if (isset($this->display_exceptions) && $this->display_exceptions): ?>
+			    <h3><?php echo _t('Stack Trace:'); ?></h3>
+			    <pre><?php echo $this->exception->getTraceAsString() ?></pre>
+			</div>
+<?php endif ?>
+		</div>
+<?php endif ?>
+	</div>
+</div>
+
+<script type="text/javascript">
+window.addEvent('load', function(){
+	$('reload-link').addEvent('click', function(){location.reload()});
+	$('previous-link').addEvent('click', function(){history.back()});
+});
+</script>

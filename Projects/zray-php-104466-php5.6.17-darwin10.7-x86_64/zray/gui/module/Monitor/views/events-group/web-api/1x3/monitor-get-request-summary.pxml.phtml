@@ -1,0 +1,74 @@
+	<responseData>
+		<requestSummary>
+			<eventsCount><?php echo $requestSummary['events-count']; ?></eventsCount>
+			<codeTracing><?php
+				if ($trace && (strlen($trace) > 0)) {
+					echo $trace;
+				} 
+			?></codeTracing>
+			<events>
+			<?php foreach ($requestSummary['events'] as $event) : ?>
+				<event>
+					<eventsGroupId><?php echo $event['event-group-id']; ?></eventsGroupId>
+					<type><?php echo $event['type']; ?></type>
+					<description><![CDATA[<?php echo $event['description']; ?>]]></description>
+					<superGlobals>
+						<get><?php if (is_array($event['super-globals']['get'])) : ?>
+							<?php foreach ($event['super-globals']['get'] as $get) : ?>
+							<parameter>
+								<name><![CDATA[<?php echo $get['key']; ?>]]></name>
+								<value><![CDATA[<?php echo $get['value']; ?>]]></value>
+							</parameter>
+							<?php endforeach; ?>
+						<?php endif; ?></get>
+						<post><?php	if (is_array($event['super-globals']['post'])) : ?>
+							<?php foreach ($event['super-globals']['post'] as $post) : ?>
+							<parameter>
+								<name><![CDATA[<?php echo $post['key']; ?>]]></name>
+								<value><![CDATA[<?php echo $post['value']; ?>]]></value>
+							</parameter>
+							<?php endforeach; ?>
+						<?php endif; ?></post>
+						<cookie><?php if (is_array($event['super-globals']['cookie'])) : ?>
+							<?php foreach ($event['super-globals']['cookie'] as $cookie) : ?>
+							<parameter>
+								<name><![CDATA[<?php echo $cookie['key']; ?>]]></name>
+								<value><![CDATA[<?php echo $cookie['value']; ?>]]></value>
+							</parameter>
+							<?php endforeach; ?>
+						<?php endif; ?></cookie>
+						<session><?php if (is_array($event['super-globals']['session'])) : ?>
+							<?php foreach ($event['super-globals']['session'] as $session) : ?>
+							<parameter>
+								<name><![CDATA[<?php echo $session['key']; ?>]]></name>
+								<value><![CDATA[<?php echo $session['value']; ?>]]></value>
+							</parameter>
+							<?php endforeach; ?>
+						<?php endif; ?></session>
+						<server><?php if (is_array($event['super-globals']['server'])) : ?>
+							<?php foreach ($event['super-globals']['server'] as $server) : ?>
+							<parameter>
+								<name><![CDATA[<?php echo $server['key']; ?>]]></name>
+								<value><![CDATA[<?php echo $server['value']; ?>]]></value>
+							</parameter>
+							<?php endforeach; ?>
+						<?php endif; ?></server>
+					</superGlobals>
+					<severity><?php echo $event['severity']; ?></severity>
+					<backtrace><?php if (is_array($event['backtrace'])) : ?>
+						<?php foreach ($event['backtrace'] as $key => $value) : ?>
+							<step>
+								<number><?php echo $key; ?></number>
+								<object><?php echo $value['object']; ?></object>
+								<class><?php echo $value['class']; ?></class>
+								<function><?php echo $value['function']; ?></function>
+								<file><![CDATA[<?php echo $value['file']; ?>]]></file>
+								<line><?php echo $value['line']; ?></line>
+							</step>
+						<?php endforeach; ?>
+					<?php endif; ?></backtrace>
+				</event>
+			<?php endforeach; ?>
+			</events>
+		</requestSummary>
+	</responseData>

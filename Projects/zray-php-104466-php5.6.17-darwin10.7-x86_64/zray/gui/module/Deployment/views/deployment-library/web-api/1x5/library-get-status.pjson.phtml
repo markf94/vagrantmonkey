@@ -1,0 +1,14 @@
+<?php // set the default values ?>
+<?php $libraries = $libraries ?: new \ZendServer\Set(array()); ?>
+<?php $respondingServersCount = isset($respondingServersCount) ? $respondingServersCount : null; ?>
+<?php if (! isset($prerequisites)) $prerequisites = null; ?>
+<?php if (! isset($servers)) $servers = array(); ?>
+<?php $limitCount = $libraries->count(); ?>
+"responseData":[
+<?php $counter = 0; ?>
+<?php foreach($libraries as $library) : /* @var $library \DeploymentLibrary\Container */ ?>
+<?php   isset($servers[$library->getLibraryId()]) ? $serversData = $servers[$library->getLibraryId()] : $serversData = array(); ?>
+<?php   echo $this->libraryInfoJson($library, $prerequisites, $respondingServersCount, $serversInfoData); ?>
+<?php   echo (++$counter < $limitCount ? ',' : ''); ?>
+<?php endforeach ?>
+]

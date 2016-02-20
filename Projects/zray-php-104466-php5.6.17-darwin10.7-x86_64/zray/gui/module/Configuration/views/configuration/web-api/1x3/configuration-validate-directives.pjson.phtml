@@ -1,0 +1,23 @@
+"responseData":{
+"prerequsitesValidation": <?php echo $prerequsitesValidation ? 'true' : 'false' ?>,
+"prerequsitesPluginValidation": <?php echo $prerequsitesPluginValidation ? 'true' : 'false' ?>,
+"prerequsitesConflicts": <?php echo json_encode($prerequsitesConflicts) ?>,
+"brokenPlugin": 
+<?php
+if ($brokenPlugin) {
+    echo '"' . $brokenPlugin . '"';
+} else {
+    echo 'false';
+}
+?>,
+"brokenPluginId": <?php echo ($brokenPluginId)?$brokenPluginId:'false' ?>,
+"validates": [
+<?php $counter = 0;  foreach($results as $directive => $result) : /* @var $dir Configuration\DirectiveContainer /*/?>
+<?php $comma = (++$counter < count($results) ? ',' : '') ?>
+<?php echo $this->json(array('name' => $directive, 'valid' => $result, 'messageList' => array_map(function($item){
+	/// convert key to "error" to hold up the messageList output structure
+	return array('error' => current($item));
+}, array_values($messages)))) ?>
+<?php echo $comma ?>
+<?php endforeach; ?>
+]}

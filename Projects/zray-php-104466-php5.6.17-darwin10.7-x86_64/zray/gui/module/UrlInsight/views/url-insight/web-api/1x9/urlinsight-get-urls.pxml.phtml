@@ -1,0 +1,7 @@
+<responseData>
+	<totalCount><?php echo (isset($totalCount)) ? $totalCount : count($urls); ?></totalCount>
+	<totalTimeConsumption><?php echo (isset($totalTimeConsumption)) ? $totalTimeConsumption : 0; ?></totalTimeConsumption>
+	<urls>
+		<?php echo $this->urlinsightUrlsXml($urls); ?>
+	</urls>
+</responseData>

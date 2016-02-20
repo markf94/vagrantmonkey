@@ -1,0 +1,65 @@
+"responseData":{
+	<?php if (isset($totalRequests) && is_numeric($totalRequests)) { ?>
+	"totalRequests":<?php echo $totalRequests; ?>,
+	<?php } ?>
+	"RequestsInfo":[
+<?php $requestsInfo = array(); ?>
+<?php foreach($requests as $request) : ?>
+    <?php $requestId = $request ? $request->getId() : null; ?>
+    <?php if (!$requestId) continue; ?>
+	<?php $requestMonitorEvents = array(); ?>
+	<?php if (isset($monitorEvents[$requestId]) && count($monitorEvents[$requestId])) foreach ($monitorEvents[$requestId] as $monitorEvent) : ?>
+		<?php if ($monitorEvent && count($monitorEvent)) foreach ($monitorEvent as $issueKey => $issue) : ?>
+		      <?php 
+		      $requestEventsData = isset($eventsData[$requestId]) && 
+		          isset($eventsData[$requestId][0]) && 
+		          isset($eventsData[$requestId][0][$issue->getMaxEventGroup()->getEventsGroupId()]) ? 
+		          $eventsData[$requestId][0][$issue->getMaxEventGroup()->getEventsGroupId()] : null;
+		      ?>
+			<?php $requestMonitorEvents[] = $this->issueJson($issue, null, $requestEventsData); ?>
+		<?php endforeach; ?> 
+	<?php endforeach; ?>
+	<?php $requestMonitorEvents = (! empty($requestMonitorEvents)) ? implode(',', $requestMonitorEvents) : ''; ?>
+	<?php 
+	$requestInfoJson = @$this->requestInfoJson($request) ?: '[]';
+	//prevent DevBar\View\Helper\RuntimeJson to get null instead of RuntimeContainer object
+	$runtimeJson = (isset($runtime[$requestId]) && $runtime[$requestId]) ? (@$this->runtimeJson($runtime[$requestId]) ?: '[]') : '[]';
+	$sqlQueriesJson = @$this->sqlQueriesJson($sqlQueries[$requestId]) ?: '[]';
+	$logEntriesJson = @$this->logEntriesJson($logEntries[$requestId]) ?: '[]';
+	$exceptionsJson = @$this->exceptionsJson($exceptions[$requestId]) ?: '[]';
+	$requestMonitorEvents = @$requestMonitorEvents ?: '';
+	
+	if (!isset($superglobals[$requestId])) {
+	    $superglobals[$requestId] = array();
+	}
+	if (!isset($superglobals[$requestId]['oversizedSession'])) {
+	    $superglobals[$requestId]['oversizedSession'] = '0';
+	}
+	if (!isset($functionsCount[$requestId])) {
+	    $functionsCount[$requestId] = '0';
+	}
+	
+	$hasCustomData = json_encode($hasCustomData);
+	
+	?>
+	<?php $requestsInfo[] = <<<REQUEST
+	{
+		"RequestInfo":  {$requestInfoJson},
+		"Runtime":  {$runtimeJson},
+		"SqlQueries":  {$sqlQueriesJson},
+		"LogEntries":  {$logEntriesJson},
+		"exceptions":  {$exceptionsJson},
+		"MonitorEvents": [{$requestMonitorEvents}],
+		"SuperGlobals": {
+			"sessionOversized": {$superglobals[$requestId]['oversizedSession']}
+		},
+		"extraData": {
+			"functionsCount": {$functionsCount[$requestId]}
+		},
+		"hasCustomData": {$hasCustomData}
+	}
+REQUEST;
+?>
+<?php endforeach ?>
+<?php echo is_array($requestsInfo) && !empty($requestsInfo) ? implode(',', $requestsInfo) : ''; ?>
+]}

@@ -1,0 +1,822 @@
+<div class="zdb-toolbar-entry zdb-request-details" data-name="requests">
+	<div class="zdb-toolbar-preview">
+		<div class="zdb-toolbar-icon"></div>
+		<span class="zdb-toolbar-info"> <span
+			class="zdb-toolbar-bold zdb-http-response zdb-toolbar-spacing"></span>
+			<span
+			class="zdb-toolbar-extra-info zdb-toolbar-spacing zsb-blue-font"></span>
+			<span class="zdb-toolbar-extra-info"></span> <span
+			class="zdb-toolbar-extra-info zdb-request-count"></span>
+		</span>
+	</div>
+	<div class="zdb-toolbar-detail zsb-request-info-details-wrapper">
+		<div class="zdb-row zdb-toolbar-detail-header">
+			<div class="zdb-col-1-narrow">
+				<h1>Page Requests</h1>
+			</div>
+			<div class="zdb-col-3-wide">
+				<div class="zdb-pull-left">
+					<?php echo $this->devBarPager(); ?>
+				</div>
+				<div class="zdb-pull-right">
+					<ul class="zdb-toolbar-items zdb-horizontal">
+						<li class="zdb-toolbar-filter"><label
+							for="zdb-toolbar-input-filter-text">Filter by</label> <select>
+								<option value="">Parameter</option>
+						</select> <input type="text" name="zdb-toolbar-input-filter-text"
+							id="zdb-toolbar-input-filter-text" size="6"
+							class="zdb-toolbar-input zdb-toolbar-input-filter-parameter" /></li>
+						<li class="zdb-toolbar-search">
+    						<?php echo $this->devBarSearch(); ?>
+    					</li>
+						<li>
+							<div class="zdb-export-results-btn" title="Show Report"></div>
+						</li>
+						<li class="zdb-toolbar-pin">
+							<div class="zdb-popup-pin" onclick="zendDevBar.unpin()"></div>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+		<div class="zdb-row zdb-panel zsb-requests-panel">
+			<div class="zdb-col-1-narrow zdb-summary-table-wrapper zdb-adaptive-height"></div>
+			<div class="zdb-col-3-wide zdb-entries-table-wrapper zsb-request-details-table-wrapper zdb-adaptive-height">
+				<div class="zdb-toolbar-info"></div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+/**
+ * @TODO add "no requests" when there are no requests in the table (may appear only after "clean")
+ */
+(function() {
+
+	var showSilencedLogsByDefault = <?php echo $showSilencedLogs; ?>;
+	
+	///////////////////////////////////////////////////////////////////////////////
+	// tools
+	///////////////////////////////////////////////////////////////////////////////
+	var tools = (function() {
+
+		// container jq object
+		var $container = null;
+
+		// parse an href using <a> element
+		var getLocation = function(href) {
+			if (!href) return null;
+		    var l = document.createElement('a');
+		    l.href = href;
+		    return l;
+		};
+		
+		// the tools object
+		var retObj = {
+			// get the requests panel wrapper
+			getContainer: function() {
+				if (!$container) $container = zendDevBar.devBar.find('.zdb-request-details').first(); 
+				return $container; 
+			},
+	
+			// e.g. for request "/path/to/script.php?a=b" the file is "script.php"
+			getFileByPath: function(fullPath) {
+				var requestUri = getLocation(fullPath).pathname.trim();
+
+				// remove trailing slash (/)
+				while (requestUri.charAt(requestUri.length - 1) == '/') {
+					requestUri = requestUri.substr(0, requestUri.length - 1);
+				}
+
+				return requestUri.split('/').pop() || '/';
+			},
+
+			getURLDomain: function(url) {
+			    var a = document.createElement('a');
+			    a.href = url;
+			    return a.protocol + '//' + a.hostname;
+			},
+
+			getLocation: getLocation,
+
+			// shorten the URL and add dots in the middle
+			getShortUrl: function(maxChars) {
+				return function(val) {
+					// display the request path in the bottom devbar 
+					var urlParts = tools.getLocation(val);
+					if (!urlParts || urlParts.pathname == '/') {
+						var url = val;
+					} else {
+						var url = urlParts.pathname + urlParts.search;
+					}
+
+					try {
+						var decoded = decodeURIComponent(url);
+					} catch (e) {
+						var decoded = url;
+					}
+					return zendDevBar.shorten(decoded, maxChars);
+				}				
+			},
+			
+		};
+
+		return retObj;
+	})();
+
+	/////////////////////////////////////////////
+	// helpers
+	/////////////////////////////////////////////
+
+	var getIDsFromRequests = function(reqs) {
+		var ids = [];
+		if (reqs && reqs.length) {
+			for (var i=0; i<reqs.length; i++) {
+				ids.push(reqs[i].id);
+			}
+		}
+
+		return ids;
+	};
+
+	// get full request data (with LogEntries, MonitorEvents, etc...)
+	var getFullRequestData = (function() {
+		var fullData = {};
+		return function(requestId) {
+			if (!fullData[requestId]) {
+				// find request data in the storage
+				var fullDataStorage = zendDevBar.getStorage('requests-full-data');
+				fullDataStorage.getData().every(function(reqData) {
+					if (reqData.RequestInfo.id == requestId) {
+						fullData[requestId] = reqData;
+						return false;
+					}
+					return true;
+				});
+			}
+			return fullData[requestId];
+		};
+	})();
+
+	// the the bottom label object (its parts)
+	var getLabel = (function() {
+		var label = null;
+		return function() {
+			if (!label) {
+				var $labelWrapper = tools.getContainer().find('.zdb-toolbar-preview');				
+				label = {
+					wrapper: $labelWrapper, 
+					httpResponse: $labelWrapper.find('.zdb-http-response'), 
+					text: $labelWrapper.find('.zdb-toolbar-extra-info:eq(0)'), 
+					count: $labelWrapper.find('.zdb-request-count'),
+				};
+			} 
+			return label;
+		};
+	})();
+	
+	// update the bottom bar (devbar) label for "requests"
+	var updateLabel = function(labelData) {
+		// default label data
+		var defaults = {
+			// response status
+			httpResponse: false,
+			// the shortened URL 
+			text: false,
+			// html title above all the requests data area
+			title: false
+		};
+		labelData = $zendDevBar.extend({}, defaults, labelData);	
+
+		if (labelData.httpResponse) {
+			getLabel().httpResponse.text(labelData.httpResponse);
+		}
+
+		// update the text only when there's a text
+		if (labelData.text) {
+			getLabel().text.text(labelData.text);
+		}
+		
+		if (labelData.title) {
+			getLabel().wrapper.attr('title', labelData.title);
+			
+			// update collapsed mode badge
+			$zendDevBar('#zend-dev-bar .zdb-errors-flag').attr('title', labelData.title);
+		}
+
+		$zendDevBar(window).trigger('resize');
+	};
+		
+
+	var totalRequestsBadge = (function() {
+		var severityLevel = {'normal':0, 'warning':1, 'critical':2};
+		var lastSeverity = 'normal';
+		var $badge = tools.getContainer().find('.zdb-toolbar-preview .zdb-request-count');
+		
+		return {
+			reset: function() {
+				$badge.text(0).hide();
+				lastSeverity = 'normal';
+			},
+			getNumber: function() {
+				var badgeValue = $badge.text() || 0;
+				return parseInt(badgeValue);
+			},
+			increment: function() {
+				var badgeContent = $badge.text() || 0;
+				var newNumber = parseInt(badgeContent) + 1; 
+				$badge.text(newNumber);
+				if (newNumber > 1) {
+					$badge.show();
+				} else {
+					$badge.hide();
+				}
+
+				$zendDevBar(window).trigger('resize');
+			},
+			setSeverity: function(newRequestSeverity, overridePreviousState) {
+				// if last severity was higher, take it, unless `overridePreviousState` is supplied
+				if (!overridePreviousState) {
+					if (severityLevel[lastSeverity] > severityLevel[newRequestSeverity]) {
+						newRequestSeverity = lastSeverity;
+					}
+				}
+				lastSeverity = newRequestSeverity;
+
+				// update the class
+				$badge.removeClass('zdb-badge-warning');
+				$badge.removeClass('zdb-badge-critical');
+	 			$badge.addClass('zdb-badge-' + newRequestSeverity);
+			},
+			getSeverity: function() {
+				return lastSeverity;
+			}
+		};
+	})();
+
+	var unseenWarnings = 0, 
+		unseenCritical = 0, 
+		unseenResponseErrors = 0,
+		unseenSessionOversize = 0;
+
+	// calculate total `warning` total `critical` issues
+	// #return {'warning': 12, 'critical': 10}
+	var getRequestStatistics = function(requestFullData) {
+		if (!requestFullData._errorsStatistics) {
+			var result = {
+				'sessionOversize': requestFullData.SuperGlobals.sessionOversized,
+				'responseError': 0, // in case of response status 400+ / 500+
+				'events': {'critical': 0, 'warning': 0},
+				'logs': {'critical': 0, 'warning': 0}
+			};
+
+			// look at the request response status
+			result['responseError'] = (requestFullData.RequestInfo.httpResponse >= 400 && requestFullData.RequestInfo.httpResponse < 600) ? 1 : 0;
+	
+			// look at monitor events
+			var monitorEvents = requestFullData.MonitorEvents;
+			monitorEvents.forEach(function(event) {
+				if (event.severity.toLowerCase() == 'critical') {
+					result['events']['critical']++;
+				} else if (event.severity.toLowerCase() == 'warning') {
+					result['events']['warning']++;
+				}
+			});
+	
+			// look at log entries
+			var logEntries = requestFullData.LogEntries;
+			// take stored value for "silent" state - the default is don't show (0)
+			var storedStateForSilencedLogs = (zendDevBar.cookieParams && typeof (zendDevBar.cookieParams.displaySilencedLogs) != 'undefined') ? 
+					zendDevBar.cookieParams.displaySilencedLogs : showSilencedLogsByDefault;
+			// `hideSilencedLogs` is just for convenience
+			var hideSilencedLogs = (storedStateForSilencedLogs == 0);
+			
+			logEntries.forEach(function(logEntry) {
+				if (hideSilencedLogs && logEntry.silenced) return;
+				var logType = logEntry.type.toLowerCase();
+				if (logType.indexOf('error') >= 0 || logType.indexOf('parse') >= 0 || logType.indexOf('fatal') >= 0) {
+					result['logs']['critical']++;
+				} else if (logType.indexOf('warning') >= 0) {
+					result['logs']['warning']++;
+				}
+			});
+			requestFullData._errorsStatistics = result;
+		}
+
+		return requestFullData._errorsStatistics;
+	};
+
+	// return 'normal' / 'warning' or 'critical' according to request's data
+	var getBadgeType = function(requestFullData) {
+		var statistics = getRequestStatistics(requestFullData);
+
+		if (statistics.responseError > 0) return 'critical'; 
+		if (statistics.events.critical > 0 || statistics.logs.critical > 0) return 'critical'; 
+		if (statistics.events.warning > 0 || statistics.logs.warning > 0) return 'warning'; 
+		if (statistics.sessionOversize) return 'warning'; 
+		return 'normal';
+	};
+
+	// hide the collapsed mode badge and clear it's title
+	var hideCollapsedModeBadge = function() {
+		$zendDevBar('#zend-dev-bar').removeClass('zdb-has-errors');
+		$zendDevBar('#zend-dev-bar').removeClass('zdb-has-warnings');
+		$zendDevBar('#zend-dev-bar .zdb-errors-flag').attr('title', '');
+	};
+	
+	// when on collapse mode - display badge with number of requests and the right color 
+	// (red/orange) in case of errors
+	var updateCollapsedModeBadge = function(badgeType) {
+		var totalErrorsAndWarnings = unseenWarnings + unseenCritical + unseenResponseErrors + unseenSessionOversize; 
+		if (totalErrorsAndWarnings > 0) {
+
+			// change the number inside the badge
+			var totalRequestsNumber = totalRequestsBadge.getNumber();
+			$zendDevBar('#zend-dev-bar .zdb-errors-flag .zdb-toolbar-icon').text(totalRequestsNumber);
+
+			// change the color of the badge
+			if (badgeType == 'warning') {
+				$zendDevBar('#zend-dev-bar').addClass('zdb-has-warnings');
+			} else if (badgeType == 'critical') {
+				$zendDevBar('#zend-dev-bar').addClass('zdb-has-errors');
+			}
+
+			// bind click on the collapsed mode badge
+			$zendDevBar('#zend-dev-bar .zdb-errors-flag').off('click').on('click', function() {
+				zendDevBar.expandBar();
+
+				hideCollapsedModeBadge();
+				
+				// expand the bar and open logs panel or requests panel in case of many requests  
+				if (totalRequestsNumber == 1) {
+					if (unseenCritical > 0) {
+						// open "Events"
+						$zendDevBar('#zend-dev-bar .zdb-issues-details .zdb-toolbar-preview').trigger('click');
+					} else {
+						// open "Logs"
+						$zendDevBar('#zend-dev-bar .zdb-logs-details .zdb-toolbar-preview').trigger('click');
+					}
+				} else {
+					// open "requests"
+					$zendDevBar('#zend-dev-bar .zdb-request-details .zdb-toolbar-preview').trigger('click');
+				}
+			});
+		} else {
+			hideCollapsedModeBadge();
+		}
+	};
+	
+	/////////////////////////////////////////////
+	// tables definition
+	/////////////////////////////////////////////
+
+	// extend devbarTable and devbarSummaryTable
+	;(function($) {
+		$.zdbRequestsTable = function(containerDOMObject, dataManager) {
+			$.devbarTable.call(this, containerDOMObject.get(0), dataManager);
+			
+			this._selectedRequest = false;
+		}
+		$.zdbRequestsTable.prototype = Object.create($.devbarTable.prototype);
+		// get the object from the data storage
+		$.zdbRequestsTable.prototype._getRequestObject = function(requestId) {
+			var requests = this.dataManager.getData({id: requestId});
+			if (requests.length > 0) {
+				return requests[0];
+			} else {
+				// take the first request as a fallback
+				var data = this.dataManager.getData();
+				if (data && data.length > 0) {
+					return data[0];
+				}
+			}
+			return false;
+		}
+
+		// select a specific request
+		$.zdbRequestsTable.prototype._updateLabels = function(requestId) {
+			if (this._selectedRequest === false) {
+				return;
+			}
+			
+			var urlFilePart = tools.getFileByPath(this._selectedRequest.url);
+			
+			var title = this._selectedRequest.url.trim();
+			title+= "\nTotal " + totalRequestsBadge.getNumber() + ' request' + (totalRequestsBadge.getNumber() != 1 ? 's' : '');
+			
+			if (unseenResponseErrors) {
+				title+= "\n" + unseenResponseErrors + ' new response error' + (unseenResponseErrors!=1?'s':'');
+			}
+			if (unseenSessionOversize) {
+				title+= "\n" + 'New session oversize error';
+			}
+			if (unseenCritical) {
+				title+= "\n" + unseenCritical + ' new critical issue' + (unseenCritical!=1?'s':'');
+			}
+			if (unseenWarnings) {
+				title+= "\n" + unseenWarnings + ' new warning' + (unseenWarnings!=1?'s':'');
+			}
+			
+			// update bottom label
+			var that = this;
+			updateLabel({		
+				// response status
+				httpResponse: that._selectedRequest.httpResponse,
+				// the shortened URL 
+				text: zendDevBar.shorten(urlFilePart, 40),
+				// html title above all the requests data area
+				title: title
+			});
+
+			// update top label (above the panels)
+			zendDevBar.setPopupTitle(this._selectedRequest.url.trim());
+		}
+		$.zdbRequestsTable.prototype._selectRequest = function(requestId) {
+			// unmark previous selected row
+			$('.zdb-active', this._container).removeClass('zdb-active').find(':checkbox').prop('checked', false);
+			
+			// mark the row
+			var $row = $('[request-id="'+requestId+'"]', this._container).parents('tr');
+			$row.addClass('zdb-active');
+			$row.find(':checkbox').prop('checked', true);
+
+			// store the object
+			this._selectedRequest = this._getRequestObject(requestId);
+			if (this._selectedRequest !== false) {
+				zendDevBar.loadRequestInfo(this._selectedRequest.id);
+			} else {
+				zendDevBar.loadRequestInfo([]);
+			}
+
+			this._updateLabels();
+		};
+
+		$.zdbRequestsTable.prototype.update = function(dataManager) {
+			$.devbarTable.prototype.update.call(this, dataManager);
+
+			// reselect the selected request OR select the first request
+			if (this._selectedRequest === false) {
+				var data = this.dataManager.getData();
+				if (data && data[0] && data[0].id) {
+					this._selectRequest(data[0].id);
+				}
+			} else {
+				this._selectRequest(this._selectedRequest.id);
+			}
+
+			this._updateLabels();			
+		};
+		
+		// override bind events method, add row click event (select a request)
+		$.zdbRequestsTable.prototype._bindEvents = function() {
+			// call the parent
+			$.devbarTable.prototype._bindEvents.call(this);
+	
+			var that = this;
+			$(this._container).on('click', 'tbody tr', function(event) {
+				var selectedRequestId = parseInt($(this).find('[request-id]').attr('request-id'));
+				if (selectedRequestId) {
+					that._selectRequest(selectedRequestId);
+				}
+			});
+		}
+
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// summary table
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+
+		$.zdbRequestsSummaryTable = function(containerDOMObject, dataManager) {
+			$.devbarSummaryTable.call(this, containerDOMObject.get(0), dataManager);
+		}
+		$.zdbRequestsSummaryTable.prototype = Object.create($.devbarSummaryTable.prototype);
+
+		$.zdbRequestsSummaryTable.prototype._updateCheckboxes = function() {
+			$.devbarSummaryTable.prototype._updateCheckboxes.call(this);
+
+			var $checkboxes = $('tbody input[type="checkbox"][name!="All"]', this._container);
+			var totalCheckboxes = $checkboxes.length;
+			var totalSelectedCheckboxes = $checkboxes.filter(':checked').length;
+			if (totalSelectedCheckboxes == 0 && totalCheckboxes > 0) {
+				this.setFilterValues(this.getAllFilterValues()[0], true);
+			};
+		};
+		
+	})($zendDevBar);
+
+	$zendDevBar(function() {
+
+		// define the main table
+		var storage = zendDevBar.getStorage('requests');
+		storage.setSorter('severity', function(data) {
+			// define the order for the severity column
+			var severityOrder = ['critical', 'warning', 'normal'];
+			return data.sort(function(a,b) {
+				var a = severityOrder.indexOf(a.severity.toLowerCase()); 
+				var b = severityOrder.indexOf(b.severity.toLowerCase());  
+				if (a == b) return 0; return (a > b) ? -1 : 1; });
+		});
+		var mainTable = new $zendDevBar.zdbRequestsTable($zendDevBar('.zsb-request-details-table-wrapper'), storage);
+		mainTable.setColumns([{
+			label: '',
+			tooltip: 'Select specific request to get information',
+			propertyName: 'httpResponse',
+			width: '2%',
+			getHtml: function(val, rec) {
+				return '<input type="checkbox" class="zdb-request-selection" name="'+rec.id+'">';
+			}
+		}, {
+			label: '<span class="zdb-reqeusts-severity-column-header"></span>',
+			tooltip: 'Severity level of request issues',
+			propertyName: 'severity',
+			width: '3%',
+			sortable: true,
+			initialSortDirection: 'desc',
+			getHtml: function(requestId, rec) {
+				var severity = getBadgeType(getFullRequestData(rec.id));
+				var title = 'The request has no warnings or critical errors'; 
+				if (severity == 'warning') {
+					title = 'The request contains warnings';
+				} else if (severity == 'critical') {
+					title = 'The request contains critical errors';
+				}
+				
+				return '<div class="zdb-request-severity zdb-badge-'+severity+'" title="'+title+'"></div>';
+			}
+		}, {
+			label: 'Response',
+			tooltip: 'HTTP response',
+			propertyName: 'httpResponse',
+			sortable: true,
+			width: '9%',
+			getHtml: function(val, rec) {
+				return '<span request-id="'+rec.id+'">'+val+'</span>';
+			}
+		}, {
+			label: 'Method',
+			tooltip: 'Method type',
+			propertyName: 'method',
+			sortable: true,
+			width: '10%'
+		}, {
+			label: 'URL',
+			tooltip: 'Request URL',
+			width: '46%',
+			propertyName: 'url',
+			sortable: true,
+			getHtml: tools.getShortUrl(90)
+		}, {
+			label: 'Time (ms)',
+			tooltip: 'Execution time',
+			width: '10%',
+			sortable: true,
+			initialSortDirection: 'desc',
+			propertyName: 'runTime',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val, rec) {
+				return zendDevBar.formatters.formatMicroseconds(val, 2, false)
+			}
+		}, {
+			label: 'Queries',
+			tooltip: 'Total executed queries per request',
+			width: '10%',
+			propertyName: 'totalQueries',
+			sortable: true,
+			initialSortDirection: 'desc',
+			attributes: {'class': 'zdb-numerical'}
+		}, {
+			label: 'Started (ms)',
+			tooltip: 'Elapsed time from page load',
+			width: '10%',
+			propertyName: 'startTimeTimestamp',
+			sortable: true,
+			defaultSort: 'desc',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val, rec) {
+				if (zendDevBar.firstRequestTime) {
+					var val = (rec.startTimeTimestamp - parseInt(zendDevBar.firstRequestTime, 10));
+					val = val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+					return '+ ' + val;
+				} else {
+					var d = new Date(val),
+						h = d.getHours(),
+						m = d.getMinutes(),
+						s = d.getSeconds(),
+						ms= d.getMilliseconds();
+
+					if (d < 10) d = '0' + d;
+					if (m < 10) m = '0' + m;
+					if (s < 10) s = '0' + s;
+					
+					if (ms < 100) ms = '0' + ms;
+					if (ms < 10) ms = '0' + ms;
+					// will display time in 10:30:23 format
+					return h + ':' + m + ':' + s + '.' + ms;
+				}
+			}
+		}]);
+		
+		// bind search
+		new $zendDevBar.zdbSearch(zendDevBar.getStorage('requests'), $zendDevBar('.zsb-request-info-details-wrapper .zdb-toolbar-input-search').first(), mainTable);
+		
+		// define the summary table
+		storage.setFilter('url', function(recVal, filterVal) {
+			return tools.getFileByPath(recVal) == filterVal;
+		});
+		var table = new $zendDevBar.zdbRequestsSummaryTable($zendDevBar('.zsb-requests-panel .zdb-summary-table-wrapper'), storage);
+		table.setTableHeaderHtml('<th colspan="100%">Show</th>');
+		table.setFilterColumn('url');
+		table.setUpdateCallback(function(allRequests) {
+			var files = {All: {file: 'All', count: 0, totalTime: 0}};
+			var totalFiles = 0;
+			
+			allRequests.forEach(function(request) {
+				var file = tools.getFileByPath(request.url);
+				files[file] = files[file] || {file: file, count: 0, totalTime: 0, domain: tools.getURLDomain(request.url)};
+				
+				files[file]['count']++;
+				files[file]['totalTime']+= parseFloat(request.runTime);
+				totalFiles++;
+				
+				files['All']['count']++;
+				files['All']['totalTime']+= parseFloat(request.runTime);
+			});
+
+			// return the values
+			var values = [];
+			if (totalFiles > 0) {
+				values.push(files['All']);
+				for (var fileName in files) {
+					if (fileName != 'All') {
+						values.push(files[fileName]);
+					}
+				}
+			}
+			return values;
+		});
+		
+		table.setColumns([{
+			propertyName: 'file',
+			width: '10%',
+			getHtml: function(val, rec) { return table.createCheckboxColumn(val, rec, table); }
+		}, {
+			propertyName: 'file',
+			width: '45%',
+			getHtml: function(val, rec) {
+				if (zendDevBar.embeddedMode) {
+				    val += (val.toLowerCase() != 'all') ? '<br><small class="zdb-summary-row-more-info">' + rec.domain + '</small>' : '';
+				} 
+				return val;
+			}
+		}, {
+			label: 'Count',
+			propertyName: 'count',
+			width: '10%',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function (val) {
+				return '('+val+')';
+			}
+		}, {
+			propertyName: 'totalTime',
+			width: '35%',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function (val) {
+				return zendDevBar.formatters.formatMicroseconds(val)
+			}
+		}]);
+
+		// bind to save button
+		$zendDevBar('.zsb-request-info-details-wrapper .zdb-export-results-btn').click(function() { mainTable.exportResults('Page and Requests', table); });
+	});
+	
+	/////////////////////////////////////////////
+	// callbacks
+	/////////////////////////////////////////////
+	
+	// runs once. only when the page loads
+	zendDevBar.registerOnUpdateLabel('requests', function($, data) {
+		// ..
+	});
+
+	zendDevBar.registerRequestsListReset(function($) {
+		zendDevBar.getStorage('requests').reset();
+		zendDevBar.getStorage('requests-full-data').reset();
+		
+		totalRequestsBadge.reset();
+		unseenWarnings = unseenCritical = unseenResponseErrors = unseenSessionOversize = 0;
+
+		updateLabel({		
+			// response status
+			httpResponse: ' ',
+			// the shortened URL 
+			text: 'No requests',
+			// html title above all the requests data area
+			title: 'No requests'
+		});
+	});
+	
+	zendDevBar.registerHandler('requests', function($, data) {
+		totalRequestsBadge.setSeverity('normal', 'override the current state!!!');
+
+		// hide the collapsed mode badge
+		hideCollapsedModeBadge();
+		
+		unseenWarnings = unseenCritical = unseenResponseErrors = unseenSessionOversize = 0;
+
+		// update the title
+		var newTitle = getLabel().text.text() + "\nTotal " + totalRequestsBadge.getNumber() + ' request' + (totalRequestsBadge.getNumber() != 1?'s':'');
+		getLabel().wrapper.attr('title', newTitle);
+	});
+	
+	zendDevBar.registerRequestsListUpdater(function($, requests) {
+
+		// add the full requests data to the storage
+		var fullDataStorage = zendDevBar.getStorage('requests-full-data');
+		fullDataStorage.addData(requests);
+	
+		// collect requests data
+		var requestsData = [];
+		if (requests && requests.length > 0) {
+			requests.forEach(function (req, i) {
+				var requestStatistics = getRequestStatistics(req);
+				var badgeType = getBadgeType(req);
+				
+				if (req.RequestInfo) {
+
+					// add number of reqeusts per page
+					req.RequestInfo.totalQueries = req.SqlQueries && req.SqlQueries.length ? req.SqlQueries.length : 0;
+					requestsData.push(req.RequestInfo);
+
+					// add severity to the request
+					req.RequestInfo.severity = badgeType;
+				}
+				
+				// update the badge
+				totalRequestsBadge.increment();
+
+				// update the color only if the requests panel is not open
+				var requestsPanelIsOpen = zendDevBar.popupActiveElement && zendDevBar.popupActiveElement.length == 1 && zendDevBar.popupActiveElement.hasClass('zdb-request-details');
+				if (!requestsPanelIsOpen) {
+					// update unseen errors
+					unseenSessionOversize+= requestStatistics.sessionOversize;
+					unseenResponseErrors+= requestStatistics.responseError;
+					unseenWarnings+= requestStatistics.events.warning + requestStatistics.logs.warning;
+					unseenCritical+= requestStatistics.events.critical + requestStatistics.logs.critical;
+					
+					// update the badge
+					totalRequestsBadge.setSeverity(badgeType);
+
+					// update the collapsed mode badge
+					updateCollapsedModeBadge(badgeType);
+				}
+			});
+		}
+
+		// add the requests to the storage
+		var storage = zendDevBar.getStorage('requests')
+		storage.addData(requestsData);
+		
+		zendDevBar.finishLoading('requests');
+	});
+
+    if (zendDevBar.requestsSeparated) {
+    	// remove "Page" from "Page Requests" on the requests panel title
+    	var $requestsHeader = tools.getContainer().find('.zdb-toolbar-detail h1'); 
+    	$requestsHeader.text('Requests');
+    	
+    	// add "pause/resume" and "erase" controls near the title
+    	$requestsHeader.append($zendDevBar('' +
+        	'<ul id="zdb-requests-title-buttons">'+
+    	      '<li id="zdb-requests-title-button-pause-resume" title="Pause tracking"></li>'+ // default is "pause", for `play` add `class="zdb-play"`
+    	      '<li id="zdb-requests-title-button-erase" title="Clean requests information"></li>'+
+    	    '</ul>'
+    	));
+
+    	var $pauseButton = $zendDevBar('#zdb-requests-title-button-pause-resume'); 
+        $pauseButton.on('click', function() {
+        	zendDevBar.pauseRequests();
+        	
+        	if ($pauseButton.hasClass('zdb-play')) {
+        		$pauseButton.removeClass('zdb-play');
+        		$pauseButton.attr('title', 'Pause tracking');
+        	} else {
+        		$pauseButton.addClass('zdb-play');
+        		$pauseButton.attr('title', 'Resume tracking');
+        	}
+        });
+
+        $zendDevBar('#zdb-requests-title-button-erase').on('click', function() {
+        	zendDevBar.cleanRequests();
+        });
+
+        // hide the summary table. widths are fixed in "resize" callback in devbar.js
+        tools.getContainer().find('.zdb-summary-table-wrapper').css('display', 'none');
+    }
+	
+})();
+
+var pager = new $zendDevBar.zdbPager(zendDevBar.getStorage('requests'), $zendDevBar('.zsb-request-info-details-wrapper .zdb-pager').first());
+pager.onChangeGoToFirst = false;
+</script>

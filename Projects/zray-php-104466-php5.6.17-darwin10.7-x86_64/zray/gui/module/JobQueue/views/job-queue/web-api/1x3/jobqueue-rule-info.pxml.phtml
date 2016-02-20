@@ -1,0 +1,20 @@
+<?php 
+if (!isset($priorities)) {
+	$priorities = array();
+}
+
+if (!isset($applications)) {
+	$applications = array();
+}
+
+if (!isset($statuses)) {
+	$statuses = array();
+}
+?>
+
+	<responseData>
+		<ruleInfo>
+			<?php echo $this->JobsRuleXml($rule, $statuses, $priorities, $applications); ?>
+			<?php echo $this->JobsRuleDataXml($rule); ?>
+		</ruleInfo>
+	</responseData>

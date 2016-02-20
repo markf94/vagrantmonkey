@@ -1,0 +1,8 @@
+<?php
+$statistics['startup_time'] =  $this->webapidate(strtotime($statistics['startup_time']));
+$statistics['startup_timestamp'] =  strtotime($statistics['startup_time']);
+?>
+"responseData":{"jobqueueStatistics": <?php echo $this->json(array_combine(array(
+			'waiting', 'waitingPredecessor', 'inProgress', 'completed', 'failed', 'logicallyFailed', 'scheduled',
+			'avgWait', 'avgRun', 'added', 'served', 'startupTime', 'startupTimestamp'
+		), array_values($statistics))) ?>}

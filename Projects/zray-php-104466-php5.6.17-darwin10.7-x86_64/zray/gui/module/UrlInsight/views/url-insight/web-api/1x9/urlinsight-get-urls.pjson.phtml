@@ -1,0 +1,5 @@
+"responseData": {
+	"totalCount": <?php echo (isset($totalCount)) ? $totalCount : count($urls); ?>,
+	"totalTimeConsumption": <?php echo (isset($totalTimeConsumption)) ? $totalTimeConsumption : 0; ?>,
+	"urls": [<?php echo $this->urlinsightUrlsJson($urls); ?>]
+}

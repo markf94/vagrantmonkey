@@ -1,0 +1,366 @@
+<?php $page = 0; ?>
+<div id="selective-access-wizard-content" class="hidden">
+    <div>
+    <form id="selective-access-box" novalidate="novalidate">
+    	<div class="side-legend">
+    		<h1><?php echo _t('Allow Selective Access'); ?></h1>
+    		<ul>
+    			<li id="sl<?php echo $page++ ?>" class="legend_item selective-general">
+    			    <i></i>
+    				<h2><?php echo _t('General') ?></h2>
+    				<div class="item-selected-arrow"></div>
+    			</li>
+    			<li id="sl<?php echo $page++ ?>" class="legend_item selective-security">
+    			    <i></i>
+    				<h2><?php echo _t('Security') ?></h2>
+    				<div class="item-selected-arrow"></div>
+    			</li>
+    			<li id="sl<?php echo $page++ ?>" class="legend_item">
+    			    <i></i>
+    				<h2><?php echo _t('Actions');?></h2>
+    				<div class="item-selected-arrow"></div>
+    			</li>
+    		</ul>
+    	</div>
+    	<div class="simple-modal-toast message-box error hidden"></div>
+    	<fieldset class="wizard-page" id="selectiveGeneral">
+    		<div class="page-wrapper">
+        		<h2><?php echo _t('Configure General Settings') ?></h2>
+        		<table class="zend-form-table"><tbody>
+        			<tr>
+        				<td><label for="title"><?php echo _t('Name') ?></label></td>
+        				<td><input type="text" name="title" value="" placeholder="<?php echo _t('e.g. My New Access') ?>"></td>
+        			</tr>
+        			<tr class="settings-row-description">
+        				<td colspan="2"><div class="zend-form-table-description"><?php echo _t('For reference only, name the selective access configurations you are about to create.') ?></div></td>
+        			</tr>
+        			<tr>
+        				<td colspan="2">
+        				    <input type="checkbox" name="token" id="token" value="1" checked="checked">
+        				    <label for="token"><?php echo _t('Require Token') ?></label>
+        				    <div class="simple-modal-toast message-box notice hidden" id="selective-token-error" style="margin: 0; width: 270px; margin-left: 8px;"><?php echo _t('Token is required for enhanced security'); ?></div>
+        				</td>
+        			</tr>
+        			<tr class="settings-row-description">
+        				<td colspan="2"><div class="zend-form-table-description"><?php echo _t('Select this check-box to require an access token. Using an access token is an additional layer of security, requiring users to pass a token to the requested URL as a query (GET) parameter.') ?></div></td>
+        			</tr>
+        			<tr>
+        				<td><label for="tokenExpireDaysContainer"><?php echo _t('Expiration') ?></label></td>
+        				<td><div class="DG-spinner-wrapper"><div id="tokenExpireDaysContainer"></div> <label id="tokenExpireDaysLabel"><?php echo _t('Days') ?></label></div>
+        				<div class="DG-spinner-wrapper"><div id="tokenExpireHoursContainer"></div> <label id="tokenExpireHoursLabel"><?php echo _t('Hours') ?></label></div></td>
+        			</tr>
+        			<tr class="settings-row-description">
+        				<td colspan="2"><div class="zend-form-table-description"><?php echo _t('The time period after which selective access expires and access to Z-Ray is denied. Please note that once selective access is created, it is also made active immediately.') ?></div></td>
+        			</tr>
+        			</tbody>
+        		</table>
+    		</div>
+    	</fieldset>
+    	<fieldset class="wizard-page" id="selectiveSecurity">
+    		<div class="page-wrapper">
+        		<h2><?php echo _t('Configure Security Settings') ?></h2>
+        		<table class="zend-form-table"><tbody>
+        			<tr>
+        				<td><label for="ipRange"><?php echo _t('IP Restriction') ?></label></td>
+        				<td>
+        				    <input type="text" name="ipRange" id="ipRange" value="" placeholder="<?php echo _t('e.g. 10.0.0.1, 10.0.0.0/8') ?>" class="required"><br/>
+        				    <input type="checkbox" name="myip" id="myip" value="1" style="margin-top: 5px;">
+    				        <label for="myip"><?php echo _t('Use my browser\'s IP address') ?></label>
+        				</td>
+        			</tr>
+        			<tr class="settings-row-description">
+        				<td colspan="2"><div class="zend-form-table-description"><?php echo _t('Enter a comma-separated list of IP addresses and ranges allowed access to Z-Ray. Requests from other addresses will be denied. e.g. 127.0.0.1 will limit access to just the local machine, 10.0.0.0/8 will open up access to any address that starts with 10.') ?></div></td>
+        			</tr>
+        			<tr>
+        				<td><label for="urlToParse"><?php echo _t('URL Restriction') ?></label></td>
+        				<td><input type="text" name="urlToParse" id="urlToParse" value="" placeholder="<?php echo _t('e.g. http://example.com/') ?>"></td>
+        			</tr>
+        			<tr class="settings-row-description">
+        				<td colspan="2"><div class="zend-form-table-description"><?php echo _t('Enter a base URL with allowed access to Z-Ray. Z-Ray will be activated only for this URL and all paths below it.%sNote: If no URL is specified, Z-Ray will be activated for all requests.', array('<br />')) ?></div></td>
+        			</tr>
+        			</tbody>
+        		</table>
+        		<div class="simple-modal-toast message-box error hidden" id="selective-security-error" style="margin: 0;"></div>
+    		</div>
+    	</fieldset>
+    	<fieldset class="wizard-page last-wizard-page" id="selectiveOperations">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Configure Access Actions') ?></h2>
+			<table class="zend-form-table"><tbody>
+			     <tr>
+    				<td>
+    				    <input type="checkbox" name="inject" id="inject" value="1">
+    				    <label for="inject"><?php echo _t('Display Z-Ray on all pages open in a browser') ?></label>
+    				</td>
+    				<td></td>
+    			</tr>
+    			<tr class="settings-row-description">
+    				<td colspan="2"><div class="zend-form-table-description"><?php echo _t('Select this check-box to have Z-Ray displayed on any HTML-based page located on your web server and open in a browser.%sTo display Z-Ray only on Z-Ray Live!, leave this check-box unselected (ideal for debugging support cases, for example).', array('<br/>')) ?></div></td>
+    			</tr>
+    			<tr>
+    				<td>
+    				    <input type="checkbox" name="actions" id="actions" value="1">
+    				    <label for="actions"><?php echo _t('Allow server-side actions from Z-Ray') ?></label>
+    				</td>
+    				<td></td>
+    			</tr>
+    			<tr class="settings-row-description">
+    				<td colspan="2"><div class="zend-form-table-description"><?php echo _t('Select to allow server-side actions. Users will not be allowed to run server-side actions from Z-Ray if this check-box is not selected.') ?></div></td>
+    			</tr>
+    			</tbody>
+    		</table>
+		</div>
+	   </fieldset>
+    </form>
+    <div id="devbar-tokens-information" class="hidden"></div>
+    </div>
+</div>
+
+<script type="text/javascript">
+var selectiveSimpleModal = null;
+
+function cancelDialog() {
+	selectiveSimpleModal.hide();
+}
+
+window.addEvent('load', function() {
+
+		// stash away the wizard's content
+		$('selective-access-wizard-content').store('wizardContent', 
+			$('selective-access-wizard-content').getChildren().pick().dispose().show().outerHTML
+		);
+
+		$('add-selective-access-btn').addEvent('click', function(){
+			wizard = {
+					wizardComplete: function(){
+					},
+					wizardExitNext: function(target,current){
+						return true;
+					},
+					wizardExitPrev: function(target,current) {
+						return true;
+					}
+			};
+			
+			selectiveSimpleModal = new SimpleModal({width: 673, closeButton: false, offsetTop: 45,
+				hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+				template: "<div class=\"wizard-title\" id=\"wizard-title\">{_TITLE_}</div>\
+				<div class=\"contents\">{_CONTENTS_}</div>"});
+			
+			selectiveSimpleModal.show({
+			      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('working_with_authentication'); ?>"></a>',
+			      "model": "modal",
+			      /// retrieve from cold storage
+			      'contents': $('selective-access-wizard-content').retrieve('wizardContent')
+			    });
+
+			var wizardPages = {};
+
+			Object.append(wizardPages,
+				{
+					
+					"selectiveGeneral": { 
+						"onEnter": function(target, current) {
+							return true;
+						},
+						"onExit": function(target, current) {
+							return true;
+						}
+					},
+					"selectiveSecurity": { 
+						"onEnter": function(target, current) {
+							return true;
+						},
+						"onExit": function(target, current) {
+							if (target < current) {
+								return true;
+							}
+							
+							if ($('ipRange').get('value').trim() == '') {
+								$('selective-security-error').set('text', '<?php echo _t('IP Restriction is required'); // TRANSLATE ?>').removeClass('hidden')	
+								return false;
+							}
+
+							// if url is not empty - to validate the url
+							if ($('urlToParse').get('value') != '' && !validURL($('urlToParse').get('value').trim())) {
+								$('selective-security-error').set('text', '<?php echo _t("<URL Restriction> should be a valid absolute URL"); // TRANSLATE ?>').removeClass('hidden')	
+								return false;
+							}
+							
+							$('selective-security-error').addClass('hidden')
+							return true;
+						}
+					},
+					"selectiveOperations": { 
+						"onEnter": function(target, current) {
+							$('wizard-control-submit').show();
+
+							return true;
+						},
+						"onExit": function(target, current) {
+							if (target < current) {
+								$('wizard-control-submit').hide();
+								return wizard.wizardExitPrev(target,current);
+							}
+
+							if (target > current) {
+								$('wizard-control-submit').hide();
+								closeDialog();
+							}
+							return false;
+						}
+					},
+				});
+			
+			new FormWizard('selective-access-box', {"createControlArea": true,
+				"wizardControls": ["cancel", "submit", "forward", "backward"] }, wizardPages);
+
+
+			$('myip').addEvent('click', function(e){
+			    if (this.checked) {
+			        $('ipRange').set('value', '<?php echo $remoteAddr; ?>');
+			        $('ipRange').set('readonly', 'readonly');
+			    } else {
+			    	$('ipRange').set('value', '');
+			    	$('ipRange').set('readonly', null);
+			    }
+			});
+
+			$('token').addEvent('click', function(e){
+			    if (this.checked) {
+			    	$('selective-token-error').addClass('hidden');
+			    	$('selective-token-error').setStyle('display', 'none');
+			    } else {
+			    	$('selective-token-error').removeClass('hidden');			    	
+			    	$('selective-token-error').setStyle('display', 'inline-block');
+			    }
+			});
+			
+			/// spinners should initialize explicitly for use when the tokens area is displayed
+			if (!$('tokenExpiresDays')) {
+				Function.from(function(){new DG.Spinner( {
+					  renderTo : 'tokenExpireDaysContainer',
+					  id:'tokenExpiresDays',
+					  name: 'tokenExpiresDays',
+					  label: 'tokenExpireDaysLabel',
+					  increment:1,
+					  shiftIncrement:1,
+					  decimals:0,
+					  minValue:0,
+					  maxValue:365,
+					  value:0,
+					  disableWheel:true,
+					  disableArrowKeys:true,
+					  styles: {
+					    
+					  }
+					});
+		
+				new DG.Spinner( {
+					  renderTo : 'tokenExpireHoursContainer',
+					  id:'tokenExpiresHours',
+					  name: 'tokenExpiresHours',
+					  label: 'tokenExpireHoursLabel',
+					  increment:1,
+					  shiftIncrement:1,
+					  decimals:0,
+					  minValue:0,
+					  maxValue:23,
+					  value:1,
+					  disableWheel:true,
+					  disableArrowKeys:true,
+					  styles: {
+					    
+					  }
+					});
+				}).delay(200);
+				// delay spinner generation so that show completes. if we do not delay this causes the spinners to go wonky in initialization
+			}
+
+			$('selective-access-box').addEvent('submit', function(event){
+				event.preventDefault();
+				sendSelectiveForm();
+			});
+			
+		});
+	});
+function sendSelectiveForm() {
+	var formValues = $('selective-access-box').toObj();
+	var ttl = (Number.from(formValues.tokenExpiresDays) * 60 * 60 * 24) + (Number.from(formValues.tokenExpiresHours) * 60 * 60);
+	var ipRange = formValues.ipRange;
+	var title = formValues.title;
+	var inject = formValues.inject || '0';
+	var actions = formValues.actions || '0';
+	var token = formValues.token || '0';
+
+	inject = (inject == '1') ? 'TRUE' : 'FALSE';
+	actions = (actions == '1') ? 'TRUE' : 'FALSE';
+	token = (token == '1') ? 'TRUE' : 'FALSE';
+
+	/// Produce a token using webapi call
+	var request = new Request.WebAPI({
+		method: 'post',
+		url:'<?php echo $this->basePath(); ?>' + '/Api/zrayCreateSelectiveAccess',
+		data: {'iprange': ipRange, 'baseUrl': formValues.urlToParse, 'ttl' : ttl, 'title': title, 'inject': inject, 'actions': actions, 'token': token},
+		onSuccess: function(response) {
+			var tokenId = response.responseData.tokenId;
+			var token = response.responseData.hash;
+			var myipRange = response.responseData.iprange;
+			var ttl = removeTimezoneOffset(new Date(response.responseData.ttl * 1000));
+			var baseurl = response.responseData.baseUrl;
+			var title = response.responseData.title;
+
+			if ($('add-token-modal').retrieve('modal-content') == null) {
+			    $('add-token-modal').store('modal-content', $('add-token-modal').get('html'));
+			}
+			$('add-token-modal').set('html', $('add-token-modal').retrieve('modal-content'));
+			
+			$('devbar-tokens-information').set('html',
+			  '<h2>' + _t('Token Created Successfully for \'{tokenName}\'!', {tokenName: title}) + '</h2>' + // TRANSLATE
+			  getHtmlForTokenDisplay(myipRange, ttl, baseurl, token, title, 'modalSummary', 'accessTokenDetails')
+			);
+
+			selectiveSimpleModal.hide();
+
+			document.fireEvent('toast', {'message': 'Token was successfully created and will be active in a few seconds...'});
+			
+			zgrid2.loadData();
+
+			if (formValues.token == '1') {
+    			addApiKeysDialog = new SimpleModal({closeButton: false,
+    				hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+    				template: "<div id=\"simple-modal-box-devbar-token-create\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+    						   <div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+    						   <div class=\"simple-modal-footer\"></div></div>"
+    			});
+    
+    			addApiKeysDialog.addButton(_t("Finish"), "btn finish primary").show();
+
+    			addApiKeysDialog.show({
+    			      "model":	"modal",
+    			      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('enabling_disabling_the_devbar.htm'); ?>"></a>', 
+    			      "contents": $('add-token-modal').get('html')
+    			});
+			}
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			$('selective-access-box').unspin();
+		}
+	}).send();
+}
+
+function validURL(str) {
+	 var pattern = new RegExp('^(ht|f)tps?:\/\/'+ // protocol
+			  '[a-z0-9-\.]+\.[a-z]{2,4}\/?'+ // domain name + // OR ip (v4) address
+			  '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port
+			  '([^\s<>\#%":\d\,\{\}\\|\\\^\[\]`]+)?$','i'); // path
+
+	  if(!pattern.test(str)) {
+	    return false;
+	  } else {
+	    return true;
+	  }
+}
+</script>

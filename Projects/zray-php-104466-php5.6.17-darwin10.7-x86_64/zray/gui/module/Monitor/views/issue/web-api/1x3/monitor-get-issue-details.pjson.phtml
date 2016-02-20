@@ -1,0 +1,9 @@
+"responseData":{"issue":
+<?php echo $this->issueJson($issue, $applications[$issue->getBaseUrl()], $eventsData) ?>,
+"eventsGroups": [
+<?php $counter = 0; foreach($eventsGroups as $eventsGroupId => $eventsGroup) : /* @var $eventsGroup \EventsGroup\Container */?>
+<?php $comma = (++$counter < $totalCount ? ',' : '') ?>
+<?php echo $this->eventsGroupJson($eventsGroup, $serverIdstoNames) ?>
+<?php echo $comma ?>
+<?php endforeach; ?>
+]}

@@ -1,0 +1,17 @@
+"responseData":{
+    "queueStats": [
+    <?php 
+    $queueStatsObjects = array();
+    foreach ($queueStats as $qStat) { 
+            $queueStatsObjects[] = json_encode(array(
+                'queue_id' => $qStat->getQueueId(),
+                'running_jobs_count' => $qStat->getRunningJobsCount(),
+                'pending_jobs_count' => $qStat->getPendingJobsCount(),
+            ));
+    }
+    if (!empty($queueStatsObjects)) {
+        echo implode(',', $queueStatsObjects);
+    }
+    ?>
+    ]
+}

@@ -1,0 +1,26 @@
+<ul>
+<?php 	if ($event->getJavaBacktrace()): /// java exception event?>
+	<li><strong><?php echo _t('Error String'); ?></strong>
+	<?php echo $this->selectAll('error-data-error'); ?>
+	<div id="error-data-error"><?php echo htmlentities($event->getErrorString()) ?></div></li>
+	
+	<li><strong><?php echo _t('Java Stack'); ?></strong>
+	<?php echo $this->selectAll('error-data-java-stack'); ?>
+	<div id="error-data-java-stack"><?php echo htmlentities($event->getJavaBacktrace()) ?></div></li>
+	
+<?php 	elseif ($event->getClass()): /// custom event?>
+	<li><strong><?php echo _t('Error String'); ?></strong>
+	<?php echo $this->selectAll('error-data-error'); ?>
+	<div id="error-data-error"><?php echo htmlentities($event->getErrorString()) ?></div></li>
+<?php 	else: /// php error event?>
+<?php
+			$phpError = preg_replace('#(\<a.+href\=[\'\"])(.+[\'\"])(.+\>)#iU', '\\1http://www.php.net/\\2 target="_blank" \\3', $event->getErrorString());
+			if (is_null($phpError)) {
+				$phpError = $event->getErrorString();
+			}
+?>
+	<li><strong><?php echo _t('PHP Error'); ?></strong>
+	<?php echo $this->selectAll('error-data-php-error'); ?>
+	<div id="error-data-php-error"><?php echo htmlentities($phpError) ?></div></li>
+<?php 	endif;?>
+</ul>

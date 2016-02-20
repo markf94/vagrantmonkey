@@ -1,0 +1,49 @@
+<div id="bread-wrp" <?php echo ($this->isAllowed('data:useMultipleUsers')) ? 'class="page-description"' : ''; ?>>
+	<div id="bread">
+	   <?php if ($this->isAllowedEdition('data:useMultipleUsers')): // add message for free license?>
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Zend Server\'s user management allows you to control access to your servers and applications,
+				which together with the Audit Trail, ensure you know who is doing what, and when.
+				It also allows developers to safely access production metrics and diagnostics, with read-only permissions.
+				Using Extended Authentication, you can integrate with LDAP-based authentication systems to assign permissions by application or by user<br/>
+				%sread more%s', array("<a href=\"{$this->helplink('user_authentication_overview')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/user-management-in-zend-server-6-embed?ecat=breadcrumbs&amp;eaction=User Management">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/user_management-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+        <?php endif; ?>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<?php if (! $this->isAllowedEdition('data:useMultipleUsers')): // add message for free license?>
+<div class="marketing-content">
+	<div class="marketing-wrapper">
+		<a href="<?php echo $this->contactZend('server-6-users-get-pricing-info'); ?>" target="_blank">
+			<img alt="" src="<?php echo $this->basePath() . '/images/marketing/Users-and-Authentication-ZS6-marketing-banner.png'; ?>" border="0"/>
+		</a>
+	</div>
+	<div class="marketing-links-box users">
+		<span><?php echo _t('Learn more about this feature:')?></span>
+		 <div><img alt="" src="<?php echo $this->basePath() . '/images/marketing/help-icon.png'; ?>" border="0"/><a href="<?php echo $this->helplink('user_authentication_overview') ?>" target="_blank"><?php echo _t('User Management') ?></a></div>
+		 <div><img alt="" src="<?php echo $this->basePath() . '/images/marketing/help-icon.png'; ?>" border="0"/><a href="<?php echo $this->helplink('working_with_authentication') ?>" target="_blank"><?php echo _t('Working with Authentication') ?></a></div>
+		 <div><img alt="" src="<?php echo $this->basePath() . '/images/marketing/video-icon.png'; ?>" border="0"/><a class="video-link" href="http://www.zend.com/server/redirect/user-management-in-zend-server" target="_blank"><?php echo _t('Watch video') ?></a></div>
+	</div>
+
+</div>
+<?php endif ?>

@@ -1,0 +1,12 @@
+"responseData":{"systemInfo":{
+    "status": "<?php echo $status?>",
+    "edition": "<?php echo $edition?>",
+    "zendServerVersion": "<?php  echo $version?>",
+    "supportedApiVersions": ["application/vnd.zend.serverapi;version=1.2", "application/vnd.zend.serverapi;version=1.3", "application/vnd.zend.serverapi;version=1.4","application/vnd.zend.serverapi;version=1.5", "application/vnd.zend.serverapi;version=1.6", "application/vnd.zend.serverapi;version=1.7", "application/vnd.zend.serverapi;version=1.8", "application/vnd.zend.serverapi;version=1.9", "application/vnd.zend.serverapi;version=1.10", "application/vnd.zend.serverapi;version=1.11"],
+    "zendServerVersion": "<?php  echo $version?>",
+    "phpVersion": "<?php  echo $phpversion?>",
+    "operatingSystem": "<?php  echo $os?>",    
+    "deploymentVersion": "<?php  echo $deploymentversion?>",
+    "serverLicenseInfo": <?php  echo $this->licenseInfoJson($serverLicenseInfo, $numberOfNodes)?>,  
+    "managerLicenseInfo" : <?php  echo $this->licenseInfoManagerJson()?>
+}}

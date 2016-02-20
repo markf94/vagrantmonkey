@@ -1,0 +1,5 @@
+<?php if ($hasReadme) : ?>
+	<dl class="zend_form">
+		<dd><?php echo $this->parseMarkdown($form->get('readmeContent')->getValue()); ?></dd>
+	</dl>
+<?php endif; ?>

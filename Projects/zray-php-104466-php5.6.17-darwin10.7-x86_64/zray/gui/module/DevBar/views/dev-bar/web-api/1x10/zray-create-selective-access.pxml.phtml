@@ -1,0 +1,12 @@
+<responseData>
+	<accessToken>
+		<tokenId><?php echo $token->getId(); ?></tokenId>
+		<hash><?php echo $token->getToken(); ?></hash>
+		<iprange><![CDATA[<?php echo $token->getAllowedHosts(); ?>]]></iprange>
+		<baseUrl><![CDATA[<?php echo $token->getBaseUrl(); ?>]]></baseUrl>
+		<ttl><?php echo $token->getTtl(); ?></ttl>
+		<title><![CDATA[<?php echo $token->getTitle(); ?>]]></title>
+		<actions><?php echo $token->getActions() ? '1' : '0'; ?></actions>
+		<inject><?php echo $token->getInject() ? '1' : '0'; ?></inject>
+	</accessToken>
+</responseData>

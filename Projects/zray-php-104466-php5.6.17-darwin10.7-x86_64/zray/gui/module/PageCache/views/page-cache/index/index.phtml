@@ -1,0 +1,648 @@
+<?php echo $this->SearchField(); ?>
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'PageCache')) ?>"><?php echo _t("Caching"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<div id="grid-action-bar" class="grid-action-bar">
+	<?php if ($isAllowedToDeleteRules) : ?>
+	<button id="remove-rules-btn" onclick="deleteRules()" title="<?php echo _t('Remove rule'); ?>" disabled="disabled"><?php echo _t('Remove'); ?></button>
+	<?php endif; ?>
+	<?php if ($isAllowedToClearRulesCache) : ?>
+	<button id="clear-rules-cache-btn" onclick="clearRulesCache()" title="<?php echo _t('Clear cache'); ?>" disabled="disabled"><?php echo _t('Clear Cache'); ?></button>
+	<?php endif; ?>
+	<?php if ($isAllowedToClearCache) : ?>
+	<button id="clear-cache-btn" onclick="cleanCache()" title="<?php echo _t('Clear Entire Cache'); ?>" <?php echo (0 == count($rulesCount)) ? 'disabled="disabled"' : '' ?>><?php echo _t('Clear Entire Cache'); ?></button>
+	<?php endif; ?>
+	<?php // FREEZED: to be consistent with monitor rules // if ($isAllowedToCreateKey) : ?>
+	<!-- button id="new-rule-btn" onclick="window.location = '<?php echo $this->basePath()?>/PageCacheEditRule'" title="<?php echo _t('New rule'); ?>"><?php echo _t('New Rule'); ?></button -->
+	<?php //endif; ?>
+	<div style="float:right;">
+		<div class="searchField" id="pagecache-freetext" placeholder="<?php echo _t("Search..."); ?>"></div>
+	</div>
+</div>
+	
+<div id="rules_list"></div>
+
+<script type="text/javascript">
+var highlighted;
+var highlightWordFlag = false;	
+
+var applications = {<?php echo $this->partial('deployment/web-api/1x3/application-get-status.pjson.phtml', array('applications' => $applications, 'respondingServersCount' => $applications->count()))?>};
+var rowsChecked = 0;
+var keyupTimer;
+var rulesCount = <?php echo json_encode($rulesCount); ?>;
+
+window.addEvent("domready", function() {
+	persistantHeaders.addHeader('grid-action-bar');
+	persistantHeaders.addHeader('rules_list_tableHead');
+
+	var searchField = new SearchField();
+	searchField.addEvent('searchClicked', function(data, element) {
+		loadSearchData();
+	});
+	
+	var cmu = [
+		{
+			'title': _t('Name'),
+			'dataIndex': 'name',
+			'parser': function(name, rule) {
+				var globalCount = 0;
+				if (rulesCount['Global'] != undefined) {
+					globalCount = rulesCount['Global'];
+				}
+				
+				var customCount = 0;
+				var appId = rule.id.replace('app_', '');
+				if (rulesCount[appId] != undefined && appId != 'Global') {
+					customCount = rulesCount[appId];
+				}
+
+				var totalGlobalCount = '<span style="margin-left: 10px; font-size: 10px;">(' + globalCount + ' rules)</span>';
+				var totalApplicationCount = '<span style="margin-left: 10px; font-size: 10px;">(' + customCount + ' rules)</span>';
+
+				var appId = rule.id.replace('app_', '');
+				var ruleId = appId.replace('Global_', '');
+				var ruleId = ruleId.replace(rule.applicationId + '_', '');
+				if (appId != 'Global' && !appId.contains('_')) {
+					return '<img src="<?php echo $this->url('default', array('controller' => 'IssueList', 'action' => 'App-Icon')) ?>?id=' + appId + '" class="tableRow_app_icon" /> ' + name.htmlEntities() + totalApplicationCount;
+				} else if(appId != 'Global' && appId.contains('_')) {
+					if (rule.originalId != 'Message') {
+						name = '<a href="<?php echo "{$this->basePath('PageCacheEditRule')}?id="; ?>' + ruleId + '">' + name.htmlEntities() + '</a>';
+					} else {
+						name = name.htmlEntities();
+					}
+					var type = '<span style="margin-left:18px;">'+ name + '</span>';
+					return type;
+				} else {
+					return name.htmlEntities() + totalGlobalCount;
+				}
+			},
+			'width': '35%',
+			'seperator': false,
+			'rowExpand': false
+		},
+		{
+			'title': _t('Description'),
+			'dataIndex': 'type',
+			'parser': function(type, rule) {
+				var apps = applications.responseData.applicationsList;
+				var application = null;
+				for (var i in apps) {
+					if (apps[i].id == rule.controller) {
+						application = apps[i];
+						break;
+					}
+				}
+				
+				var url = '';
+				if (application && rule) {
+					/// replace host part in case we have a custom default server host
+					var baseUrl = application.baseUrl.replace(/(http:\/\/.+)\/.*/, '$1');
+					url = zGrid2.prototype.string(baseUrl) + '/'+rule.urlPath;
+				} else if (rule) {
+					url = rule.urlScheme + '://' + rule.urlHost 
+					if ('/' != rule.urlPath.substr(0, 1)) {
+						url += '/'; 
+					}
+					url += rule.urlPath;
+				}
+				var match = getMatchType(type);
+				
+				var message = 'Cache if URL ' + match + ' ' + url;
+				if (rule.lifetime) {
+					message += ', Duration ' + rule.lifetime + ' seconds';
+				}
+				return message;
+			},
+			'width': '65%',
+			'seperator': false
+		},
+		{
+			'title': _t('Edit'),
+			'dataIndex': 'edit',
+			'parser': zGrid2.prototype.button
+		},
+		{
+			'title': _t('Delete'),
+			'dataIndex': 'delete',
+			'parser': zGrid2.prototype.button
+		},
+		{
+			'title': _t('Export'),
+			'dataIndex': 'export',
+			'parser': zGrid2.prototype.button
+		},
+		{
+			'title': _t('New rule'),
+			'dataIndex': 'new_rule',
+			'parser': zGrid2.prototype.button
+		}
+		];
+
+		<?php 
+			$options = array(
+				'idColumn' 		=> 'id',
+				'multiSelect'	=> ($isAllowedToDeleteRules || $isAllowedToClearCache || $isAllowedToCreateKey),
+				'description' => false,
+				'rowExpand' => true
+			);
+		?>
+		zgrid = <?php echo $this->zGrid2('rules_list', 'cmu', $options); ?>
+
+		zgrid.addEvent('rowUpdated', function(params) {
+			<?php if ($isAllowedToCreateKey) : ?>
+			$('new_rule_' + params.id).removeClass('disabled');				
+			$('export_' + params.id).removeClass('disabled');				
+			<?php else: ?>
+			$('new_rule_' + params.id).addClass('disabled');
+			$('export_' + params.id).addClass('disabled');
+			<?php endif; ?>
+		});
+
+		// Description Open Event
+		zgrid.addEvent('descriptionOpen',function(params) {
+			if ($$('tr[parentid="' + params.row.id + '"]').length > 0) {
+				$$('tr[parentid="' + params.row.id + '"]').setStyle('display', '');
+				return;
+			}
+
+			if (isMessageRow(params.data, params.data.id)) {
+				return;
+			}
+			
+			// check if it's the click on a rule or the application name like app_5_9 and not just app_5 Or it's Global_digit
+			if (params.id.split("_").length > 2 || (params.id.contains('Global') && params.id.contains('_'))) {
+				this.removeHash('grid', params.id);
+				zgrid.fireEvent('buttonClick', {'rowId': params.id, 'type': 'edit', 'data': zgrid.getRowData(params.id)});
+				return;
+			}
+			
+			loadData(params);
+			
+	 });
+
+		if ($('new-rule-btn')) {
+			$('new-rule-btn').addEvent('click', function() {
+			zgrid.fireEvent('buttonClick', {'rowId': rowId, 'type': 'new_rule', 'data': []});
+				window.location = baseUrl() + '/PageCacheEditRule?appId=' + appId;
+			});
+		}
+
+		// Description Close event
+		zgrid.addEvent('descriptionClose',function(params) {
+			$$('tr[parentid="' + params.row.id + '"]').setStyle('display', 'none');
+		});
+		
+		// New row created event
+		zgrid.addEvent('newRowCreated', function(params) {
+			if (canDeleteRule(params.data, params.data.id)) {
+				$('tableRow_' + params.id).getElement('.new_rule').setStyle('display', 'none');	
+				$('tableRow_' + params.id).getElement('.export').setStyle('display', 'none');	
+			} else {// global section or application row
+				$('tableRow_' + params.id).getElement('.edit').setStyle('display', 'none');
+				$('tableRow_' + params.id).getElement('.delete').setStyle('display', 'none');
+				//zgrid.removeCheckbox(params.id);
+				if (isMessageRow(params.data, params.data.id)) {
+					$('tableRow_' + params.id).getElement('.new_rule').setStyle('display', 'none');
+					$('tableRow_' + params.id).getElement('.export').setStyle('display', 'none');
+					$('tableRow_' + params.id).removeEvents();
+				}
+			}
+			});
+			
+		zgrid.addEvent('newRowCreated', function(params) {
+
+			<?php if (! $isAllowedToDeleteRules) : ?>
+			$('tableRow_' + params.id).getElement('.delete').setStyle('display', 'none');
+			<?php endif ?>
+			
+			<?php if (! $isAllowedToCreateKey) : ?>
+			$('tableRow_' + params.id).getElement('.edit').setStyle('display', 'none');
+			$('tableRow_' + params.id).getElement('.new_rule').setStyle('display', 'none');
+			<?php endif ?>
+			
+			<?php if (! $isAllowedToExportRules) : ?>
+			$('tableRow_' + params.id).getElement('.export').setStyle('display', 'none');
+			<?php endif ?>
+			});
+
+		zgrid.addEvent('rowChecked',function(params) {
+
+			// return in case of remove rules from the row remove, not remove button click. Bug #ZSRV-9683
+			if (! params.data) {
+				return;
+			}
+			
+			// global section or application row
+			if (params.data.controller == undefined) {
+				if ($$('tr[parentid="tableRow_' + params.rowId + '"]').length == 0) {
+					zgrid.expandRow(params.rowId, params);
+				} else {
+					if (params.checked) {
+						$$('tr[parentid="tableRow_' + params.rowId + '"] .zgrid-checkbox').set('checked', true);
+					} else {
+						$$('tr[parentid="tableRow_' + params.rowId + '"] .zgrid-checkbox').set('checked', false);
+					}
+
+					$$('tr[parentid="tableRow_' + params.rowId + '"] .zgrid-checkbox').each(function(item) {
+						item.fireEvent('click');
+					});
+				}
+			} else {
+				if (params.checked) {
+					var allChecked = $$('tr[parentid="tableRow_' + params.data.controller + '"] .zgrid-checkbox').every(function(item, index){
+					    return item.get('checked');
+					});
+					if (allChecked) {
+						$('tableRow_' + params.data.controller).getElement('.zgrid-checkbox').set('checked', true);
+					}
+					rowsChecked++;
+				} else {
+					$('tableRow_' + params.data.controller).getElement('.zgrid-checkbox').set('checked', false);
+					rowsChecked--;
+				}
+			}
+
+			if (rowsChecked == 0) {
+				$('remove-rules-btn').set('disabled', true);
+				$('clear-rules-cache-btn').set('disabled', true);
+			} else if (Object.getLength(rulesCount) != 0) {
+				$('remove-rules-btn').set('disabled', false);
+				$('clear-rules-cache-btn').set('disabled', false);
+			}
+	 });
+
+		// Button Click event
+		zgrid.addEvent('buttonClick', function(params) {
+		var appId;
+			
+		if (params.data.controller) {
+			appId = params.data.controller.replace('app_', '');
+		} else {
+			 	appId = params.data.id.replace('app_', '');
+		}
+
+		if (appId.contains('Global')) {
+			appId = '-1';
+		}
+
+		switch (params.type) {
+				case 'edit':
+					window.location = baseUrl() + '/PageCacheEditRule?id=' + params.data.originalId;
+					break;
+				case 'new_rule':
+					if (appId != '') {
+						window.location = baseUrl() + '/PageCacheEditRule?appId=' + appId;
+						return;
+					} else {
+						window.location = baseUrl() + '/PageCacheEditRule';
+						return;
+					}
+					break;
+				case 'export':
+					if (appId == -1) {
+						// if Globals custom rules list is empty - cancel export 
+						if (rulesCount['Global'] == undefined || rulesCount['Global'] == 0) {
+							document.fireEvent('toastNotification', {'message': '<?php echo _t("There are no custom rules");	?>'});
+							return;
+						}
+					} else {
+						// if application custom rules list is empty - cancel export 
+						if (rulesCount[appId] == undefined || rulesCount[appId] == 0) {
+							document.fireEvent('toastNotification', {'message': '<?php echo _t("There are no custom rules");	?>'});
+							return;
+						}
+					}
+					
+					exportRules(params);
+					break;
+				case 'delete':
+					deleteRules(params);
+					break;
+			}
+		}.bind(this));
+
+		// last line
+		applications.responseData.applicationsList = applications.responseData.applicationsList.map(function(item){
+			item.id = "app_"+item.id;
+			item.name = item.userAppName;
+		return item;
+		});
+		
+		zgrid.setData(applications.responseData.applicationsList);
+		var firstRow = applications.responseData.applicationsList.pick();
+		if (firstRow) {
+		// Add Global row
+		zgrid.setRow({"id":'Global', "name":'Global Rules'}, "before", firstRow.id, true);
+		} else {
+			zgrid.setRow({"id":'Global', "name":'Global Rules'});
+		}
+
+		<?php if ($isAllowedToDeleteRules || $isAllowedToClearCache || $isAllowedToCreateKey): ?>
+			$('rules_list_tableHead').getElement('input[type="checkbox"]').setStyle('display', 'none');
+			var padd = new Element('div', {'style': "width: 24px;"});
+			padd.inject($('rules_list_tableHead').getElement('input[type="checkbox"]').getParent());
+		<?php endif ?>
+
+}.bind(this));
+
+function canDeleteRule(rule, rowId) {
+	if (rule.appName || rule.id == 'Global' || isMessageRow(rule, rowId)) {
+		return false;
+	}
+
+	return true;
+}
+
+function isMessageRow(rule, rowId) {
+	return rule.originalId == 'Message';
+}
+
+/**
+ * params.id - main element ID (i.e. app_17, Global)
+ */
+function loadData(params) {
+	var requestParams = {};
+	var url = '<?php echo "{$this->basePath()}/Api/pagecacheRulesList"; ?>';
+	if (params.id.test('^app_([0-9]+)$')) {
+		var rowId = params.id.match('^app_([0-9]+)$');
+		requestParams.applicationIds = [rowId[1]];
+	} else {
+		requestParams.applicationIds = [-1];
+	}
+	var freetext = $('pagecache-freetext_input').value;
+	requestParams.freeText = freetext;
+	
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url, 
+		data: requestParams, 
+		onComplete: function(response) {
+			if (response.responseData.rules.length > 0) {
+				// to reverse the array because we add the rows in the opposite order, but we want to save the order
+				response.responseData.rules.reverse(); 
+				response.responseData.rules.each(function(newRowData){
+					/// controller id is important for differentiating global rule row ids between different applications 
+					newRowData.controller = params.id;
+					newRowData.originalId = newRowData.id;
+					newRowData.id = params.id + '_' + newRowData.id;
+					zgrid.setRow(newRowData, 'after', params.id, true);
+					$(zgrid.options.tableRow + newRowData.id).setAttribute('parentId', params.row.id);
+				});
+			} else {
+				newRowData = {"id":'Message', "name":'No rules are found'};
+				newRowData.controller = params.id;
+				newRowData.originalId = newRowData.id;
+				newRowData.id = params.id + '_' + newRowData.id;
+				zgrid.setRow(newRowData, 'after', params.id, true);
+				$(zgrid.options.tableRow + newRowData.id).setAttribute('parentId', params.row.id);
+			}
+			// check all checkboxes if global rule or app selected
+			if ($(params.row.id).getElement('.zgrid-checkbox').get('checked')) {
+				$$('tr[parentid="' + params.row.id + '"] .zgrid-checkbox').set('checked', true);
+				$$('tr[parentid="' + params.row.id + '"] .zgrid-checkbox').each(function(item) {
+					item.fireEvent('click');
+				});
+			}
+		}
+	}).send(); 
+}
+
+function exportRules(params) {
+	var rowId = params.rowId.match('^app_([0-9]+)$');
+	// if Global
+	if (rowId == null) {
+		location.href = baseUrl() + '/PageCache/export';
+	} else {
+		location.href = baseUrl() + '/PageCache/export?applicationId=' + rowId[1];
+	}
+}
+
+function filterSelectedRows(selectedRows) {
+	return Object.filter(selectedRows, function(value, key){
+	    return value.controller != undefined;
+	});
+}
+
+function deleteRules(params) {
+	var endFunc = false;
+	var ruleIds = {};
+	var parentIds = {};
+
+	if (params) {
+		if (! canDeleteRule(params.data, params.rowId)) {
+			alert(_t('Rule cannot be removed'));
+			endFunc = true;
+			return;
+		}
+		parentIds[params.data.parentId] = params.data;
+		var ruleId = params.data.id.replace(params.data.controller + '_', '');
+		ruleIds[ruleId] = params.data;
+	} else {
+		var selectedRows = zgrid.getSelectedRows();
+		selectedRows = filterSelectedRows(selectedRows);
+		Object.each(selectedRows, function(row) {
+			if (! canDeleteRule(row, row.id)) {
+				alert(_t('Rule cannot be removed'));
+				endFunc = true;
+				return;
+			}
+			parentIds[row.parentId] = row;
+			var ruleId = row.id.replace(row.controller + '_', '');
+			ruleIds[ruleId] = row;
+		});
+	}
+
+	if (endFunc) {
+		return;
+	}
+
+	if (! confirm(_t('Are you sure you would like to remove the rule(s)?'))) {
+		return;
+	}
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("Removing rule..."); ?>'});
+
+	// remove rule
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/pagecacheDeleteRules'; ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'rules': Object.keys(ruleIds)},
+		onSuccess: function(response) {
+			// remove old rows
+			Object.each(ruleIds, function(item) {
+				zgrid.deleteRow(item.id);
+				Object.keys(zgrid.getRowsData()).each(function(gridItem) {
+					if (gridItem.replace(/app_[\w]_/,'') == item.originalId) {
+						zgrid.deleteRow(gridItem);
+					}
+				});
+				var appId = item.controller.replace('app_', '');
+				if (rulesCount[appId] != undefined) {
+					rulesCount[appId]--;
+				}
+				zgrid.updateData([zgrid.getRowData(item.controller)]);
+			});
+			document.fireEvent('refreshNotifications');
+		}.bind(this),
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("The rule/s has been removed");	?>'});
+}
+
+function clearRulesCache() {
+	var endFunc = false;
+	var ruleIds = {};
+	var parentIds = {};
+
+	var selectedRows = zgrid.getSelectedRows();
+	selectedRows = filterSelectedRows(selectedRows);
+	Object.each(selectedRows, function(row) {
+		parentIds[row.parentId] = row;
+		var ruleId = row.id.replace(row.controller + '_', '');
+		ruleIds[ruleId] = row;
+	});
+
+	if (! confirm(_t('Are you sure you would like to clear the rule(s) cache?'))) {
+		return;
+	}
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("Clear cache..."); ?>'});
+
+	// remove rule
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/pagecacheClearRulesCache'; ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'rules': Object.keys(ruleIds)},
+		onSuccess: function(response) {
+		}.bind(this),
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("The rule/s has been cleared");	?>'});
+}
+
+function cleanCache() {
+	
+	if (! confirm(_t('Are you sure you would like to clear the entire cache?'))) {
+		return;
+	}
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("Clear cache..."); ?>'});
+	
+	var params = {
+		component: 'Zend Page Cache',
+	};
+	
+	var actionUrl = "<?php echo $this->basePath() . '/Api/cacheClear'; ?>";
+	
+	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+
+	onSuccess: function(response) {
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("The cache was cleared"); ?>'});
+	},
+	onFailure: function() {
+		document.fireEvent('toastAlert', {'message': '<?php echo _t("The cache could not be cleared"); ?>'});
+	}});
+	
+	request.post();
+}
+
+function loadSearchData() {
+	var freetext = $('pagecache-freetext_input').value;
+	highlighted = freetext;
+
+	var requestParams = {freeText: freetext};
+	var url = '<?php echo "{$this->basePath()}/Api/pagecacheRulesList"; ?>';
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url, 
+		async: false,
+		data: requestParams,
+		onSuccess: function(response) {
+			if (response.responseData.rules.length == 0) {
+				document.fireEvent('toastNotification', {'message': '<?php echo _t("No Page Cache rules were found"); ?>'});
+				return;
+			}
+			//Remove all rows
+			$$('tr[parentid^=tableRow_]').each(function(row) {
+				zgrid.deleteRow(row.id.replace('tableRow_', ''));
+			});
+			
+			// to reverse the array because we add the rows in the opposite order, but we want to save the order
+			response.responseData.rules.reverse();
+			var rowsToExpand = new Array();
+			response.responseData.rules.each(function(row) {
+				if (row.applicationId == -1) {
+					rowId = 'Global';
+				} else {
+					rowId = 'app_' + row.applicationId;
+				}
+				if (rowsToExpand.indexOf(rowId) == -1) {
+					rowsToExpand.push(rowId);
+				}
+				// Add found items
+				// controller id is important for differentiating global rule row ids between different applications 
+				row.controller = rowId;
+				row.originalId = row.id;
+				row.id = rowId + '_' + row.id;
+				zgrid.setRow(row, 'after', rowId, true);
+				$(zgrid.options.tableRow + row.id).setAttribute('parentId', zgrid.options.tableRow + rowId);
+				highlightWordFlag = true;
+				highlighted = freetext;
+			});
+
+			for (var i = 0; i < rowsToExpand.length; i++) {
+				$(zgrid.options.tableRow + rowsToExpand[i]).addClass('active');
+				zgrid.addHash('grid', rowsToExpand[i]);
+			}
+		}
+	}).send(); 
+
+	if (freetext.length > 0) {
+		highlighter = <?php echo $this->highlighter('#rules_list_table'); ?>;
+		highlighter.highlight(highlighted);
+	}	
+}
+
+function getMatchType(type) {
+	var matchTypeDictionary = <?php echo $matchTypeDictionary; ?>;
+	if (matchTypeDictionary[type]) {
+		return matchTypeDictionary[type];
+	} else {
+		return 'Unknown Type';
+	}
+}
+
+function search(event) {
+	if (event.key == 'enter') {
+		loadSearchData();
+		return;
+	}
+	if (keyupTimer) {
+		clearTimeout(keyupTimer);
+	}
+	keyupTimer = setTimeout(function() {loadSearchData()}, 500);
+}
+
+function clearSearch() {
+	$('pagecache-freetext_input').value = '';
+	$$('tr[parentid^=tableRow_]').each(function(row) {
+		zgrid.deleteRow(row.id.replace('tableRow_', ''));
+	});
+	 
+	highlighter = <?php echo $this->highlighter('#rules_list_table'); ?>;
+	highlighter.unhighlight(highlighted);
+		
+	// @todo: Check which row was expanded and load data for this row?	
+}
+</script>

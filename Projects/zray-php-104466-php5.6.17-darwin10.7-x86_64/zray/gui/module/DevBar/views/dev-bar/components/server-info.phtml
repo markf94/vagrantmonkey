@@ -1,0 +1,266 @@
+<div class="zdb-toolbar-group zdb-toolbar-group-serverinfo">
+	<div class="zdb-toolbar-entry zdb-collapse-btn zdb-align-right zdb-toolbar-button">
+		<div class="zdb-toolbar-preview">
+			<div class="zdb-toolbar-icon" title="Collapse/Expand<?php echo (empty($collapse)) ? '' : ' (' . strtoupper($collapse) . ')'; ?>"></div>
+			<span class="zdb-toolbar-info">&nbsp;</span>
+		</div>
+		<div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+	</div>
+	<div class="zdb-toolbar-entry zdb-close-btn zdb-align-right zdb-toolbar-button">
+		<div class="zdb-toolbar-preview">
+			<div class="zdb-toolbar-icon" title="Customize and control Z-Ray"></div>
+			<span class="zdb-toolbar-info">&nbsp;</span>
+		</div>
+		<div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+	</div>
+	<div class="zdb-toolbar-entry zdb-errors-flag zdb-align-right zdb-toolbar-button">
+		<div class="zdb-toolbar-preview">
+			<div class="zdb-toolbar-icon">Err</div>
+			<span class="zdb-toolbar-info">&nbsp;</span>
+		</div>
+		<div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+	</div>
+	<div class="zdb-toolbar-entry zdb-server-info zdb-align-right zdb-toolbar-button">
+		<div class="zdb-toolbar-preview">
+			<?php
+			$titleOverTheIcon = 'Zend Server Z-Ray';
+			if (isAzureEnv()) {
+				$titleOverTheIcon = 'Z-Ray for Azure';
+			}
+			if (isZrayStandaloneEnv()) {
+				$titleOverTheIcon = 'Z-Ray';
+			}
+			?>
+			<a href="<?php echo $baseUrl; ?>" target="_blank" class="zdb-toolbar-icon" title="<?php echo $titleOverTheIcon; ?>"></a>
+			<span class="zdb-toolbar-info">&nbsp;</span>
+		</div>
+		<div class="zdb-toolbar-detail zdb-toolbar-detail-redundant"></div>
+	</div>
+</div>
+
+<script type="text/javascript">
+(function() {
+	var jquery = zendDevBar.getJquery();
+
+	zendDevBar.registerCollapseHandler('serverinfo', function() {
+		jquery('#zend-dev-bar .zdb-toolbar-group').addClass('zdb-collapsed-group');
+		jquery('#zend-dev-bar .zdb-close-btn').addClass('hidden');
+	});
+
+	zendDevBar.registerExpandHandler('serverinfo', function(){
+		jquery('#zend-dev-bar .zdb-toolbar-group').removeClass('zdb-collapsed-group');
+		jquery('#zend-dev-bar .zdb-close-btn').removeClass('hidden');
+	});
+
+	if (zendDevBar.embeddedMode) {
+		jquery('.zdb-collapse-btn .zdb-toolbar-icon').remove();
+	} else {
+		jquery('.zdb-collapse-btn .zdb-toolbar-icon').click(function(event){
+			if (jquery('#zend-dev-bar').hasClass('zdb-collapsed')) {
+				zendDevBar.expandBar();
+			} else {
+				zendDevBar.collapseBar();
+			}
+		});
+	}
+	
+	if (zendDevBar.isElementDisabled()) {
+		zendDevBar.devBar.find(".zdb-server-info .zdb-toolbar-detail").addClass('zdb-toolbar-detail-redundant');
+		
+		jquery('.zdb-close-btn').qtip({ // Grab some elements to apply the tooltip to
+			style: {
+		        classes: 'zendDevBarQtip'
+		    },
+	        content: {
+	        	text: function(event, api) {
+	        		if (zendDevBar.notBootstrap()) {
+						var completeInstallation = jquery('<li>Complete Zend Server installation</li>');
+						completeInstallation.click(function(event){
+							var win = window.open(zendDevBar.baseUrl, '_blank');
+							win.focus();
+							jquery('.zdb-close-btn').qtip('api').hide();
+		        		});
+	        		} else if (zendDevBar.licenseExpired()) {
+	        			var completeInstallation = jquery('<li>Update your Zend Server license</li>');
+						completeInstallation.click(function(event){
+							var win = window.open(zendDevBar.baseUrl, '_blank');
+							win.focus();
+							jquery('.zdb-close-btn').qtip('api').hide();
+		        		});
+	        		}
+
+					var closeDevBar = jquery('<li>Close Z-Ray</li>');
+					closeDevBar.click(function(event){
+						zendDevBar.closeDevBar();
+						jquery('.zdb-close-btn').qtip('api').hide();
+					});
+
+					var learnHowToDisable = jquery('<li>Learn more on how to disable the Zend Server Z-Ray</li>');
+					learnHowToDisable.click(function(event){
+						var win = window.open('http://www.zend.com/azure/redirect/helplink/z-ray', '_blank');
+						win.focus();
+						jquery('.zdb-close-btn').qtip('api').hide();
+					});
+
+					var closeButtons = jquery('<div></div>');
+					var closeButtonsList = jquery('<ul></ul>');
+					closeButtonsList.append(completeInstallation);
+					closeButtonsList.append(closeDevBar);
+					closeButtonsList.append(learnHowToDisable);
+					closeButtons.append(closeButtonsList);
+	                
+	                return closeButtons;
+	            }
+	        },
+	        show: {
+	            event: 'click'
+	        },
+	        hide: {
+	        	event: 'click unfocus'
+            },
+	        position: {
+	            my: 'bottom right',
+	            at: 'top center',
+	            effect: false
+	        },
+	        events: {
+		    	show: function(event, api) {
+		    		zendDevBar.postMessage('resize', Math.max(zendDevBar.getHeight(), 300));
+		    	},
+		    	hide: function(event, api) {
+		    		zendDevBar.postMessage('resize', zendDevBar.getHeight());
+		    	}
+	        }
+	    });
+	} else {
+		jquery('.zdb-close-btn').qtip({ // Grab some elements to apply the tooltip to
+			style: {
+		        classes: 'zendDevBarQtip'
+		    },
+	        content: {
+	        	text: function(event, api) {
+	        		var settingsBtn = jquery('<li>Settings</li>');
+	        		settingsBtn.click(function(event){
+	        			var win = window.open(zendDevBar.baseUrl + '/Z-Ray/<?php echo isAzureEnv() || isZrayStandaloneEnv() ? 'Advanced/' : 'Settings/'; ?>', '_blank');
+						win.focus();
+						jquery('.zdb-close-btn').qtip('api').hide();
+	        		});
+
+	        		var helpBtn = jquery('<li>Help</li>');
+	        		helpBtn.click(function(event){
+		        		<?php if (isAzureEnv()) { ?>
+		        		var win = window.open('http://www.zend.com/azure/redirect/helplink/z-ray', '_blank');
+		        		<?php } elseif (isZrayStandaloneEnv()) { ?>
+		        		var win = window.open('http://files.zend.com/help/Z-Ray/content/home.htm', '_blank');
+		        		<?php } else { ?>
+		        		var win = window.open('http://www.zend.com/server/redirect/helplink/z-ray', '_blank');
+		        		<?php } ?>
+						win.focus();
+						jquery('.zdb-close-btn').qtip('api').hide();
+	        		});
+
+	        		var generalButtons = jquery('<ul></ul>');
+	        		generalButtons.append(settingsBtn);
+	        		generalButtons.append(helpBtn);
+
+	        		var feedbackBtn = jquery('<li>Tell us what you think</li>');
+	        		feedbackBtn.click(function(event) {
+						<?php if (isZrayStandaloneEnv()) { ?>
+	        			var win = window.open('http://www.zend.com/redirect/z-ray-preview/feedback', '_blank');
+						<?php } else { ?>
+	        			var win = window.open('http://www.zend.com/server/redirect/z-ray-feedback?ecat=Z-Ray&eaction=Feedback', '_blank');
+						<?php } ?>
+						win.focus();
+						jquery('.zdb-close-btn').qtip('api').hide();
+	        		});
+
+	        		var feedbackButtons = jquery('<ul></ul>');
+	        		feedbackButtons.append(feedbackBtn);
+
+	        		<?php if (! isAzureEnv() && !isZrayStandaloneEnv()): ?>
+	        		var morePluginsBtn = jquery('<li class="get-more-plugins">Get more plugins</li>');
+	        		morePluginsBtn.click(function(event){
+	        			var win = window.open(zendDevBar.baseUrl + '/Plugins/Gallery', '_blank');
+						win.focus();
+						jquery('.zdb-close-btn').qtip('api').hide();
+	        		});
+	        		feedbackButtons.append(morePluginsBtn);
+	        		<?php endif; ?>
+		        	
+					var closeForPage = jquery('<li>Close</li>');
+					closeForPage.click(function(event){
+						zendDevBar.closeDevBar();
+						jquery('.zdb-close-btn').qtip('api').hide();
+	        		});
+
+					var closeForSession = jquery('<li>Close for session</li>');
+					closeForSession.click(function(event){
+						jquery('.zdb-close-btn').qtip('api').hide();
+						if (confirm('<?php echo _t('Z-Ray will be closed for this browser session, and will only reappear once the session is cleared.\n\nAre you sure you wish to proceed?');  ?>')) {
+							zendDevBar.closeDevBarSession();
+						}
+					});
+
+					var resetSettings = jquery('<li>Reset display settings</li>'); 
+					resetSettings.click(function(event){
+						zendDevBar.resetCookieParams();
+						jquery('.zdb-close-btn').qtip('api').hide();
+					});
+					
+					var closeCompletely = jquery('<li>Disable</li>'); 
+					closeCompletely.click(function(event){
+						var win = window.open(zendDevBar.baseUrl + '/Z-Ray/<?php echo isAzureEnv() ? 'Mode/' : 'AccessMode/'; ?>', '_blank');
+						win.focus();
+						jquery('.zdb-close-btn').qtip('api').hide();
+					});
+
+					var closeButtons = jquery('<div></div>');
+					var closeButtonsList = jquery('<ul></ul>');
+					closeButtonsList.append(resetSettings);
+					closeButtonsList.append(closeCompletely);
+					closeButtonsList.append(closeForSession);
+					// freezed, the same as close for a session
+					//closeButtonsList.append(closeForPage);
+					
+					var infoStr;
+					<?php if (isAzureEnv()) : ?>
+					infoStr = 'Z-Ray: 1.0 Preview 2<br/>PHP Version: <?php echo phpversion(); ?>';
+					<?php elseif (isZrayStandaloneEnv()) : ?>
+					infoStr = 'Z-Ray: 1.0 Preview 1<br/>PHP Version: <?php echo phpversion(); ?>';
+					<?php else : ?>
+					infoStr = 'Zend Server: <?php echo $zsversion; ?></br>PHP Version: <?php echo phpversion(); ?>';
+					<?php endif; ?>
+					closeButtons.append('<div style="padding: 10px; line-height: 18px; color: #808080;">' + infoStr + '</div>');
+					closeButtons.append('<hr/>');
+					closeButtons.append(generalButtons);
+					closeButtons.append('<hr/>');
+					closeButtons.append(feedbackButtons);
+					closeButtons.append('<hr/>');
+					closeButtons.append(closeButtonsList);
+	                
+	                return closeButtons;
+	            }
+	        },
+	        show: {
+	            event: 'click'
+	        },
+	        hide: {
+	        	event: 'click unfocus'
+            },
+	        position: {
+	            my: 'bottom right',
+	            at: 'top center',
+	            effect: false
+	        },
+	        events: {
+		    	show: function(event, api) {
+		    		zendDevBar.postMessage('resize', Math.max(zendDevBar.getHeight(), 320));
+		    	},
+		    	hide: function(event, api) {
+		    		zendDevBar.postMessage('resize', zendDevBar.getHeight());
+		    	}
+	        }
+	    });
+	}
+})();
+</script>

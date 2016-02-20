@@ -1,0 +1,10 @@
+<?php $applications = $applications ?: new \ZendServer\Set(array()); ?>
+<?php if (! isset($servers)) $servers = array(); ?>
+<responseData>
+<applicationsList>
+<?php foreach($applications as $application) : /* @var $application \Deployment\Application\Container */?>
+<?php   isset($servers[$application->getApplicationId()]) ? $serversData = $servers[$application->getApplicationId()] : $serversData = array();?>
+<?php   echo $this->applicationInfoXml($application, $serversData);?>
+<?php endforeach ?>
+</applicationsList>
+</responseData>

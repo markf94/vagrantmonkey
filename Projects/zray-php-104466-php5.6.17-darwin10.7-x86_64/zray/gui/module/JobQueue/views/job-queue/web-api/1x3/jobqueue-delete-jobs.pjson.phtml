@@ -1,0 +1,11 @@
+"responseData":{"jobs":[
+	<?php
+	$jobsJson = array();
+	foreach($jobs as $job) {
+		$jobsJson[] = $this->JobJson($job, $applications);
+	}
+	echo implode(',', $jobsJson);
+	?>
+	
+],
+"total": <?php echo $jobs->getTotal() ?>}

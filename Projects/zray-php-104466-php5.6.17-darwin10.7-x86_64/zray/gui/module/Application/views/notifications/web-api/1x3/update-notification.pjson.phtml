@@ -1,0 +1,22 @@
+"responseData":{"notifications": [ 
+	<?php
+		$result = array();
+		foreach ($notifications as $notification) {
+			$result[] = <<<DATA
+			{
+				"id": "{$notification->getId()}",
+				"severity": "{$notification->getSeverity()}",
+				"creationTime": "{$notification->getCreationTime()}",
+				"type": "{$notification->getType()}",
+				"repeats": "{$notification->getRepeats()}",
+				"title": "{$notification->getTitle()}",
+				"description":"{$this->notificationDescription($notification)}",
+				"url":"{$notification->getUrl()}"
+			}
+DATA;
+		} 
+		
+		echo implode(',', $result);
+	?>
+	]
+}

@@ -1,0 +1,7 @@
+<?php $limitCount = count($plugins); ?>
+"responseData":{"plugins":[
+<?php $counter = 0; foreach($plugins as $plugin) : /* @var $plugin \Plugins\PluginContainer */?>
+<?php   echo $this->pluginInfoJson($plugin);?>
+<?php echo (++$counter < $limitCount ? ',' : ''); ?>
+<?php endforeach ?>
+]}

@@ -1,0 +1,10 @@
+<?php $servers = $servers ?: array(); ?>
+<responseData>
+	<serversList>
+		<?php
+		foreach ($servers as $server) {
+			echo $this->serverInfoXml($server);
+		}
+		?>
+	</serversList>
+</responseData>

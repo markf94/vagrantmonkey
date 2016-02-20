@@ -1,0 +1,8 @@
+"responseData":{
+"directives": [
+<?php $counter = 0;  foreach($directives as $dir) : /* @var $dir Configuration\DirectiveContainer /*/?>
+<?php $comma = (++$counter < count($directives) ? ',' : '') ?>
+<?php echo $this->DirectiveJson($dir) ?>
+<?php echo $comma ?>
+<?php endforeach; ?>
+]}

@@ -1,0 +1,111 @@
+<?php $isAuthorized = $this->isAllowed('route:JobQueueWebApi', 'jobqueueImportQueues'); ?>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Job Queue is a job management system that provides offline
+            				asynchronous processing of tasks and activities that can be run independently of
+            				the end user experience. Using the Job Queue API you can delay the execution of "heavy" parts
+            				of your Web application that originate from direct user interaction with a Web server,
+            				helping you to significantly improve response time and reduce Web server load<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('creating_a_queue')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a><?php echo _t("JobQueue"); ?></a></li>
+			<li><?php echo _t('Queues'); ?></li>
+			<li><?php echo _t('Import queues'); ?></li>
+		</ul>
+	</div>
+</div>
+
+<?php if ($error) { ?>
+<div class="form-error"><?php echo $error; ?></div>
+<?php } ?>
+<div class="settings-form-wrapper bordered-form">
+	<?php if (isset($_GET['alert_message']) && !empty($_GET['alert_message'])) { ?>
+	<div class="warningTopMessage warningTopMessageBorderedForm"><?php echo preg_replace('%<br[^>]*>%i', ' ', $_GET['alert_message']); ?></div>
+	<?php } ?>
+	
+	<?php if (!$isAuthorized) { ?>
+	<div class="warningTopMessage warningTopMessageBorderedForm">Importing queues is allowed only to the administrator</div>
+	<?php } ?>
+	
+	<?php echo $this->ZForm($importForm); ?>
+	
+	<?php // toolbar // ?>
+	<div class="form-row">
+		<div id="jobs-grid-actions-bar" class="grid-action-bar">
+			<input type="submit" id="queues_import" title="<?php echo _t('Import'); ?>" onclick="importQueues();" disabled="disabled" value="<?php echo _t('Import'); ?>" />
+			<input type="button" id="queues_import_cancel" title="<?php echo _t('Cancel'); ?>" onclick="document.location.href='<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'index')); ?>'" value="<?php echo _t('Cancel'); ?>" />
+		</div>
+	</div>
+	
+</div>
+<script>
+
+function getFormValues() {
+	var vals = {};
+	$$('.settings-form-wrapper input, .settings-form-wrapper select').each(function(elem, i) {
+		vals[elem.get('name')] = elem.get('value');
+	});
+	return vals;
+}
+
+function importQueues() {
+	<?php if (!$isAuthorized) { ?>
+	return;
+	<?php } ?>
+	if (confirm('Sure about importing queues?')) {
+		document.body.onbeforeunload = null;
+		$('queues_import').spin();
+		setTimeout(function() {
+			$('JobQueue_queues_import').submit();
+		}, 100);
+	}
+}
+
+window.addEvent("domready", function() {
+	
+	<?php if (isset($_GET['alert_message']) && !empty($_GET['alert_message'])) { ?>
+	document.fireEvent('toastAlert', {'message': '<?php echo addslashes($_GET['alert_message']); ?>'});
+	<?php } ?>
+	
+	$('JobQueue_queues_import').addEvent('change', function() {
+		document.body.onbeforeunload = function() {
+			return 'Changes were made';
+		};
+	});
+	
+	// enable "import" button once file is chosen
+	$('JobQueue_queue_import_file').addEvent('change', function(e) {
+		<?php if (!$isAuthorized) { ?>
+		$('queues_import').set('disabled', 'disabled');
+		return;
+		<?php } ?>
+
+		var fileElem = e.target;
+		if (fileElem.files.length > 0) {
+			// check that the file has ZIP extension 
+			var theFileName = fileElem.files[0].name;
+			if (!/\.zip$/g.test(theFileName)) {
+				$('queues_import').set('disabled', 'disabled');
+			} else {
+				$('queues_import').set('disabled', '');
+			}
+		}
+	});
+});
+</script>

@@ -1,0 +1,865 @@
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/FragmentManager.js' );?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/Spinner.js' );?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/zgridPolling.js' );?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/logs.css") ?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css") ?>
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/spinner-input.css") ?>
+
+
+<script type="text/javascript">
+var devBarAllowed = <?php echo $devBarAllowed ? 'true' : 'false' ?>;
+var devbarEnabled = <?php echo $devbarEnabled ? 'true' : 'false' ?>;
+var devbarMode = <?php echo intval($devbarMode) ?>;
+var devbarChanged = false;
+var tokensDisabled = false;
+var devbarObject = null;
+var useZRaySecureMode = <?php echo $useZRaySecureMode ? 'true' : 'false' ?>;
+
+document.body.onbeforeunload = null;
+
+window.addEvent('load', function(){
+	$('selective-access-tab-link').addEvent('click', function(event){
+		event.preventDefault();
+		checkDevbarChanged();
+	});
+	$$('#new-tabs-container li[section="devbar-tokens"]').addEvent('click', function(event){
+		event.preventDefault();
+		checkDevbarChanged();
+	});
+	
+	window.fireEvent('resize',{});
+	$$('#new-tabs-container li').addEvent('click', function() {
+		showSection(this);
+	});
+	<?php if (! $this->isAllowedIdentity('route:PluginsWebAPI', 'zrayCreateSelectiveAccess')): ?>
+	$$('#new-tabs-container li[section="devbar-tokens"]').setStyle('display', 'none');
+	<?php endif; ?>
+});
+
+function checkDevbarChanged() {
+	if (devbarChanged) {
+		alert('Changes were made to the form.\n\nPlease save your changes before switching tab.');
+		setTimeout(function() {
+			   $$('#new-tabs-container li[section="devbar-access"]').fireEvent('click');
+		}, 10);
+	}
+}
+
+function hideTabSection(sectionId) {
+	$$('li[section="' + sectionId + '"]').setStyle('display', 'none');
+	$$('li[section="' + sectionId + '"]').setStyle('border', '0');
+}
+
+window.addEvent("domready", function() { 
+	<?php if (isset($panel)) { ?>
+		<?php if ($panel == 'settings') { ?>
+			hideTabSection('devbar-access');
+			hideTabSection('devbar-tokens');
+		<?php } else { ?>
+			$$('.settings-section').setStyle('display', 'none');
+			$$('.settings-section').setStyle('border', '0');
+			$('new-tabs-container').setStyle('display', 'none');
+		<?php }; ?>
+		
+		$('section-devbar-<?php echo $panel; ?>').setStyle('display', 'block');
+	<?php }; ?>
+});
+	
+document.addEvent('modeChanged', function(event){
+	if (event.mode == 2) {
+		$('add-selective-access-btn').set('disabled', false);
+		$('devbar-tokens-secured-only-warning').hide();
+		$$('#devbar-tokens-table_table .zgrid_btn').show();
+		tokensDisabled = false;
+	} else {
+		$('add-selective-access-btn').set('disabled', true);
+		$('devbar-tokens-secured-only-warning').show();
+		$$('#devbar-tokens-table_table .zgrid_btn').hide();
+		tokensDisabled = true;
+	}
+
+	if (event.mode == 1) {
+		$('enabled-mode-directives').removeClass('hidden');
+	} else {
+		$('enabled-mode-directives').addClass('hidden');
+	}
+});
+
+function checkDevBarChanged() {
+	devbarChanged = (JSON.stringify(devbarObject) !== JSON.stringify($('devbar-access-form').toObj()));
+	if (devbarChanged) {
+    	document.body.onbeforeunload = function() {
+    	    return 'Changes were made to the form';
+    	};
+	} else {
+		document.body.onbeforeunload = null;
+	}
+}
+
+window.addEvent("load", function(){
+	<?php if ($azure) : ?>
+	$('zray.zendserver_ui_url').getParent('tr').setStyle('display', 'none');
+	$('zray.zendserver_ui_url').getParent('tr').getNext('tr').setStyle('display', 'none');
+	<?php endif; ?>
+
+	/// set up polling for waiting for tasks to be completed
+	var polling = new zGridPolling();
+	<?php if (!$azure && !$zrayStandalone) : ?>
+	var tasksRequest = new Request.WebAPI({url: '<?php echo $this->basepath('/Api/tasksComplete') ?>'});
+
+	tasksRequest.addEvent('success', function(response){
+		if (response.responseData.tasksComplete) {
+			polling.fireEvent('tasksComplete');
+		}
+	});
+	
+	tasksRequest.addEvent('complete', function(response){
+		if (response.responseData && ! response.responseData.tasksComplete) {
+			polling.next();
+		} else {
+			polling.stop();
+		}
+	});
+	
+	polling.addEvent('poll', function(){
+		tasksRequest.get();
+	});
+	<?php endif; ?>
+
+	polling.addEvent('tasksComplete', function(){
+		var restartRequest = new Request.WebAPI({url: '<?php echo $this->basepath('/Api/restartPhp') ?>'});
+		restartRequest.post({force: 'TRUE'});
+	});
+	
+	if (! devBarAllowed) {
+		$$('.notification-devbar-free').show();
+		$$('#section-devbar-access input').set('disabled', true);
+		$$('#devbar-settings input').set('disabled', true);
+		$$('#add-selective-access-btn').pick().set('disabled', true);
+		$$('#devbar-tokens-wrapper').pick().hide();
+	} else {
+		$$('.notification-devbar-free').hide();
+	}
+
+	if (! useZRaySecureMode) {
+		$$('input[name="zray.enable"][value="2"]').set('disabled', true);
+		$('secured-not-available-warning').removeClass('hidden');
+	}
+	
+	
+	$$('input[name="zray.enable"]').addEvent('click', function(event){
+		checkDevBarChanged();
+
+		if (event.target.get('value') == 1) {
+			$('enabled-mode-directives').removeClass('hidden');
+			$$('#enabled-mode-directives input').set('disabled', false);
+		} else {
+			$('enabled-mode-directives').addClass('hidden');
+			$$('#enabled-mode-directives input').set('disabled', true);
+		}
+	});
+
+	$$('input[name="zray.enable"][value="' + devbarMode + '"]').set('checked', true);
+
+	$$('#enabled-mode-directives input').addEvent('click', function(event){
+		checkDevBarChanged();
+	});
+	
+	$$('input[name="zray.disable_injection"]').set('checked', <?php echo $disableInjection ? '0' : '1'; ?>);
+	$$('input[name="zray.disable_actions"]').set('checked', <?php echo $disableActions ? '0' : '1'; ?>);
+	
+	var devBarEnabled = ($$('input[name="zray.enable"]:checked').pick().get('value') != '0');
+
+	<?php if ($this->isAllowedIdentity('route:PluginsWebAPI', 'zrayCreateSelectiveAccess')): ?>
+	$('access-tokens-form-submit').addEvent('click', function(item) {
+		var newDevBarMode = $$('input[name="zray.enable"]:checked').pick().get('value');
+		var content = '';
+		var title = '';
+
+		if (devbarChanged) {
+
+			if (devbarMode == newDevBarMode) {
+				item.target.spin();
+				saveDevBarSettings(item.target.getParent('form'), function(){
+					polling.start();
+				});
+				return;
+			}
+			
+			if (devbarMode != 0 && newDevBarMode == 0) {
+				title = _t('Disable Z-Ray');
+				content = '<p><?php echo _t('In Disabled Mode, Z-Ray is completely disabled, and will not appear on any of the pages located on your Web server.')?><br /><?php echo _t('Likewise, selective access will no longer allow access to Z-Ray.')?><br/><?php echo _t('Are you sure you wish to proceed?') ?><br/><br/><a href="http://www.zend.com/server/redirect/more-about-z-ray" target="_blank"><?php echo _t('More about Z-Ray'); ?></a></p><br/>';
+			} else if (devbarMode != 1 && newDevBarMode == 1) {
+				title = _t('Enable Z-Ray');
+				content = '<p><?php echo _t('This action displays Z-Ray on any application located on your Web server and open in a browser.')?><?php echo isAzureEnv() || isZrayStandaloneEnv() ? '' : '<br />' . _t('This action requires a PHP restart to come into effect.') ?><br/><?php echo _t('Are you sure you wish to proceed?') ?><br/><br/><a href="http://www.zend.com/server/redirect/more-about-z-ray" target="_blank"><?php echo _t('More about Z-Ray'); ?></a></p><br/>';
+			} else if (devbarMode != 2 && newDevBarMode == 2) {
+				title = _t('Enable Z-Ray in Selective Mode'); 
+				content = '<p><?php echo _t('Selective mode will display Z-Ray only when an Access Token is provided.')?><?php echo isAzureEnv() || isZrayStandaloneEnv() ? '' : '<br />' . _t('This action requires a PHP restart to come into effect.') ?><br/><?php echo _t('Are you sure you wish to proceed?') ?><br/><br/><a href="http://www.zend.com/server/redirect/more-about-z-ray" target="_blank"><?php echo _t('More about Z-Ray'); ?></a></p><br/>';
+			}
+			
+			simpleModal = new SimpleModal({width: 673, closeButton: false, hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+				template: "<div id=\"simple-modal-box-devbar-mode\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>"+
+					"<div class=\"simple-modal-body\">{_CONTENTS_}"+
+					"<input type=\"checkbox\" id=\"devbar_status-confirm\" class=\"are-you-sure\"> <label for=\"devbar_status-confirm\"><?php echo _t('Yes, I\'m sure!')  ?></label>"+
+					"</div>"+
+					"<div class=\"simple-modal-footer\"></div></div>"});
+			simpleModal.addButton("<?php echo _t("Cancel") ?>", "btn", function() {
+				this.hide();
+				$$('input[name="zray.enable"][value="' + devbarMode + '"]').pick().click();
+				return;
+			});
+			simpleModal.addButton("<?php echo _t("Proceed") ?>", "btn primary", function(){
+				this.hide();
+				devBarEnabled = true;
+				item.target.spin();
+				saveDevBarSettings(item.target.getParent('form'), function(){
+					polling.start();
+				});
+			}.bind(simpleModal));
+
+			simpleModal.show({
+			  "model":	"modal",
+			  "title": title, 
+			  "contents": content
+			});
+
+			$('simple-modal-box-devbar-mode').getElement('input.are-you-sure').addEvent('click', function(e){
+				if (this.checked) {
+					$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', false);
+				} else {
+					$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', true);
+				}
+			});
+			
+			$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', true);
+
+			$$('#simple-modal-box-devbar-mode .btn.primary').pick().set('disabled', true);
+
+			//// do not execute alternative path 
+			return ;
+		}
+	});
+	<?php else : ?>
+	$$('#devbar-access-form input').set('disabled', true);
+	<?php endif; ?>
+
+	$$('#section-devbar-settings input[type="submit"]').addEvent('click', function(event) {
+		event.target.spin();
+		saveDevBarSettings(event.target.getParent('form'));
+	});
+
+	$$('#section-devbar-data-privacy input[type="submit"]').addEvent('click', function(event) {
+		event.target.spin();
+		saveDevBarSettings(event.target.getParent('form'));
+	});
+
+	$$('#section-devbar-data-granularity input[type="submit"]').addEvent('click', function(event) {
+		event.target.spin();
+		saveDevBarSettings(event.target.getParent('form'));
+	});
+
+	var fragment = new FragmentManager();
+	fragmentObject = fragment.getFragmentObject();
+	if (fragmentObject['panel'] != undefined && $('panel-' + fragmentObject['panel'])) {
+		$('panel-' + fragmentObject['panel']).click();
+	} else {
+		// click on the first element
+		showSection($$('#new-tabs-container li')[0]);
+	}
+
+
+
+	////// zgrid for devbar tokens
+	<?php if ($this->isAllowedIdentity('route:PluginsWebAPI', 'zrayListAccessTokens')): ?>
+	var cmu2 = [
+				{
+					'title': _t('ID'),
+					'dataIndex': 'tokenId',
+					'parser': zGrid2.prototype.string,
+					'width': '60px',
+					'sortable': true,
+					'sortBy': 'id',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Status'),
+					'dataIndex': 'inject',
+					'parser': zGrid2.prototype.string,
+					'width': '100px',
+					'parser': function(value, row) {
+						value = row.ttl;
+						if (new Date(value*1000) < new Date()) {
+							return '<div class="zgrid-status-disabled" title="Active">Expired</div>';
+						} else {
+							return '<div class="zgrid-status-ok" title="Active">Active</div>';
+						}
+					},
+					'sortable': true,
+					'sortBy': 'ttl',
+					'break': true,
+					'ellipsis': false
+				},
+				{
+					'title': _t('Name'),
+					'dataIndex': 'title',
+					'parser': zGrid2.prototype.string,
+					'width': '30%',
+					'sortable': true,
+					'sortBy': 'title',
+					'break': true,
+					'ellipsis': false
+				},
+				{
+					'title': _t('Restrictions'),
+					'dataIndex': 'iprange',
+					'parser': function(value, row) {
+						return '<?php echo _t('Accept from:')  ?> ' + value;
+					},
+					'sortable': false,
+					'width': '70%',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Expires'),
+					'dataIndex': 'ttl',
+					'parser': function(value, row) {
+						if (new Date(value*1000) < new Date()) {
+							return zGrid2.prototype.timestamp(value) + ' (Expired)';
+						}
+						return zGrid2.prototype.timestamp(value);
+					},
+					'width': '240px',
+					'sortable': true,
+					'sortBy': 'ttl',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Remove Access'),
+					'dataIndex': 'remove',
+					'parser': zGrid2.prototype.button
+				},
+				{
+					'title': _t('Copy Token to clipboard'),
+					'dataIndex': 'copy',
+					'parser': zGrid2.prototype.button
+				},
+				{
+					'title': _t('Expire this access'),
+					'dataIndex': 'expire',
+					'parser': zGrid2.prototype.button
+				}
+			];
+
+	<?php 
+	   $perPage = 300;
+		$options = array(
+			'idColumn' 	=> 'tokenId',
+			'sortBy'	=> 'title',
+			'limit'		=> $perPage,
+			'totalContainer' => 'audit-grid-action-bar'
+		);
+	?>
+	zgrid2 = <?php echo $this->zGrid2('devbar-tokens-table', 'cmu2', $options); ?>
+
+	pager = <?php echo $this->zPager('mypager', $perPage); ?>
+
+	var zgridLoadParams = {'page': 0, 'limit': <?php echo $perPage ?>, 'order': 'title', 'direction': 'DESC'};
+
+	var url = '<?php echo $this->basePath('/Api/zrayListAccessTokens') ?>';
+	zgrid2.loadRequest = new Request.WebAPI({
+		method: 'get',
+		url:url,
+		data: zgridLoadParams,
+		'link': 'cancel',
+		onSuccess: function(response) {
+			zgrid2.setData(response.responseData.accessTokens, response.responseData.totalCount);
+			pager.reloadData(pager.page, response.responseData.totalCount);
+		},
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+			zgrid2.postLoad();
+			zgrid2.setData([], 0);
+			pager.reloadData(1, 0);
+		}
+	});
+
+	zgrid2.addEvent('updateComplete', function(params) {
+		document.fireEvent('modeChanged', {'mode': devbarMode});
+	});
+	
+	zgrid2.addEvent('loadData', function(params) {
+		if (devBarAllowed) {
+			zgrid2.preLoad();
+			zgrid2.loadRequest.get(params);
+		}
+	});
+
+	zgrid2.addEvent('buttonClick', function(params) {
+		if (tokensDisabled || params.btn.hasClass('disabled')) {
+			return false;
+		}
+		
+		if (params.type == 'remove') {
+			var request = new Request.WebAPI({
+				method: 'post',
+				url:'<?php echo $this->basePath('/Api/zrayRemoveAccessToken'); ?>',
+				data: {'tokenId': params.rowId},
+				onSuccess: function(response) {
+					zgrid2.loadData();
+				},
+				onFailure: function(response) {
+					var decoded = this.decodeResponse(response);
+					document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+				},
+				onComplete: function(response) {
+				}
+			}).send();
+		} else if (params.type == 'copy') {
+			window.prompt('Press CTRL+C, then ENTER', '?zsdbt=' + params.data.hash);
+		} else if (params.type == 'expire') {
+			if (window.confirm('<?php echo _t('Expiring a token will immediately deny access to Z-Ray to any users that are currently using it. This action is irrevocable and a new Access Token will have to be issued to renew Z-Ray access.')  ?>')) {
+				var request = new Request.WebAPI({
+					method: 'post',
+					url:'<?php echo $this->basePath('/Api/zrayExpireAccessToken'); ?>',
+					data: {'tokenId': params.rowId},
+					onSuccess: function(response) {
+						zgrid2.loadData();
+					},
+					onFailure: function(response) {
+						var decoded = this.decodeResponse(response);
+						document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+					},
+					onComplete: function(response) {
+					}
+				}).send();
+			}
+		}
+	});
+
+	zgrid2.addEvent('rowUpdated', function(params) {
+		if (new Date(params.data.ttl*1000) < new Date()) {
+			$('expire_' + params.id).addClass('disabled');
+		} else {            	
+			$('expire_' + params.id).removeClass('disabled');
+		}
+		
+        if (params.data.hash == '') {
+        	$('copy_' + params.id).addClass('disabled');
+        } else {
+        	$('copy_' + params.id).removeClass('disabled');
+        }		
+	});
+	
+	pager.addEvent('pageSelect',function(params) {
+		pager.page = params.page;
+		this.reloadData(params);
+	}.bind(zgrid2));
+	
+	zgrid2.loadData();
+
+	zgrid2.addEvent('descriptionClose',function(params) {
+		Function.from(function(){
+			window.fireEvent('resize', {});
+		}).delay(500);
+	});
+	
+	zgrid2.addEvent('descriptionOpen',function(params) {
+
+		if ($('tableDescContent_' + params.id).get('html') != '') {
+			var myVerticalSlide = new Fx.Slide('tableDescContent_' + params.id);
+			myVerticalSlide.hide();
+			myVerticalSlide.slideIn();
+			Function.from(function(){
+				window.fireEvent('resize', {});
+			}).delay(500);
+			return;
+		}
+
+		
+		var rowContent = getHtmlForTokenDisplay(params.data.iprange, params.data.ttl, params.data.baseUrl, params.data.hash, params.data.title, 'tableDescContent_' + params.id, 'content');
+
+		$(params.rowId).set('html', rowContent);
+		var myVerticalSlide = new Fx.Slide('tableDescContent_' + params.id);
+		myVerticalSlide.hide();
+		myVerticalSlide.slideIn();
+
+		Function.from(function(){
+			window.fireEvent('resize', {});
+		}).delay(500);
+		
+	});
+	<?php endif; ?>
+
+	/// Access tokens UI can be blocked up until restart is completed (e.g. when token creation causes config change)
+	<?php if (!$azure && !$zrayStandalone) : ?>
+	notificationCenter.addEvent('restartComplete', function(){
+		$('devbar-access-form').getElement('input[type="submit"]').unspin();
+	});
+	<?php endif; ?>
+
+	<?php if (isset($panel) && $panel == 'settings') : ?>
+	$$('li[section="devbar-data-granularity"]').pick().click();
+	<?php endif; ?>
+
+	devbarObject = $('devbar-access-form').toObj();
+	
+	document.fireEvent('modeChanged', {'mode': devbarMode});
+}); /// end load event
+
+
+// display "restart" notification for "Z-Ray standalone", 
+// where we don't have control over server's restart
+function displayStrictRestartNotification() {
+	var simpleModal = new SimpleModal({
+		width: 673, 
+		closeButton: false, 
+		hideHeader: false, 
+		hideFooter: false, 
+		draggable: false, 
+		overlayClick: false,
+		template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\" style=\"display:block;\">{_TITLE_}</div>"+
+				"<div class=\"simple-modal-body\">{_CONTENTS_}</div>"+
+				"<div class=\"simple-modal-footer\"></div>"+
+				"</div>"
+	});	
+	
+	simpleModal.addButton("<?php echo _t("Ok") ?>", "btn primary", function() {
+		this.hide();
+	}.bind(simpleModal));
+	
+	simpleModal.show({
+		"model": "modal",
+		"title": 'Web server restart is required', 
+		"contents": '<strong>Your new settings have been saved.</strong><br/><br/>To apply the changes, please manually <u>restart your web server</u>.'
+	});
+}
+
+function saveDevBarSettings(item, successCallback) {
+	var form = item;
+	var directives = form.toObj();
+
+	// not for submit
+	if (directives['cleanUpLabel'] != undefined ) {
+		delete directives['cleanUpLabel'];
+	}
+	
+	if (directives['zray.enable'] == '1') {
+		directives['zray.disable_injection'] = ($$('input[name="zray.disable_injection"]').pick().get('checked')) ? '0' : '1';
+		directives['zray.disable_actions'] = ($$('input[name="zray.disable_actions"]').pick().get('checked')) ? '0' : '1';
+	}
+	
+	if (directives['zray.zendserver_ui_url']) {
+		
+		var validateUrl = new URI(directives['zray.zendserver_ui_url'],{'base': baseUrl()});
+
+		if (validateUrl.get('directory') != '/ZendServer') {
+			validateUrl.set('file', '');
+			validateUrl.set('directory', '/ZendServer');
+		}
+
+		if ( ! validateUrl.get('port')) {
+			if (validateUrl.get('scheme') == 'https') {
+				validateUrl.set('port', '<?php echo $securedGuiPort ?>');
+			} else {
+				validateUrl.set('port', '<?php echo $defaultGuiPort ?>');
+			}
+		}
+		
+		$('zray.zendserver_ui_url').set('value', validateUrl.toString());
+		
+		directives['zray.zendserver_ui_url'] = validateUrl.toString();
+	}
+	
+	var url = '<?php echo "{$this->basePath('/Api/configurationStoreDirectives')}" ?>';
+	var request = new Request.WebAPI({
+		url: url,
+		'version': '1.6',
+		onSuccess: function(response) {
+			<?php if ($zrayStandalone) { ?>
+			displayStrictRestartNotification();
+			<?php } else { ?>
+			document.fireEvent('toastNotification', {'message': '<?php echo _t("Your new settings have been saved"); ?>'});
+			<?php } ?>
+			
+			<?php if (!$azure && !$zrayStandalone) : ?>
+			if (successCallback) {
+				successCallback();
+			}
+			<?php else : ?>
+			form.getElements('input').unspin();
+			<?php endif; ?>
+		}.bind(form),
+		onComplete: function(){
+			devbarObject = $('devbar-access-form').toObj();
+			checkDevBarChanged();
+			if ( ! successCallback) {
+				/// success callback means that someone else will unspin the button
+				form.getElements('input').unspin();
+			}
+		},
+		onFailure: function(response) {
+			response = this.decodeResponse(response);
+			form.getElement('.settings-error').set('html', response.errorData.errorMessage);
+		}
+	});
+
+	DevbarChanged = false;
+	
+	request.post({'directives': directives});
+
+	if (directives['zray.enable']) {
+		devbarMode = directives['zray.enable'];
+		document.fireEvent('modeChanged', {'mode': devbarMode})
+	}
+}
+
+
+
+window.addEvent('resize', function(){
+
+	var windowHeight = window.getSize().y;
+	var topHeight = $('topbar').getSize().y + $('bread-wrp').getSize().y;
+
+	var logDisplayDimensions = $('log_display').getComputedSize({styles: ['padding','border','margin']});
+	var extrasDifference = logDisplayDimensions.totalWidth - logDisplayDimensions.width;
+});
+
+
+function showSection(current) {
+	<?php if (isset($panel) && $panel != 'settings') : ?>
+	return;
+	<?php endif; ?>
+	$$('#new-tabs-container li').removeClass('active').removeClass('selected');
+	section = current.get('section');
+	
+	current.addClass('selected active');
+	
+	$$('.settings-section').setStyle('display', 'none');
+	$('section-' + section).setStyle('opacity', '0');
+	$('section-' + section).setStyle('display', 'block');
+	$('section-' + section).tween('opacity', '1');
+
+	sectionChanged(section);
+	window.location.hash = 'panel=' + section;
+	window.fireEvent('resize',{});
+}
+
+function sectionChanged(section) {
+	switch (section) {
+		case 'notification-center':
+		case 'audit-trail':
+			var mailUsername = $$('input[name="zend_gui.mail_username"]').pick();
+			if (mailUsername && mailUsername.get('value').length > 0) {
+				$$('.notification-mail-not-configured').setStyle('display', 'none');
+			} else {
+				$$('.notification-mail-not-configured').setStyle('display', 'block');
+			} 
+			break;
+	}
+}
+
+function getHtmlForTokenDisplay(iprange, expires, baseUrl, hash, title, wrapperId, wrapperClass) {
+	
+	var html = '<div id="{wrapperId}" class="{wrapperClass}">';
+	if (hash != '') {
+    	html += '<h3>{tokenCopyMessage}</h3>\
+    		<div id="tokenURL"><span class="selectable">{tokenPrefix}{token}</span>\
+    		<div class="zdb-copy-img" title="Copy to clipboard" onclick="window.prompt(\'Press CTRL+C, then ENTER\', this.parentNode.getElements(\'span\').pick().innerHTML);"></div></div>\
+    		';
+	}
+	html += '<h3>{headline}</h3>{content}</div>';
+
+	var tokenPrefix = '?zsdbt=';
+	var limited = '';
+	var tokenCopyMessage = '';
+
+	var tokenHeadline = title;
+	
+	if (iprange) {
+		iprange = _t('IP: This token can only be accessed from these IP ranges: {iprange}', {'iprange': '<span class="details">'+iprange+'</span>'}); // TRANSLATE
+		limited = 'limited';
+	} else {
+		iprange = _t('IP: This token can be used to connect from any origin IP'); // TRANSLATE
+		limited = '';
+	}
+
+	iprange = '<li class="{limited}">{iprange}</li>'.substitute({'iprange': iprange, 'limited': limited});
+
+	if (baseUrl) {
+		tokenPrefix = baseUrl + '?zsdbt=';
+		baseUrl = _t('URL: This token can be used to access Z-Ray on: {baseUrl}', {'baseUrl': '<span class="details">'+baseUrl+'</span>'}); // TRANSLATE
+		tokenCopyMessage = '<?php echo _t('To use Z-Ray, copy this URL and paste in your browser.')?>';
+		limited = 'limited';
+	} else {
+		tokenCopyMessage = '<?php echo _t('To use Z-Ray, add this token to the page URL.')?>';
+		baseUrl = _t('URL: This token can be used to access Z-Ray on any URL on this server'); // TRANSLATE
+		limited = '';
+	}
+	baseUrl = '<li class="{limited}">{baseUrl}</li>'.substitute({'baseUrl': baseUrl, 'limited': limited});
+
+	if (expires) {
+		if (new Date(expires*1000) > new Date()) {
+			expires = _t('Time Duration: This token expires on: {expires}', {'expires': '<span class="details">'+formatDate(expires)+'</span>'});
+		} else {
+			expires = _t('Time Duration: This token has expired');
+		}
+		limited = 'limited';
+	} else {
+		expires = '';
+		limited = '';
+	}
+	expires = '<li class="{limited}">{expires}</li>'.substitute({'expires': expires, 'limited': limited});
+
+	var content = '<ul>{baseUrl}{iprange}{expires}</ul>'.substitute({'baseUrl': baseUrl, 'iprange': iprange, 'expires': expires});
+	var rowContent = html.substitute({'content': content,
+		'headline': '<?php echo _t('Token Restrictions') ?>','tokenPrefix': tokenPrefix, 
+		'token': hash, 'tokenCopyMessage': tokenCopyMessage,
+		'wrapperClass': wrapperClass, 'wrapperId': wrapperId}); // TRANSLATE
+
+	return rowContent;
+}
+
+</script>
+
+
+<div id="bread-wrp">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+			<i></i>
+			<div class="page-description-content-wrapper">
+				<div class="triangle"></div>
+				<div class="page-description-content" style="width: 700px;">
+				<table>
+					<tr>
+						<td>
+							<?php
+								if (isAzureEnv() || isZrayStandaloneEnv()) { 
+									if (isZrayStandaloneEnv()) {
+										echo _t('Selective access guarantees safe and secure access to Z-Ray in production. Using the selective mode, access to Z-Ray can be restricted according to IP, URL, and for a specific time duration.');
+									} elseif (isset($panel) && $panel == 'settings') {
+										echo _t('Z-Ray\'s advanced settings are used to configure the way request information is tracked and displayed in Z-Ray, while the privacy settings allow easy configuration of information masking.');
+									} elseif (isset($panel) && $panel == 'tokens') {
+										echo _t('Selective Access guarantee safe and secure access to Z-Ray in production. Using tokens, access to Z-Ray can be restricted according to IP, URL, and for a specific time duration.');
+									} else { // access
+										echo _t('Z-Ray can be used safely both in development and production. The Z-Ray access modes determine which pages located on the web server Z-Ray is displayed on. In development, Z-Ray can be enabled on all pages located on the web server. In production, the Selective mode restricts access to Z-Ray to URLs containing an access token.');
+									}
+								} else {
+									echo _t('Z-Ray monitors requests made to the Web server, and displays relevant, live and detailed information on a Web page component in your browser.  This information includes: request execution time,  events, log entries, database queries, functions, and more. Using Z-Ray, developers get real insight into their PHP code, allowing them to inspect, debug and optimize their pages, resulting in fast and stable applications. Z-Ray also tracks non-browser based requests (API requests, web services and mobile requests), and displays related information in Zend Server, on the Z-Ray Live! page.<br/>
+										  %sread more%s', array("<a href=\"{$this->helplink('z-ray_concept')}\" target=\"_blank\">",'</a>'));
+								}
+							?>
+						</td>
+						<td>
+							<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/z-ray-overview?ecat=breadcrumbs&amp;eaction=Z-Ray Overview">
+								 <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/z-ray-overview-screen.png">
+							</div>
+						</td>
+					</tr>
+				</table>
+				</div>
+			</div>
+		</div>
+		<?php if (!isZrayStandaloneEnv()) { ?>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZrayLive')) ?>"><?php echo _t("Z-Ray") ?></a></li>
+		</ul>
+		<?php } ?>
+	</div>
+</div>
+
+<div id="content_container">
+<div id="log_display" class="log_display float-left new-tabs">
+	<nav id="new-tabs-container">
+		<ul>
+			<li section="devbar-access" class="diagonal-tab active hidden loaded">Mode</li>
+			<li section="devbar-tokens" class="diagonal-tab hidden">Selective Access</li>
+		</ul>
+	</nav>
+	
+	
+	<div id="log_display" class="log_display float-left">
+		<h2 class="limitedTopMessage notification-devbar-free hidden"><?php echo _t('Z-Ray is not available in the Free edition. For information on other available editions, '); ?><a href="<?php echo $this->helpLink('zend_server_editions'); ?>" target="_blank"><?php echo _t('click here'); ?></a></h2>
+		
+		<div class="settings-section" id="section-devbar-access">
+			<div class="settings-wrapper" id="devbar-access-wrapper" onsubmit="return false;">
+				<h2><?php echo _t('Mode') ?></h2>
+				<form action="DevBar" method="post" name="devbar-access" id="devbar-access-form">
+				<table class="zend-form-table">
+				<tr class="settings-row-description">
+					<td colspan="2"><div class="zend-form-table-description"><?php echo _t('Configure the availability of Z-Ray - define where Z-Ray is displayed and when data is collected.%sLearn more about %sZ-Ray access modes%s.', array('<br />', '<a href="'. $this->helpLink('enabling_disabling_z-ray') .'" target="_blank">','</a>')) ?></div></td>
+				</tr>
+				<tr>
+					<td colspan="100%">
+						<ul class="list-with-descriptions">
+							<li><label><input type="radio" name="zray.enable" value="1">
+							<?php echo _t('Enabled') ?>
+							<span><?php echo _t('Collects data for all requests made to the Web server.%sThis mode is meant for developers and should not be used in production.', array('<br />')) ?></span></label>
+							</li>
+							
+							<div id="enabled-mode-directives" style="margin-left: 40px; margin-top: 20px;">
+								<li><label><input type="checkbox" name="zray.disable_injection" value="0">
+								<?php echo _t('Display Z-Ray on all pages open in a browser') ?>
+								<span><?php echo _t('Z-Ray will still be displayed on Z-Ray Live! if this check-box is not selected') ?></span></label>
+								</li>
+								<li><label><input type="checkbox" name="zray.disable_actions" value="0">
+								<?php echo _t('Allows server-side actions from Z-Ray') ?>
+								<span></span></label>
+								</li>
+							</div>
+							
+							<li><label><input type="radio" name="zray.enable" value="2">
+							<?php echo _t('Selective') ?>
+							<span><?php echo _t('Restricts access to Z-Ray according to IP, URL, and for a specific time duration.%sThis mode is meant for allowing secured access to Z-Ray in production.', array('<br />')) ?></span>
+							<span><?php echo _t('Configure selective access in the %sSelective Access%s tab', array(isAzureEnv() ? "<a id=\"selective-access-tab-link\" href=\"{$this->basepath('/Z-Ray/Tokens/')}\">" : "<a id=\"selective-access-tab-link\" onclick=\"showSection($$('#new-tabs-container li')[1])\" href=\"javascript:void(0)\">", '</a>')) ?></span>
+							</label>
+							
+							<div id="secured-not-available-warning" class="default-server-message hidden"><?php echo isAzureEnv() || isZrayStandaloneEnv() ? _t('The Z-Ray Selective Mode is only supported in the Standard edition. To use this feature, upgrade your license.') : _t('Not available in this edition'); ?></div>
+							</li>
+							<li><label><input type="radio" name="zray.enable" value="0">
+							<?php echo _t('Disabled') ?>
+							<span><?php echo _t('Disables Z-Ray data collection.%sZ-Ray is not displayed on pages open in a browser and in Z-Ray Live!%sZ-Ray Snapshots for URL Insight will not be affected. This mode is meant for production.', array('<br />', '<br />')) ?></span>
+							</label></li>
+						</ul>
+					</td>
+				</tr>
+				
+				<tr>
+				    <td>
+				        <?php if ($this->isAllowedIdentity('route:PluginsWebAPI', 'zrayCreateSelectiveAccess')): ?>
+				        <input id="access-tokens-form-submit" name="submit" type="submit" value="<?php echo ($azure || $zrayStandalone) ? _t('Save') : _t('Save and Restart Zend Server'); ?>">
+				        <?php endif; ?>
+				    </td>
+				</tr>
+				</table></form>
+			</div>
+		</div>
+		<div class="settings-section" id="section-devbar-tokens">
+			<div id="devbar-tokens-secured-only-warning" class="warningTopMessage"><?php echo _t('Selective Access can only be managed and used in Selective Mode') ?></div>
+			<div class="settings-wrapper" id="devbar-tokens-wrapper" onsubmit="return false;">
+				<h2><?php echo _t('Access Tokens (Selective Mode only)') ?></h2>
+				<div class="settings-desc">
+					<p><?php echo _t('To use Z-Ray in Selective Mode, selective access must be configured and granted to the end-user') ?></p>
+				</div>
+				<div id="devbar-tokens-table-wrapper">
+					<div class="grid-action-bar">
+						<button id="add-selective-access-btn" title="<?php echo _t('Allow Selective Access') ?>"><?php echo _t('Allow Selective Access') ?></button>
+					</div>
+					<div id="devbar-tokens-table"></div>
+				</div>
+				<div id="mypager"></div>
+				
+				<div id="add-token-modal" style="display: none;">
+					<h2><?php echo _t('Create Selective Access'); ?></h2>
+					<div id="devbar-tokens-information">
+					</div>
+				</div>
+				
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+<?php if ($this->isAllowedIdentity('route:PluginsWebAPI', 'zrayCreateSelectiveAccess')): ?>
+<?php echo $this->partial('dev-bar/index/selective-access', array('remoteAddr' => $remoteAddr)) ?>
+<?php endif; ?>

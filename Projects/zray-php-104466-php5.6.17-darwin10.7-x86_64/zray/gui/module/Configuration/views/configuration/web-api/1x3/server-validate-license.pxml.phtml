@@ -1,0 +1,8 @@
+<?php $licenseValidated === false ? $resultStr = 'false' : $resultStr = 'true'; ?>
+<responseData>
+    <licenseValidated><?php echo $resultStr?></licenseValidated>    
+    <licenseChange>
+    <?php echo $this->licenseChangeXml($licenseChangeContainer, true); ?>
+    <?php echo $this->licenseChangeXml($licenseChangeContainer, false); ?>
+	</licenseChange>
+</responseData>

@@ -1,0 +1,14 @@
+<?php if (isset($isEmpty)) : ?>
+The deployed library does not have any deployment prerequisites.
+<?php else : ?>
+
+<?php if (!$messages) return;?>
+<?php echo $this->AppPrerequisites($messages); ?>
+<script>
+var prerequisitesValid = true;	
+<?php if (!$isValid): ?>
+	var prerequisitesValid = false;
+<?php endif ?>
+</script>
+
+<?php endif; ?>

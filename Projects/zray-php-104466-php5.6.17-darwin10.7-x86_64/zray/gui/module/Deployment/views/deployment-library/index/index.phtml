@@ -1,0 +1,859 @@
+<?php $this->headLink()->appendStylesheet ( $this->basePath ('/css/appList.css')); ?>
+<?php $this->headLink()->appendStylesheet ( $this->basePath ('/css/libsList.css')); ?>
+<?php $this->headLink()->appendStylesheet ( $this->basePath ('/css/prereq.css')); ?>
+<?php $this->headScript()->appendFile ( $this->basePath('/js/deploymentWizard.js')); ?>
+<?php $this->headScript()->appendFile ( $this->basePath ('/js/FragmentManager.js'));?>
+<?php $this->headScript()->appendFile ( $this->basePath('/js/zgridPolling.js')); ?>
+<?php $this->headScript()->appendFile ( $this->basePath('/js/zgrid2.js')); ?>
+<?php $this->headScript()->appendFile ( $this->basePath('/js/version.js')); ?>
+<?php $this->headScript()->appendFile ( $this->basePath('/js/deploymentLibraries/updates.js')); ?>
+<?php $this->headScript()->appendFile ( $this->basePath('/js/deploymentLibraries/grid.js')); ?>
+
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Zend Server allows you to centrally deploy, manage and update Zend Framework, Symfony, or any other set of PHP library functions and classes, including your own custom libraries. Using Zend Server\'s centralized library management system, you do not need to worry about collisions between different library versions, or patching libraries inside each application - instead you have a set of centrally managed libraries to update in one place. Zend Server will automatically check to see if new versions of libraries are available, and seamlessly help you plug them in.<br/>
+				            %sread more%s', array("<a href=\"{$this->helplink('working_with_libraries')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-libraries-embed?ecat=breadcrumbs&amp;eaction=Working with Libraries">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/libraries-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Deployment')) ?>"><?php echo _t("Applications"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<script type="text/javascript">
+var libraryUpdates = <?php echo json_encode($libraryUpdates); ?>;
+var updatesCheck = <?php echo $this->libraryUpdateCheck(true); ?>
+var allowAutoPolling = false;
+
+var librariesPolling = new tasksPolling();
+librariesPolling.options.params = {};
+
+window.addEvent("domready", function() {
+
+	if (fragmentManager.getFragmentValue('Deploy') != null) {
+		fragmentManager.removeUriFragment('Deploy')
+		openWizard();
+	}
+	
+});
+
+librariesPolling.addEvent('poll', function(polling) {
+	var url = '<?php echo $this->basepath('/Api/libraryGetStatus') ?>';
+	var request = new Request.WebAPI({
+		method: 'get',
+		data:polling.params,
+		url:url
+	}).send();
+
+	request.addEvent('complete', function(response) {
+		this.next();
+	}.bind(this));
+
+	
+	request.addEvent('success', function(response) {
+		var libsCount = response.responseData.length;
+		var libraryInfo = [];
+		var versionsInfo = [];
+        var versionStatusMap = {};
+        var libraryVersionMap = {};
+        
+		response.responseData.each(function(library){
+
+			libraryInfo.append([{
+				'libraryId': library.libraryId,
+				'libraryName': library.libraryName,
+				'default': library.defaultVersion,
+				'status': library.status,
+				'libraryVersionsCount': library.libraryVersions.length,
+				'updateUrl': library.updateUrl,
+                'messages': [],
+                'defaultVersion' : library.defaultVersion,
+				'greatestVersion': library.libraryVersions.reduce(function(prev, current) {
+					/// js compares version strings correctly
+					if (prev == null) {
+						return current.version;
+					}
+					var currentVersion = new Version(current.version);
+					var otherVersion = new Version(prev);
+					return currentVersion.lessThan(otherVersion) ? prev : current.version;
+				}, library.libraryVersions.pick().version)
+            }]);
+
+			var libraryVersions = library.libraryVersions.map(function(libraryVersion){
+				return enrichLibraryVersionRecord(libraryVersion, library);
+			});
+
+            library.libraryVersions.each(function(libraryVersion){
+            	libraryVersionMap[libraryVersion.libraryVersionId] = libraryVersion;
+                versionStatusMap[libraryVersion.libraryVersionId] = {'libraryId': library.libraryId, 'name': library.libraryName, 'libraryVersionId': libraryVersion.libraryVersionId, 'libraryName': libraryVersion.version, 'status': libraryVersion.status, 'version': libraryVersion.version};
+            });
+
+			versionsInfo.append(libraryVersions);
+		});
+
+        var deployedVersionsId = this.hasTask('deploy');
+
+        if (Object.getLength(deployedVersionsId) > 0) {
+            Object.each(deployedVersionsId, function(action, versionId){
+                var library = versionStatusMap[versionId];
+                var status = library.status.toLowerCase();
+
+                if (zgrid2.getRowData(library.libraryId+'_'+versionId) == null) {
+	                zgrid2.setRow(libraryVersionMap[versionId], 'after', library.libraryId, true);
+
+		            // open the library versions list and than insert the new library version
+                	if (! zgrid2.isDescriptionOpen(library.libraryId)) {
+                		zgrid2.expandRow(library.libraryId);
+                	}
+                	
+	                $(zgrid2.options.tableRow + libraryVersionMap[versionId].libraryId).setAttribute('parentId', 'tableRow_' + library.libraryId);
+	                zgrid2.expandRow(libraryVersionMap[versionId].libraryId);
+                }
+                
+                if (['staged', 'active', 'deployed'].contains(status)) {
+                    librariesPolling.removeTask(versionId);
+                    document.fireEvent('toastNotification', {'message': _t("{libraryName} {version} was successfully deployed", {'libraryName': library.name, 'version': library.version})});
+                } else if (['error'].contains(status)) {
+                    librariesPolling.removeTask(versionId);
+                    document.fireEvent('toastAlert', {'message': _t("Failed to deploy {libraryName}", {'libraryName': library.name})});
+            	}
+            });
+        }
+
+        zgrid2.overrideData(libraryInfo, 'bottom', libraryInfo.length);
+		zgrid2.overrideOpenrowData(versionsInfo, 'bottom'); 
+
+        var deployedVersionsId = this.hasTask('redeploy');
+
+        if (Object.getLength(deployedVersionsId) > 0) {
+            Object.each(deployedVersionsId, function(action, versionId){
+                var library = versionStatusMap[versionId];
+                var status = library.status.toLowerCase();
+
+
+                if (['staged', 'active', 'deployed'].contains(status)) {
+                    librariesPolling.removeTask(versionId);
+                    document.fireEvent('toastNotification', {'message': _t("{libraryName} {version} was successfully redeployed", {'libraryName': library.name, 'version': library.version})});
+                } else if (['error'].contains(status)) {
+                    librariesPolling.removeTask(versionId);
+                    document.fireEvent('toastAlert', {'message': _t("Failed to redeploy {libraryName} {version}", {'libraryName': library.name, 'version': library.version})}); 
+                }
+            });
+        }
+
+        var removeVersionsId = this.hasTask('removeVersion');
+        if (Object.getLength(removeVersionsId) > 0) {
+            Object.each(removeVersionsId, function(action, versionId) {
+                if (! versionStatusMap[versionId]) {
+                    librariesPolling.removeTask(versionId);
+                    document.fireEvent('toastNotification', {'message': _t("Library version was successfully removed")}); 
+                }
+            });
+        }
+
+        var removeLibraryId = this.hasTask('removeLibrary');
+        if (Object.getLength(removeLibraryId) > 0) {
+            Object.each(removeLibraryId, function(action, versionId) {
+                if (! versionStatusMap[versionId]) {
+                    librariesPolling.removeTask(versionId);
+                    document.fireEvent('toastNotification', {'message': _t("Library was successfully removed")}); 
+                }
+            });
+        }
+
+	}.bind(this));
+	
+	request.addEvent('failure', function(response) {
+		if (response.responseData) {
+			document.fireEvent('toastAlert', {'message': response.responseData.errorData.errorMessage})
+		}
+	}.bind(this));
+}.bind(librariesPolling));
+
+function enrichLibraryVersionRecord(libraryVersion, library) {
+	libraryVersion.libraryId = '{libraryId}_{libraryVersionId}'
+		.substitute({'libraryId': library.libraryId, 'libraryVersionId': libraryVersion.libraryVersionId});
+
+	libraryVersion.controller = library.libraryId;
+	libraryVersion.originalId = libraryVersion.libraryVersionId;
+	libraryVersion.libraryName = libraryVersion.version;
+	libraryVersion.originalName = library.libraryName;
+	libraryVersion.originalServers = libraryVersion.servers;
+	libraryVersion.messages = libraryVersion.servers.map(function(server){
+                                    return server.lastMessage;
+                                }).filter(function(message){
+                                    return message != null;
+                                });
+
+	return libraryVersion;
+}
+
+function createRuleHelpTooltip() {
+	var tip = new FloatingTips('.rule-help', {
+		showDelay: 100,
+		hideDelay: 200,
+		content: 'rel',
+		position: 'right',
+		center: true, // Place the tip aligned with target
+		arrowSize: 8 // A bigger arrow!
+	});
+}
+
+<?php
+$prerequisitesUrl = $this->url ( 'default', array (
+		'controller' => 'DeploymentLibrary',
+		'action' => 'Get-Library-Prerequisites'
+) );
+?>
+var wizardUrl = '<?php echo $this->url ( 'default', array (
+		'controller' => 'LibraryWizard',
+		'action' => 'Wizard' 
+) );?>';
+var wizardUpdateUrl = '<?php echo $this->url ( 'default', array (
+		'controller' => 'LibraryWizard',
+		'action' => 'UpdateWizard'
+) );?>';
+
+var fragmentManager = new FragmentManager();
+
+function cancelDialog() {
+	simpleModel.hide();
+	wizard.wizardClosed();
+}
+
+function closeDialog() {
+	simpleModel.hide();
+}
+
+function checkUpdates() {
+	$('check-updates-btn').spinner = new Spinner($('check-updates-btn'));
+	$('check-updates-btn').spinner.show();
+	
+	var rows = zgrid2.getRowsData();
+	Object.each(rows, function(row) {
+		if (row.updateUrl) {
+			updatesCheck.check(row.libraryName, row.greatestVersion, row.updateUrl);
+			if ($('checkUpdate_' + row.libraryId)) {
+				$('checkUpdate_' + row.libraryId).addClass('hidden');
+			}
+		}
+	}); 
+}
+
+<?php if ($this->isAllowed('route:DeploymentLibraryWebAPI', 'libraryDeploy')): ?>
+function openWizard() {
+	simpleModel = new SimpleModal({
+		width: 673, closeButton: false, hideHeader: true, hideFooter: true, 
+		draggable: false, draggableContainer: 'wizard-title', 
+		overlayClick: false,
+		template: "<div class=\"contents\">{_CONTENTS_}</div>"});
+	simpleModel.show({
+      "model":"modal-ajax",
+      "param":{
+        "url": wizardUrl + '?wizardId=<?php echo mt_rand(100000,999999); ?>'
+      }
+    });
+}
+<?php else : ?>
+function openWizard() {
+	document.fireEvent('toastAlert', {'message': '<?php echo _t("You do not have the correct permissions for deploy libraries"); ?>'});
+}
+<?php endif; ?>
+
+<?php if ($this->isAllowed('route:DeploymentLibraryWebAPI', 'libraryDeploy')): ?>
+function openUpdateWizard(libraryId) {
+	simpleModel = new SimpleModal({
+		width: 673, closeButton: false, hideHeader: true, hideFooter: true, 
+		draggable: false, draggableContainer: 'wizard-title', 
+		overlayClick: false,
+		template: "<div class=\"contents\">{_CONTENTS_}</div>"});
+	simpleModel.show({
+      "model":"modal-ajax",
+      "param":{
+        "url":wizardUpdateUrl  + '?wizardId=<?php echo mt_rand(100000,999999); ?>' + '&libraryId=' + libraryId
+      }
+    });
+}
+<?php else : ?>
+function openUpdateWizard(libraryId) {
+	document.fireEvent('toastAlert', {'message': '<?php echo _t("You do not have the correct permissions for deploy libraries"); ?>'});
+}
+<?php endif; ?>
+
+function getLibraryPrerequisites(libraryId) {
+	if ($('prerequisites_' + libraryId).get('html') == '') {
+		$('prerequisites_' + libraryId).set('html', 'Loading... <img src="<?php echo $this->basePath('/images/preload-16.gif')?>" style="margin-top: 7px;" />');
+
+		//make the request
+		var prerequisitesUrl = '<?php echo $prerequisitesUrl; ?>';
+		var request = new Request.HTML({
+			method: 'post',
+			url: prerequisitesUrl,
+			data: {"library_id" : libraryId}, 
+			onSuccess: function(responseTree, responseElements, responseHTML, responseJavaScript) {
+				$('prerequisites_' + libraryId).set('html', responseHTML);
+			},
+			onFailure: function(response) {
+				var decoded = this.decodeResponse(response);
+				document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			}
+		}).send();
+	}
+}
+
+function htmlencode(str) {
+    return str.replace(/[&<>"']/g, function($0) {
+        return "&" + {"&":"amp", "<":"lt", ">":"gt", '"':"quot", "'":"#39"}[$0] + ";";
+    });
+}
+
+window.addEvent("load", function() {
+
+	persistantHeaders.addHeader('grid-action-bar');
+	persistantHeaders.addHeader('libraries_list_tableHead');
+
+    var cmu = [
+                {
+                    'title': _t('!'),
+                    'dataIndex': 'status',
+                    'parser': function(value, library) {
+						if (updatesCheck.inUpdateProcess(library.libraryName)) {
+							return "<img src='<?php echo $this->basePath('/images/preload-16.gif')?>' title=\"" + _t('Warning') + '" />';
+						}
+                    	
+                        var result = '';
+                        var libraryStatus = library.status.toLowerCase();
+                        if (['staged', 'active', 'deployed', 'error'].contains(libraryStatus) || libraryStatus.contains('error')) {
+                            if (['staged', 'active', 'deployed'].contains(libraryStatus)) {
+                                result = "<img src='<?php echo $this->basePath('/images/apps-status-ok.png')?>' title=\"" + _t('OK') + '" />';
+                            } else {
+                                result = "<img src='<?php echo $this->basePath('/images/apps-status-warning.png')?>' title=\"" + _t('Warning') + '" />';
+                            }
+                        } else {
+                            result = "<img src='<?php echo $this->basePath('/images/preload-16.gif')?>' title=\"" + _t('Warning') + '" />';
+                        }
+
+                        return result;
+                    },
+                    'width': '35px',
+                    'ellipsis': false
+                },
+                {
+					'title': _t('Name'),
+					'dataIndex': 'libraryName',
+					'parser': function(name, data) {
+							if (data.libraryVersionId) {
+								return "<span class=\"zgrid_td_label-indented\">" + _t('Version {name}', {'name': zGrid2.prototype.string(name)}) + "</span>";
+							} else {
+								if (data.libraryVersionsCount > 1) {
+									return _t("{name} ({count} versions)", {'name': zGrid2.prototype.string(name), 'count': data.libraryVersionsCount});
+								}
+
+								return zGrid2.prototype.string(name);
+							}
+						},
+					'width': '380px',
+					'seperator': false
+				},
+				{
+					'title': _t('Latest'),
+					'dataIndex': 'greatestVersion',
+					'parser': function(name, data) {
+							return name;
+						},
+					'width': '65px',
+					'tooltip': _t('Most current version installed for library')
+				},
+				{
+					'title': _t('Default'),
+					'dataIndex': 'default',
+					'parser': function(name, data) {
+							if (data.defaultVersion != undefined) {
+								if (data.libraryVersionsCount == 1) {
+									return '';
+								}
+								return data.defaultVersion;
+							}
+
+							if (data.default != undefined && data.default && data.controller != undefined && $$('tr[parentId="tableRow_' + data.controller + '"]').length > 1) {
+								return '<div class="zgrid-icon-ok" title="Default"></div>';
+							} else {
+								return '';
+							}
+						},
+					'width': '65px',
+				},
+				{
+					'title': _t('Messages'),
+					'dataIndex': 'messages',
+					'parser': function(location, data) {
+						if (updatesCheck.wasChecked(data.libraryName)) {
+							if (updatesCheck.needUpdate(data.libraryName, data.greatestVersion)) {
+								var updateData = updatesCheck.getUpdateData(data.libraryName);
+								return getUpdateRowMessage(data.libraryId, updateData.version, updateData.downloadUrl, updateData.releaseNotes);
+							} else {
+								return _t('The current library version is up-to-date.');
+							}
+						}
+
+						if (libraryUpdates[data.libraryName] != undefined) {
+							var updateData = JSON.decode(libraryUpdates[data.libraryName]['EXTRA_DATA']);
+							if (updatesCheck.versionCompare(updateData.version, data.greatestVersion) == 1) {
+								return getUpdateRowMessage(data.libraryId, updateData.version, updateData.downloadUrl, updateData.releaseNotes);
+							}
+						}
+						
+						if (data.libraryVersionId) {
+                            if (['deployed', 'staged', 'active'].contains(data.status.toLowerCase())) {
+                                return _t("Include path: {location}", {'location': zGrid2.prototype.string(data.installedLocation)});
+                            } else if (['error', 'stageerror', 'uploaderror', 'unstageerror'].contains(data.status.toLowerCase())) {
+                                if (data.messages.length == 0) {
+                                    return _t("Error in library package deployment process");
+                                }
+								
+								var errorMessage = null;
+								Object.each(data.messages, function(item, key) {
+									if (item.trim() != '') {
+										errorMessage = _t("Server reports error: {errorMessage}", {'errorMessage': htmlencode(item)});
+										return;
+									}
+								});
+								if (errorMessage != null) {
+									return errorMessage;
+								}
+                            } else {
+                                switch (data.status.toLowerCase()) {
+                                    case 'staging':
+                                        return _t('Staging library version...'); 
+                                        break;
+                                    case 'unstaging':
+                                        return _t('Removing library version...'); 
+                                        break;
+                                }
+                            }
+						} else {
+                            switch (data.status.toLowerCase()) {
+                                case 'staging':
+                                    return _t('Deploying library...'); 
+                                    break;
+                                case 'unstaging':
+                                    return _t('Removing library...'); 
+                                    break;
+                                case 'error':
+                                    return _t('Errors detected in deployed library'); 
+                                    break;
+                            }
+                        }
+						return '';
+					},
+					'width': '100%',
+					'headerSeperator': false,
+					'seperator': false
+				},
+				<?php if ($this->isAllowed('route:DeploymentLibraryWebAPI', 'libraryRemove')): ?>
+				{
+					'title': _t('Delete'),
+					'dataIndex': 'delete',
+					'parser': zGrid2.prototype.button
+				},
+				{
+					'title': _t('Redeploy'),
+					'dataIndex': 'redeploy',
+					'parser': zGrid2.prototype.button,
+					'display': function(data) {
+						if (data.libraryVersionId) {
+							return true;
+						}
+						return false;
+					}
+				},
+				{
+					'title': _t('Set as default version'), 
+					'dataIndex': 'default',
+					'parser': zGrid2.prototype.button
+				},
+				{
+					'title': _t('Check for library updates'),
+					'dataIndex': 'checkUpdate',
+					'parser': zGrid2.prototype.button,
+					'display': function(data) {
+						if (data.libraryVersionId) {
+							return false;
+						}
+						return true;
+					}
+				},
+				<?php endif; ?> 
+	    	];
+
+	<?php $options = array(
+    		'idColumn' 		=> 'libraryId',
+            'multiSelect'	=> true,
+			'description' => true,
+			'rowExpand' => true,
+			'multiSelect' => false
+    	); ?>
+
+    var libraryInfo = <?php echo $this->zGridLibraryDetails(); ?>;
+    
+	<?php $this->plugin('ZGrid2')->setWidgetClassName('deploymentLibrariesGrid'); ?>
+	zgrid2 = <?php echo $this->ZGrid2('libraries_list', 'cmu', $options); ?>
+
+	zgrid2.addEvent('overrideComplete', function(data) {
+		var disable = false;
+		Object.each(data.data, function(item) {
+			if (item != undefined && item.updateUrl != undefined && item.updateUrl != '') {
+				disable = true;
+				return;
+			}
+		});
+		<?php if ($this->isAllowed('route:DeploymentLibraryWebAPI', 'libraryDeploy')): ?>
+	    if (! disable) {
+	    	$('check-updates-btn').set('disabled', true);
+	    } else {
+	    	$('check-updates-btn').set('disabled', false);
+	    }
+	    <?php endif; ?>
+	});
+
+	zgrid2.addEvent('rowUpdated', function(params) {
+		if (! $('default_' + params.data.libraryId)) {
+			return ;
+		}
+
+		if (params.data.controller != undefined) {
+			$('descIndicator_' + params.data.libraryId).hide();
+			if (params.data.default != undefined) {
+				if (params.data.default) {
+					$('default_' + params.data.libraryId).addClass('hidden');
+				} else {
+					$('default_' + params.data.libraryId).removeClass('hidden');
+				}
+			}
+		} else {
+			$('default_' + params.data.libraryId).addClass('hidden');
+		}
+	});
+	
+	zgrid2.addEvent('buttonClickdelete', function(params) {
+		deleteAppDialog = new SimpleModal({width: 673, closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+					   <div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+					   <div class=\"simple-modal-footer\"></div></div>"
+		});
+
+		deleteAppDialog.addButton(_t("Cancel"), "btn");
+		deleteAppDialog.addButton(_t("Remove"), "btn primary", function(btn) {
+			var url = '';
+			var requestParams = {};
+			var actionMessage = '';
+			var failedMessage = '';
+			var taskType = '';
+			if (params.data.libraryVersionId) {
+				// create the actual delete
+				requestParams = {'libVerId': params.data.libraryVersionId, 'ignoreFailures': 'TRUE'}
+				url = '<?php echo $this->basepath('/Api/libraryVersionRemove') ?>';
+				actionMessage = '<?php echo _t('Removing library version...') ?>';
+				failedMessage = 'Failed to remove library version: {errorMessage}';
+				taskType = 'removeVersion';
+			} else {
+				requestParams = {'libId': params.data.libraryId, 'ignoreFailures': 'TRUE'}
+				url = '<?php echo $this->basepath('/Api/libraryRemove') ?>';
+				actionMessage = '<?php echo _t('Removing library...') ?>';
+				failedMessage = 'Failed to remove library: {errorMessage}';
+				taskType = 'removeLibrary';
+			}
+
+            librariesPolling.stop();
+			var request = new Request.WebAPI({
+				url: url,
+				onSuccess: function(response) {
+                    var libraryVersion = response.responseData.pick().libraryVersions.pick();
+                    librariesPolling.setTask(libraryVersion.libraryVersionId, taskType);
+                    document.fireEvent('toastNotification', {'message': actionMessage});
+				},
+				onFailure: function(response) {
+                    var responseData = this.decodeResponse(response);
+					document.fireEvent('toastAlert', {'message': _t(failedMessage, responseData.errorData)});
+				},
+                onComplete: function() {
+                    librariesPolling.start();
+                }
+			}).post(requestParams);
+			deleteAppDialog.hide();
+		}.bind(this));
+
+        if (params.data.libraryVersionId) {
+            url = '<?php echo $this->basepath('/Api/libraryVersionCheckDependents') ?>';
+            RequestParams = {'libraryVersionId': params.data.libraryVersionId};
+        } else {
+            url = '<?php echo $this->basepath('/Api/libraryCheckDependents') ?>';
+            RequestParams = {'libraryId': params.data.libraryId};
+        }
+        new Request.WebAPI({
+            'url': url,
+            'onSuccess': function(response){
+
+         	    if (response.responseData.prerequisiteCheck.brokenPlugin != "") {
+                	var answer = confirm(_t('Removing this library contradicts the required prerequisites for a deployed plugin. Do you wish to disable the (' + response.responseData.prerequisiteCheck.brokenPluginName + ') plugin first?'));
+                	if (! answer){
+        				return;
+        			} else {
+        				var request = new Request.WebAPI({url: '<?php echo $this->basePath(); ?>' + '/Api/disablePlugins', data: {"plugins": [response.responseData.prerequisiteCheck.brokenPlugin]}});
+            	  		request.post();
+        			}
+    
+         	    }
+         	    
+				var title = '';
+                if (response.responseData.prerequisiteCheck.type == "libraryVersion") {
+                	title = _t('Remove Library Version');
+                } else {
+                	title = _t('Remove Library');
+                }
+
+                if (params.data.default != undefined && params.data.default == true && params.data.controller != undefined && $$('tr[parentId="tableRow_' + params.data.controller + '"]').length > 1) { // delete default version if have multiple versions
+                	var removeMessage = _t("The version you are about to remove is your default library version. Deleting it will remove it from your system, and set the greatest library version deployed on your server as your new default library<br />Are you sure you wish to proceed?");
+                } else {
+                	var removeMessage = _t("Deleting this library version will remove it from your system.<br />Are you sure you wish to proceed?");
+                }
+                
+                deleteAppDialog.show({
+                    "model":	"modal",
+                    "title": title,
+                    "contents": '<div id="modal-msg" class="library_remove library_remove-message">' + removeMessage + '</div>' +
+                        '<div id="modal-msg-override" class="library_remove library_remove-alert default-server-message"><?php echo _t('Other applications or libraries are dependent on this library.<br />Are you sure you wish to remove it?') ?></div>'
+                });
+                $('modal-msg-override').hide();
+                $('modal-msg').hide();
+
+                if (response.responseData) {
+                    // continue to remove library after disabling broken plugin
+                    if (response.responseData.prerequisiteCheck.valid || response.responseData.prerequisiteCheck.brokenPlugin != "") {
+                        $('modal-msg-override').hide();
+                        $('modal-msg').show();
+                    } else if(response.responseData.prerequisiteCheck.brokenPlugin == "") {
+                        $('modal-msg').hide();
+                        $('modal-msg-override').show();
+                    }
+                }
+    			
+            }
+        }).get(RequestParams);
+
+
+	});
+
+	zgrid2.addEvent('buttonClickcheckUpdate', function(params) {
+		$('check-updates-btn').spinner = new Spinner($('check-updates-btn'));
+		$('check-updates-btn').spinner.show();
+
+		$('checkUpdate_' + params.rowId).addClass('hidden');
+		
+		var url = params.data.updateUrl;
+		updatesCheck.check(params.data.libraryName, params.data.greatestVersion, url);
+	});
+
+	zgrid2.addEvent('buttonClickredeploy', function(params) {
+		if (window.confirm("<?php echo _t('Redeploying a library will remove and deploy it again. During this process, the library may be unavailable.\\n\\nAre you sure you wish to proceed?'); ?>")) {
+			var url = '';
+			var requestParams = {'libraryVersionId': params.data.libraryVersionId};
+			url = '<?php echo $this->basepath('/Api/libraryVersionSynchronize') ?>';
+	
+	        librariesPolling.setTask(params.data.libraryVersionId, 'redeploy');
+	        librariesPolling.stop();
+			var request = new Request.WebAPI({
+				url: url,
+				onSuccess: function(response) {
+					document.fireEvent('toastNotification', {'message': _t('Redeploying library...')}); 
+				},
+				onFailure: function(response) {
+					document.fireEvent('toastAlert', {'message': _t('Failed to redeploy library: {errorMessage}', response.responseData)});
+				},
+	            onComplete: function() {
+	                librariesPolling.start();
+	            }
+			}).post(requestParams);
+		}
+	});
+
+	zgrid2.addEvent('buttonClickdefault', function(params) {
+		if (window.confirm("<?php echo _t('Are you sure you wish to set this library as the default library?'); ?>")) { 
+			var requestParams = {'libraryVersionId': params.data.libraryVersionId};
+			var url = '<?php echo $this->basepath('/Api/librarySetDefault') ?>';
+	
+			var request = new Request.WebAPI({
+				url: url,
+				onSuccess: function(response) {
+					document.fireEvent('toastNotification', {'message': _t('Library version ' + params.data.version + ' defined as default')}); 
+				},
+				onFailure: function(response) {
+					document.fireEvent('toastAlert', {'message': _t('Failed to set library as default: {errorMessage}', response.responseData)});
+				}
+			}).post(requestParams);
+		}
+	});
+	
+	zgrid2.addEvent('buttonClick', function(params) {
+		zgrid2.fireEvent('buttonClick'+params.type, params);
+	});
+	
+	zgrid2.addEvent('descriptionClose',function(params) {
+		$$('tr[parentid="' + params.row.id + '"]').each(function(row) {
+			var rowId = row.get('id').replace('tableRow_', '');
+			if (! $('tableDescRow_' + rowId).hasClass('hidden')) {
+				zgrid2.expandRow(row.get('id').replace('tableRow_', ''));
+			}
+		});
+		
+    	$$('tr[parentid="' + params.row.id + '"]').hide();
+    });
+    
+    zgrid2.addEvent('descriptionOpen',function(params) {   	
+		if ($$('tr[parentid="' + params.row.id + '"]').length > 0) {
+			$$('tr[parentid="' + params.row.id + '"]').show();
+			return;
+		}
+
+		// check if the inner row was clicked
+		if (params.id.split("_").length > 1) {
+			var fragment = fragmentManager.getFragmentObject();
+			this.removeHash('grid', params.id);
+			libraryInfo.loadData(zgrid2.getRowData(params.id));
+
+			return;
+		}
+
+		var url = '<?php echo $this->basePath('/Api/libraryGetStatus') ?>';
+        var rowId = params.id.match('^lib_([0-9]+)$');
+    	var requestParams = {};
+
+    	if (rowId == null) {
+	    	requestParams = {libraries: [params.id]};
+        } else {
+	    	requestParams = {libraries: [rowId[1]]};
+        }
+
+		var request = new Request.WebAPI({
+			url:url,
+			onComplete: function(tableRowId, rowId, row, response) {
+				var defaults = [];
+				var libsInfo = response.responseData.pick();
+				// to reverse the array because we add the rows in the opposite order, but we want to save the order
+				libsInfo.libraryVersions.each(function(tableRowId, newRowData){
+					/// controller id is important for differentiating global rule row ids between different applications
+
+					newRowData = enrichLibraryVersionRecord(newRowData, libsInfo);
+					zgrid2.setRow(newRowData, 'after', tableRowId, true);
+
+					$(zgrid2.options.tableRow + newRowData.libraryId).setAttribute('parentId', row.id);
+				}.bind(this, rowId));
+
+				$$('tr[parentid="tableRow_' + rowId + '"] .tableDescIndicator').hide();
+				zgrid2.reloadZebra();
+				
+			}.bind(this, params.rowId, params.id, params.row)
+		}).get(requestParams);
+    });
+
+    zgrid2.addEvent('updateComplete', function(params) {
+    	Object.each(params.data, function(row) {
+   		 	if (row.updateUrl == '' && $('checkUpdate_' + row.libraryId)) {
+	        	$('checkUpdate_' + row.libraryId).addClass('disabled');
+	        } else {
+		        if ($('checkUpdate_' + row.libraryId)) {
+	        		$('checkUpdate_' + row.libraryId).removeClass('disabled');
+		        }
+		    }
+    	});
+    });
+
+    updatesCheck.addEvent('updateError', function(params) {
+    	document.fireEvent('toastAlert', {'message': _t("Cannot access the library update repository")});
+    });
+    
+    updatesCheck.addEvent('startingUpdate', function(params) {
+    	document.fireEvent('toastNotification', {'message': _t("Zend Server is checking for library updates...")});
+    });
+    
+    updatesCheck.addEvent('finishUpdateRow', function(params) {
+        var rows = zgrid2.getRowsData();
+        Object.each(rows, function(row) {
+        	if (row.libraryName == params.name) {
+        		$('checkUpdate_' + row.libraryId).removeClass('hidden');
+            	return;
+        	}
+    	}); 
+    });
+    
+    updatesCheck.addEvent('finishUpdate', function() {
+    	document.fireEvent('toastNotification', {'message': _t("Zend Server has finished checking for library updates ")});
+        if ($('check-updates-btn').spinner) {
+			$('check-updates-btn').spinner.hide();
+        }
+	});
+	
+    document.addEvent('wizardComplete', function(event){
+        var maximumVersionId = Object.keys(event.library.versions).max();
+        var deployedVersion = event.library.versions[maximumVersionId];
+        document.fireEvent('toastNotification', {'message': _t("Deployment started for {libraryName} ({version})",
+                                                    {
+                                                        'libraryName': event.library.libraryName,
+                                                        'version': deployedVersion.version})});
+
+        librariesPolling.setTask(maximumVersionId, 'deploy');
+    });
+
+    <?php if ($this->isAllowed('route:DeploymentLibraryWebAPI', 'libraryDeploy')): ?>
+    $('library-deploy-btn').addEvent('click', openWizard);
+    $('check-updates-btn').addEvent('click', checkUpdates);
+    <?php endif; ?>
+    librariesPolling.start();
+});
+
+function getUpdateRowMessage(libraryId, version, downloadUrl, releaseNotes) {
+	var updateRow = _t('A new library version ({version}) is available.', {'version': version});
+
+	<?php if ($this->isAllowed('route:DeploymentLibraryWebAPI', 'libraryDeploy')): ?>
+	if (downloadUrl != undefined) {
+		updateRow += _t(' <a href="javascript:void(0)" onclick="openUpdateWizard({libraryId})" title="Update library">Update</a>', {'libraryId': libraryId});
+	}
+	<?php endif; ?>
+	if (releaseNotes != undefined) {
+		updateRow += _t('  (<a href="{releaseNotesLink}" title="See release notes" target="_blank">Release notes</a>)', {'releaseNotesLink': releaseNotes});
+	}
+	return updateRow;
+}
+
+// called when the wizard is closed
+function cancelWizard() {
+	allowAutoPolling = false;
+}
+
+</script>
+<div id="grid-action-bar" class="grid-action-bar">
+<?php if ($this->isAllowed('route:DeploymentLibraryWebAPI', 'libraryDeploy')): ?>
+	<button id="library-deploy-btn" title="<?php echo _t('Deploy Library'); ?>"><?php echo _t('Deploy Library'); ?></button>
+	<button id="check-updates-btn" class="float-right" title="<?php echo _t('Check for library updates'); ?>"><?php echo _t('Check for Updates'); ?></button>
+<?php endif; ?>
+</div>
+
+<div id="libraries_list"></div>

@@ -1,0 +1,144 @@
+<script type="text/javascript">
+window.addEvent("domready", function() {
+	$('history_days').set('value', <?php echo ($history ? $history : 30) ?>);
+	<?php foreach ($triggers as $trigger) :?>
+    <?php if ($trigger['TRIGGER_TYPE'] == 0) : // Email ?>
+    	$('sendToEmail_<?php echo $trigger['AUDIT_TYPE'] ?>').set('checked', 'checked');
+	<?php else: ?>
+	    $('callbackUrl_<?php echo $trigger['AUDIT_TYPE'] ?>').set('checked', 'checked');
+    <?php endif; ?>
+    $('progress_<?php echo $trigger['AUDIT_TYPE'] ?>').set('value', <?php echo $trigger['AUDIT_PROGRESS']?>);
+	<?php endforeach; ?>
+});
+
+function saveClick() {
+	var auditEmail = $('email').value;
+	var auditScriptUrl = $('callbackUrl').value;
+	var historyDays = $('history_days').value;
+
+	var triggersArray = new Array();
+	 
+    var sendToEmail = $$('input[id^="sendToEmail_"]');
+
+    var sendToEmailChecked = false;
+    sendToEmail.each(function(element) {
+        if (element.checked) {
+        	sendToEmailChecked = true;
+        	var typeId = element.get('id');
+        	typeId = parseInt(typeId.replace('sendToEmail_', ''));
+        	var progress = $('progress_' + typeId).value;
+        	var triggerObject = new Object();
+        	triggerObject['auditType'] = typeId;
+        	triggerObject['triggerType'] = 0; // Email
+        	triggerObject['progress'] = progress;
+        	triggersArray.push(triggerObject);
+        }
+	});
+
+    // If user choose to send email to some audit actions but email is not specidied, display alert
+    if (sendToEmailChecked && auditEmail.length == 0) {
+    	document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify an email address to which you want to send the selected audits"); ?>'});
+    	return;
+    }
+
+    var callbackUrlChecked = false;
+    var callbackUrl = $$('input[id^="callbackUrl_"]');
+    callbackUrl.each(function(element) {
+        if (element.checked) {
+        	callbackUrlChecked = true;
+        	var typeId = element.get('id');
+        	typeId = parseInt(typeId.replace('callbackUrl_', ''));
+        	var progress = $('progress_' + typeId).value;
+        	var triggerObject = new Object();
+        	triggerObject['auditType'] = typeId;
+        	triggerObject['triggerType'] = 1; // Callback
+        	triggerObject['progress'] = progress;
+        	triggersArray.push(triggerObject);
+        }
+	});
+	
+    if (callbackUrlChecked && auditScriptUrl.length == 0) {
+    	document.fireEvent('toastAlert', {'message': '<?php echo _t("Please specify a script url which you want to execute for the selected audits"); ?>'});
+    	return;
+    }
+
+    var params = {
+    	email: auditEmail,
+    	callbackUrl: auditScriptUrl,
+		history: historyDays,
+		auditTriggers: triggersArray
+		
+	};
+
+    var actionUrl = "<?php echo $this->basePath() . '/Api/auditSetSettings'; ?>";
+	
+	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+
+	onSuccess: function(response) {
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("Audit settings have been saved"); ?>'});
+	},
+	onFailure: function() {
+		document.fireEvent('toastAlert', {'message': '<?php echo _t("Unable to save audit settings"); ?>'});
+	}});
+	
+	request.post();
+	
+}
+</script>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<div class="grid-action-bar">
+	<button id="save_settings" title="Save" onclick="saveClick()"><?php echo _t('Save'); ?></button>
+</div>
+<div class="grid-action-bar">
+    <label for="history_days"><?php echo _t('History');?></label> 
+    <select name="history_days" id="history_days">
+        <option value="30" selected="selected"><?php echo _t('1 Month'); ?></option>
+        <option value="60"><?php echo _t('2 Months'); ?></option>
+        <option value="180"><?php echo _t('6 Months'); ?></option>
+        <option value="360"><?php echo _t('1 Year'); ?></option>
+        <option value="720"><?php echo _t('2 Years'); ?></option>
+        <option value="3600"><?php echo _t('Forever'); ?></option>
+    </select>
+</div>
+<div class="grid-action-bar">
+    <label for="email"><?php echo _t('Email'); ?></label> <input type="text" id="email" value="<?php echo $email ?>"/>
+</div>
+<div class="grid-action-bar">
+    <label for="callbackUrl"><?php echo _t('Callback URL'); ?></label> <input type="text" id="callbackUrl" style="width: 400px;" value="<?php echo $scriptUrl ?>"/>
+</div>
+
+<table id="audit-settings" class="zgrid">
+    <thead>
+        <tr style="background-color: gray; background-position: initial initial; background-repeat: initial initial; ">
+            <th><?php echo _t('Name'); ?></th>
+            <th><?php echo _t('Description'); ?></th>
+            <th><?php echo _t('Actions'); ?></th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php $i = 0;?>
+        <?php foreach ($types as $id => $name): ?>
+        <tr class="<?php echo $i % 2 ? 'even' : 'odd'?>">
+            <td><?php echo $this->auditType($name) ?></td>
+            <td><?php echo _t('Description....'); ?></td>
+            <td>
+                <input id="sendToEmail_<?php echo $id ?>" type="checkbox" name="sendToEmail_<?php echo $id ?>"><label style="margin:10px;" for="sendToEmail_<?php echo $id ?>"><?php echo _t('Email'); ?></label>
+                <input id="callbackUrl_<?php echo $id ?>" type="checkbox" name="callbackUrl_<?php echo $id ?>"><label style="margin:10px;" for="callbackUrl_<?php echo $id ?>"><?php echo _t('URL'); ?></label>
+                <select id="progress_<?php echo $id ?>">
+                    <option value="2"><?php echo _t('Success Only'); ?></option>
+                    <option value="3"><?php echo _t('Failed Only'); ?></option>
+                    <option value="-1" selected="selected"><?php echo _t('Any Case'); ?></option>
+                </select>
+            </td>
+        </tr>
+        <?php $i++; ?>
+        <?php endforeach;?>
+    </tbody>
+</table>

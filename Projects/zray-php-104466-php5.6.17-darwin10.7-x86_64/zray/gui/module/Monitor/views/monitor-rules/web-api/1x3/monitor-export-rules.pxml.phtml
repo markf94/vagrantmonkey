@@ -1,0 +1,50 @@
+<?php echo '<?xml version="1.0" ?>' ?>
+<rules xmlns="http://www.zend.com/server/monitor-rules/1.0">
+<?php foreach ($rules as $rule) : /* @var $rule \MonitorRules\Rule */ ?>
+	<rule>
+		<ruleProperties>
+			<rule_type_id><?php echo $this->escapeHtml($rule->getType()) ?></rule_type_id>
+			<name><![CDATA[<?php echo $rule->getName() ?>]]></name>
+			<description><![CDATA[<?php echo $rule->getDescription() ?>]]></description>
+			<enabled><?php echo $rule->getEnabled() ?></enabled>
+			<url><![CDATA[<?php echo $rule->getUrl() ?>]]></url>
+		</ruleProperties>
+		<ruleConditions>
+			<?php foreach ($rule->getConditions() as $condition) :  /* @var $condition \MonitorRules\Condition */ ?>
+			<condition>
+				<operation><?php echo $this->escapeHtml($condition->getOperation()) ?></operation>
+				<attribute><?php echo $this->escapeHtml($condition->getAttribute()) ?></attribute>
+				<operand><?php echo $this->escapeHtml($condition->getOperand()) ?></operand>
+			</condition>
+			<?php endforeach ?>
+		</ruleConditions>
+		<ruleTriggers>
+			<?php foreach ($rule->getTriggers() as $trigger) :  /* @var $trigger \MonitorRules\Trigger */ ?>
+			<trigger>
+				<triggerProperties>
+					<severity><?php echo $this->escapeHtml($trigger->getSeverity()) ?></severity>
+				</triggerProperties>
+				<triggerConditions>
+					<?php foreach ($trigger->getConditions() as $condition) :  /* @var $condition \MonitorRules\Condition */ ?>
+					<condition>
+						<operation><?php echo $this->escapeHtml($condition->getOperation()) ?></operation>
+						<attribute><?php echo $this->escapeHtml($condition->getAttribute()) ?></attribute>
+						<operand><?php echo $this->escapeHtml($condition->getOperand()) ?></operand>
+					</condition>
+					<?php endforeach ?>
+				</triggerConditions>
+				<triggerActions>
+					<?php foreach ($trigger->getActions() as $action) :  /* @var $action \MonitorRules\Action */ ?>
+					<action>
+						<action_type><?php echo $this->escapeHtml($action->getType()) ?></action_type>
+						<action_url><?php echo $this->escapeHtml($action->getUrl()) ?></action_url>
+						<tracing_duration><?php echo $this->escapeHtml($action->getTracingDuration()) ?></tracing_duration>
+					</action>
+					<?php endforeach ?>
+				</triggerActions>
+			</trigger>
+			<?php endforeach ?>
+		</ruleTriggers>
+	</rule>
+<?php endforeach ?>
+</rules>

@@ -1,0 +1,19 @@
+<html>
+<head>
+
+</head>
+<body>
+<?php if ($collectCurrentUrl) :?>
+<div style="padding: 8px">
+<span>Redirecting to <a href="<?php echo $loginUrl ?>" target="_top"><?php echo (isAzureEnv() || isZrayStandaloneEnv()) ? 'Z-Ray Management dashboard' : 'Login page'; ?></a>...</span>
+</div>
+<script type="text/javascript">
+	var newLocation = "<?php echo "{$loginUrl}?redirectTo={uri}" ?>".replace("{uri}", encodeURIComponent(location.href));
+<?php else: ?>
+<script type="text/javascript">
+	var newLocation = "<?php echo $loginUrl ?>";
+<?php endif ?>
+	location = newLocation;
+</script>
+</body>
+</html>

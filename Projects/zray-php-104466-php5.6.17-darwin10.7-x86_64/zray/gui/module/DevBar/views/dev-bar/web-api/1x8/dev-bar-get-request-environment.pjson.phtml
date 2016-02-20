@@ -1,0 +1,9 @@
+"responseData": {
+        "requestEnvironment": {
+            "requestId": "<?php echo $requestId ?>",
+<?php $lastType = end(array_keys($superglobals)) ?>
+<?php 		if ($superglobals && count($superglobals)) foreach ($superglobals as $type => $superglobalHistory) { ?>
+			"<?php echo $type ?>": <?php echo $this->superglobalStructureJson($superglobalHistory, $maxTreeDepth) ?><?php echo $lastType != $type ? ',' : '' ?>
+<?php 		} ?>
+        }
+    }

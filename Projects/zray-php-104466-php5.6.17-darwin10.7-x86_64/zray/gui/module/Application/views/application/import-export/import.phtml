@@ -1,0 +1,29 @@
+<?php $this->headLink()->appendStylesheet($this->basePath('css/configImport.css')) ?>
+<div id="iframe" style="width:525px; padding:2px;">
+<script>
+<?php if($message): ?>
+	parent.document.fireEvent('toastAlert', {'message': "<?php echo _t(addslashes($message)); ?>"});
+<?php endif; ?>
+
+<?php if(isset($configurationIsImported) && $configurationIsImported): ?>
+	parent.document.fireEvent('toastNotification', {'message': '<?php echo _t('Configuration was imported'); ?>'});
+<?php endif; ?>
+</script>
+
+
+
+<table>
+	<tbody>
+		<tr>
+			<td><i><?php echo _t('Upload an exported configuration file to your server.') ?></i></td>
+			<td id="upload-form-box">
+				<form action="<?php echo $this->basePath('/ImportExport/import'); ?>" method="post" enctype="multipart/form-data">
+				<input type="file" name="file" id="file" /> 
+				<br />
+				<button name="submit" class="btn float-left"><?php echo _t('Upload') ?></button>
+				</form>				
+			</td>
+		</tr>
+	</tbody>
+</table>
+</div>

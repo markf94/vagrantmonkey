@@ -1,0 +1,344 @@
+<?php
+$uploaderUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Uploader'));
+$installationUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Installation'));
+$readmeUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'readme'));
+$eulaUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'eula'));
+$PrerequisitesUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Prerequisites'));
+$userParamsUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'User-Params'));
+$summaryUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Summary'));
+$deployUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Deploy'));
+$updateUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Update'));
+$downloadUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Download'));
+$pageCounter = 0;
+$lastPageId = ($wizardAction == 'update') ? 5 : 6;
+?>
+
+<script type="text/javascript">
+	window.addEvent('domready',function() {
+		wizard = new deploymentWizard({
+			applicationId: '<?php echo $applicationId; ?>',
+			type: '<?php echo $wizardAction; ?>',
+			urls: [
+				<?php
+					if ($wizardAction == 'update') {
+						echo "'$updateUrl',\n";
+					} else {
+						echo "'$deployUrl',\n";
+					}
+				?>
+				'<?php echo $readmeUrl; ?>',
+				<?php if($wizardAction != 'update') echo "'$installationUrl',\n"; ?>
+				'<?php echo $eulaUrl; ?>',
+				'<?php echo $PrerequisitesUrl; ?>',
+				'<?php echo $userParamsUrl; ?>'
+			],
+			wizardId: <?php echo $wizardId; ?>
+		});
+
+		new FormWizard('deploymentWizard', {"createControlArea": true,
+			"controls": { "submit": { "title": "<?php echo ($wizardAction == 'update') ? 'Update' : 'Deploy'; ?>" }},
+			"wizardControls": ["cancel", "submit", "forward", "backward"] }, {
+				<?php if ($external) : ?>
+				"uploadPage": { 
+					"onEnter": function(target, current) {
+						if (current == 1) {
+							$('wizard-control-forward').set('disabled', false);
+						}
+						return true;
+					},
+					"onExit": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return current - 1;
+						}
+						return true;
+					}
+				},
+				<?php endif; ?>
+				"readmePage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						return true;
+					},
+					"onExit": function(target, current) {
+						return true;
+					}
+				},
+				<?php if($wizardAction != 'update') : ?>
+				"setInstallationPage": {
+					"onEnter": function(target, current) {
+						// if we come from the first upload page we reset the error message
+						if (current < target) {
+							var errorMsgPane = $$('#setInstallationPage .message-box.error')[0];
+							if (errorMsgPane) {
+								errorMsgPane.set('text', '');
+								errorMsgPane.addClass('hidden');
+							}
+						}
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+
+						return true;
+					},
+					"onExit": function(target, current) {
+						if (target > current) {
+							if (postDeploymentInstallation(<?php echo $wizardId; ?>)) {
+								wizard.getPageContent(<?php echo $lastPageId ?>, 'summaryContent', '<?php echo $summaryUrl; ?>');
+								return true;
+							} else {
+								return false;
+							}
+						}
+						
+						return true;
+					}
+				},
+				<?php endif; ?>
+				"licenseAgreementPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						
+						if (!$('accept-terms').checked) {
+							$('wizard-control-forward').set('disabled', true);
+						}
+						
+						return true;
+					}, 
+					"onExit": function(target, current) {
+						$('wizard-control-forward').set('disabled', false);
+
+						if (target > current) {
+							wizard.getPageContent(<?php echo $lastPageId; ?>, 'summaryContent', '<?php echo $summaryUrl; ?>');
+						}
+						return true;
+					}
+				},
+				"PrerequisitesPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+
+						if (! prerequisitesValid) {
+							$('wizard-control-forward').set('disabled', true);
+						} else {
+							$('wizard-control-forward').set('disabled', false);
+						}
+						return true;
+					},
+					"onExit":  function(target, current){
+						if (target > current) {
+							wizard.getPageContent(<?php echo $lastPageId; ?>, 'summaryContent', '<?php echo $summaryUrl; ?>');
+						}
+						
+						return true; 
+					}
+				},
+				"userParamsPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+
+						return true;
+					}, 
+					"onExit":  function(target, current){
+						if (target > current) {
+							if (postDeploymentUserParams(<?php echo $wizardId; ?>)) {
+								wizard.getPageContent(<?php echo $lastPageId; ?>, 'summaryContent', '<?php echo $summaryUrl; ?>');
+								return true;
+							} else {
+								return false;
+							}
+						}
+						
+						return true;
+					}
+				},
+				"summaryPage": { 
+					"onEnter": function(){
+						/// disable restart notification
+						document.fireEvent('disableRestartTooltip', {});
+						$('wizard-control-submit').setStyle('display', 'block');
+						return true; 
+					},
+					"onExit": function(target, current){
+						if (target == (current - 1)) {
+							$('wizard-control-submit').setStyle('display', 'none');
+							return target;
+						}
+
+						return false;
+					}
+				}
+			});
+		
+			$('wizard-control-forward').set('disabled', true);
+
+			<?php if ($wizardAction == 'download' && $external) : ?>
+			downloadPackage();
+			<?php elseif ($wizardAction == 'download' && ! $external) : ?>
+			var uploadStatus = true;
+			uploading = false;
+			wizard.uploadComplete(uploadStatus, 'Application package loaded successfully');
+			$('wizard-control-forward').set('disabled', false);
+			<?php endif; ?>
+     	});
+
+	<?php if ($wizardAction == 'download' && $external) : ?>
+	function downloadPackage() {
+		var myRequest = new Request({
+			data: {url: '<?php echo $downloadParams['url']; ?>', name: '<?php echo $downloadParams['name']; ?>', version: '<?php echo $downloadParams['version']; ?>'},
+			url: '<?php echo $downloadUrl; ?>?wizardId=<?php echo $wizardId; ?>',
+			async: false,
+			evalScripts: true,
+			onComplete: function(response){
+				$('downloadLibraryContainer').set('html', response);
+			}
+		}).send();
+	}
+	<?php endif; ?>
+</script>
+
+<div id="deploymentWizard">
+	<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('deploying_an_application'); ?>"></a>
+	<div class="side-legend">
+		<h1><?php echo ($wizardAction == 'update') ? _t('Update Application') : _t('Deploy Application'); ?></h1>
+		<ul>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons <?php echo ($wizardAction == 'download') ? 'cloud-download' : 'cloud-upload'; ?>">
+				<i></i>
+				<?php if ($wizardAction == 'download') : ?>
+				<h2><?php echo _t('Application Download'); ?></h2>
+				<?php else : ?>
+				<h2><?php echo _t('Application Upload'); ?></h2>
+				<?php endif; ?>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons book">
+				<i></i>
+				<h2><?php echo _t('Readme'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<?php if($wizardAction != 'update') : ?>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons nameplate">
+				<i></i>
+				<h2><?php echo _t('Application Details'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<?php endif; ?>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons pen">
+				<i></i>
+				<h2><?php echo _t('License Agreement'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons ok_2">
+				<i></i>
+				<h2><?php echo _t('Prerequisites Validation'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons edit">
+				<i></i>
+				<h2><?php echo _t('User Parameters'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons notes">
+				<i></i>
+				<h2><?php echo _t('Deployment Summary'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+		</ul>
+	</div>
+	<fieldset class="wizard-page" id="uploadPage">
+		<div class="page-wrapper">
+			<div class="message-box error hidden"></div>
+			<div class="message-box ok hidden"></div>
+			<?php if ($wizardAction == 'download') : ?>
+				<h2><?php echo _t('Application Package Download') ?></h2>
+				<p>
+					<?php echo _t('The deployment wizard will deploy a PHP packaged application in Zend Server. In the case of a clustered environment, the application will be deployed on all servers in the cluster.'); ?>
+				</p>
+				<div id="downloadLibraryContainer"></div>
+			<?php else : ?>
+				<h2><?php echo _t('Upload the Application Package') ?></h2>
+				<p>
+				<?php echo _t('The deployment wizard will deploy a PHP packaged application in Zend Server. In the case of a clustered environment, the application will be deployed on all servers in the cluster. After you have installed the application, it will become available on the server so that users can begin using it.'); ?>
+				</p>
+				<p><?php echo _t('Locate the package file that corresponds to the application you wish to install.'); ?></p>
+				<iframe src="<?php echo $uploaderUrl . '?wizardId=' . $wizardId; ?>" scrolling="no" style="width: 100%; height: 150px; margin-top: 18px" frameborder="0"></iframe>
+			<?php endif; ?>
+		</div>		
+	</fieldset>
+	<fieldset class="wizard-page" id="readmePage">
+		<div class="page-wrapper">
+			<div id="readmeContent"></div>
+		</div>
+	</fieldset>
+	<?php if($wizardAction != 'update') : ?>
+	<fieldset class="wizard-page" id="setInstallationPage">
+		<div class="page-wrapper">
+			<div class="message-box error hidden"></div>
+			<h2><?php echo _t('Enter the Application Details'); ?></h2>
+			<p><?php echo _t('Define the application details and the way the application is accessed.') ?></p>
+			<div id="setInstallationContent"></div>
+		</div>
+	</fieldset>
+	<?php endif; ?>
+	<fieldset class="wizard-page" id="licenseAgreementPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Read the End User License Agreement');  ?></h2>
+			<p><?php echo _t('This End User License Agreement relates to the deployed application.') ?></p>
+			<div id="licenseAgreementContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="PrerequisitesPage">
+		<div class="page-wrapper">
+		    <div class="message-box error hidden"></div>
+			<h2><?php echo _t('Validate the Application Prerequisites'); ?></h2>
+			<p><?php echo _t('The application prerequisites specify the dependencies of the deployed application. To continue the deployment process, these dependencies need to be met.') ?></p>
+			<div id="prerequisitesContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="userParamsPage">
+		<div class="page-wrapper">
+			<div class="message-box error hidden"></div>
+			<h2><?php echo _t('Enter the User Parameters'); ?></h2>
+			<p><?php echo _t('The user parameters are required by the application package and will be used by the deployed application.') ?></p>
+			<div id="userParamsContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="summaryPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('View the Deployment Summary'); ?></h2>
+			<p><?php echo _t('Review the summarized details for the deployed application before submitting.') ?></p>
+<?php if ($wizardAction == 'update') : ?>
+			<div id="default-server-message"><?php echo _t('Zend Server will be unavailable for a short while as the application is updated and a restart is performed.') ?></div>
+<?php else : ?>
+			<div id="default-server-message"><?php echo _t('Zend Server will be unavailable for a short while as the application is deployed and a restart is performed.')  ?></div>
+<?php endif ?>
+			
+			<div id="summaryContent"></div>
+		</div>
+	</fieldset>
+</div>

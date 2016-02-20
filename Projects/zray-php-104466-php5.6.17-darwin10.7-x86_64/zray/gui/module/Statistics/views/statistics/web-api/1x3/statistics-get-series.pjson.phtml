@@ -1,0 +1,26 @@
+<?php $statsContainer = $statsContainer ?: new \Statistics\Container(array()) ?>
+"responseData":
+<?php
+	$data = $statsContainer->getData();
+	if (isset($data[0]) && isset($data[0][0]) && is_array($data[0][0])) {
+		$series = array();
+		foreach ($data as $moredata) {
+			$series[] = array(
+				'title' => $statsContainer->getTitle(),
+				'yTitle' => $statsContainer->getYTitle(),
+				'valueType' => $statsContainer->getValueType(),
+				'name' => $statsContainer->getName(),
+				'data' => $moredata,
+			);
+		}
+	} else {
+		$series[] = array(
+				'title' => $statsContainer->getTitle(),
+				'yTitle' => $statsContainer->getYTitle(),
+				'valueType' => $statsContainer->getValueType(),
+				'name' => $statsContainer->getName(),
+				'data' => $data,
+		);
+	}
+	
+	echo $this->json(array('series' => $series));

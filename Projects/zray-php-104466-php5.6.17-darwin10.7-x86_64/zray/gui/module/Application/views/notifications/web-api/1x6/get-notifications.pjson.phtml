@@ -1,0 +1,34 @@
+"responseData":{"notifications": [ 
+	<?php
+		$result = array();
+		foreach ($notifications as $notification) {
+			$result[] = <<<DATA
+			{
+				"id": "{$notification->getId()}",
+				"severity": "{$notification->getSeverity()}",
+				"creationTime": "{$notification->getCreationTime()}",
+				"type": "{$notification->getType()}",
+				"name": "{$notification->getName()}",
+				"repeats": "{$notification->getRepeats()}",
+				"title": "{$notification->getTitle()}",
+				"description":{$this->json($this->notificationDescription($notification))},
+				"url":"{$notification->getUrl()}"
+			}
+DATA;
+		} 
+		
+		echo implode(',', $result);
+	?>
+	],
+"hash": "<?php echo $hash; ?>",
+"daemonMessages": [
+	<?php
+		$result = array();
+		foreach ($daemonMessages as $message) { /* @var $message \Messages\MessageContainer */
+			$result[] = $this->daemonMessageJson($message);
+		} 
+		
+		echo implode(',', $result);
+	?>
+	]
+}

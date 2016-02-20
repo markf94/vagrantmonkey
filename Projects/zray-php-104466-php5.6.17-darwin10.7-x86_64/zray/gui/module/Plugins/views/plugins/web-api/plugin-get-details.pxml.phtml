@@ -1,0 +1,11 @@
+<?php $plugin = $plugin ?: new \Plugins\PluginContainer(new \ZendDeployment_Application()); ?>
+<?php $servers = $servers ?: array(); ?>
+
+<responseData>
+    <pluginDetails>
+<?php   echo $this->pluginInfoXml($plugin, $servers);?>
+    <pluginPackage>
+    	<prerequisites><![CDATA[<?php echo $prerequisites ?>]]></prerequisites>
+    </pluginPackage>
+    </pluginDetails>
+</responseData>

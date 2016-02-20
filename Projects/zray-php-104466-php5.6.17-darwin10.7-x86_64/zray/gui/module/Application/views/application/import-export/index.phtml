@@ -1,0 +1,117 @@
+<?php $this->headLink()->appendStylesheet($this->basePath('/css/admin.css')) ?>
+<script type="text/javascript">
+
+window.addEvent("domready", function(){
+
+	$$('.settings-wrapper').set('onsubmit', 'return false;');
+	$$('.settings-wrapper input[type="submit"]').each(function(item) {
+		item.spinner = new Spinner(item);
+		item.spinner.hide();
+		
+		var errorsContainer = new Element('div');
+		errorsContainer.addClass('settings-error');
+		errorsContainer.inject(item.getParent());
+	});
+	
+	$('reset-configurations-btn').addEvent('click', function(){
+		simpleModal = new SimpleModal({width: 673, closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+				<div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+				<div class=\"simple-modal-footer\"></div></div>"});
+	
+		simpleModal.addButton("<?php echo _t("Cancel") ?>", "btn");
+		simpleModal.addButton("<?php echo _t("Reset Configurations") ?>", "btn primary", function(){
+				var actionUrl = "<?php echo $this->basePath('/Api/configurationReset'); ?>";
+		
+		
+				var request = new Request.WebAPI({url: actionUrl, method: 'post',
+				
+				onSuccess: function(response) {
+					document.fireEvent('toastNotification', {'message': '<?php echo _t("Configurations have been reset"); ?>'});
+				       this.hide();
+				}.bind(this),
+				onFailure: function() {
+					document.fireEvent('toastAlert', {'message': '<?php echo _t("Unable to reset configurations"); ?>'});
+				}});
+				
+				request.post();
+		    }.bind(simpleModal));
+	
+		var content = '<div class="simple-modal-body"> \
+			You are about to reset all your Zend Server system configurations.<br><br> \
+						Are you sure you wish to proceed? <br><br> \
+						<div class="restart-server-note">This action is final and cannot be undone. \
+					   </div></div>';
+		
+		simpleModal.show({
+	      "model":	"modal",
+	      "title": _t('Reset Configurations'),
+	      "contents": content
+	    });
+	});
+	
+});
+
+</script>
+
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php
+			$clusterText = $isClusterSupport ? 'across a cluster' : ''; 
+			echo _t('Zend Server allows you to backup and restore PHP and system settings,
+				thus ensuring both configuration consistency %s and optimization of your production environment.
+				You can import a set of preconfigured settings and quickly apply them to your working environment,
+				or easily backup your current settings for future use, such as copying your staging settings to your production environment.
+				In addition, you can restore the settings to their initial configuration<br/>
+				%sread more%s', array($clusterText, "<a href=\"{$this->helplink('importexport')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/backing-up-and-restoring-settings-in-zend-server-6-embed?ecat=breadcrumbs&amp;eaction=Backing Up and Restoring Settings">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/configuration-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration") ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="settings-form-wrapper bordered-form">
+	<section>
+		<h3 class="import-export-configurations"><?php echo _t('Export') ?></h3>
+		<p class="section_description"><?php echo _t('Export current Zend Server system configurations.')?></p>
+		<div class="form-row">
+			<input type="submit" value="Export Configurations" onclick="location.href='<?php echo $this->basePath('/ImportExport/export'); ?>'" />
+		</div>
+	</section>
+
+	<section>
+		<h3 class="import-export-configurations"><?php echo _t('Import') ?></h3>
+		<p class="section_description"><?php echo _t('Import Zend Server system configurations.')?></p>
+		<div class="settings-wrapper">
+			<iframe src="<?php echo $this->basePath('/ImportExport/import'); ?>"></iframe>
+		</div>
+	</section>
+	
+	<section>
+		<h3 class="reset-configurations"><?php echo _t('Reset') ?></h3>
+		<p class="section_description"><?php echo _t('Revert all Zend Server system configurations to their default settings.')?></p>
+		<div class="form-row">
+			<input type="submit" value="Reset Configurations" id="reset-configurations-btn" />
+		</div>
+	</section>
+</div>

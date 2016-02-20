@@ -1,0 +1,252 @@
+<?php if ($valid) : ?>
+ok
+<?php elseif (isset($errorMessage)) : ?>
+<?php echo $errorMessage; ?>
+<?php else : ?>
+
+<?php 
+$appLogo = $package->getLogo();
+$applicationName = $package->getName();
+$version = $package->getVersion();
+
+$installationUrl = $this->url('default', array('controller' => 'Wizard', 'action' => 'Installation'));
+?>
+
+<script type="text/javascript">
+var newVhosts = [];
+
+function addNewVHost() {
+	var vhost = prompt(_t('Enter the protocol, name and port of the virtual host (e.g., http://myvhost:8080, http://myvhost). SSL-secured virtual hosts can be added via the Virtual Hosts page.'), '');
+	if (vhost) {
+		vhost = vhost.trim();
+		vhost = vhost.toLowerCase()
+		var vhostValue = vhost;
+		if (vhost.indexOf('http://') == 0) {
+			vhost = vhost.substring(7);
+		} else if (vhost.indexOf('https://') == 0) {
+			alert('<?php echo _t('HTTPS or SSL virtual hosts can be added via the Virtual Hosts page') ?>');
+			return;
+		} else {
+			vhostValue = 'http://'+vhost;
+		}
+		// remove prefixing /
+		vhost = vhost.replace(/^\/+/, '');
+		// remove trailing /
+		vhost = vhost.replace(/\/+$/, '');
+
+		if (vhost == 'localhost') {
+			vhost = 'defaultserver';
+			vhostValue = 'http://defaultserver';
+		}
+		
+		// add new option
+		var haveValue = $$("#vhosts option").some(function(item, index) { return item.get('value') == vhost });
+		if ('' != vhost && !haveValue){
+			newVhosts.include(vhost);
+			var newoption = new Option(vhost, vhostValue);
+			try {
+				$('vhosts').add(newoption, null);
+			} catch (err) {
+				$('vhosts').add(newoption);
+			}
+			newoption.setProperty('selected', 'selected');
+		}
+		$('newVhost').set('value', '1');
+		
+		updatePaths();
+
+	}
+}
+
+function updatePaths() {
+	updateTargetMessage();
+	updateDefaultServerOverwriteMessage();
+	updateSiteUrlUserParam();
+}
+
+function changeVHost() {
+	if (newVhosts.contains($('vhosts').get('value'))) {
+		$('newVhost').set('value', '1');
+	} else {
+		$('newVhost').set('value', $('vhosts').get('value'));
+	}
+	updatePaths();
+}
+
+function updateTargetMessage() {
+	target = correctURL();
+	$('target-message').set('text', target);
+}
+
+function updateSiteUrlUserParam() {
+
+	target = correctURL();
+
+	var siteUrlElement = $$('#deployment-user-params input[name="site_url"]');
+	if (siteUrlElement) {
+		siteUrlElement.set('value', target);
+	}
+}
+
+function correctURL() {
+// 	var vhost = $('vhosts').get('value');
+	var vhost = $('vhosts').options[$('vhosts').selectedIndex].text;
+	var path = $('path').get('value');
+
+	if (vhost.test(/default.*server/)) {
+		var defaultServer = '<?php echo \Application\Module::config('deployment', 'defaultServer'); ?>';
+		<?php $defaultServerPort = parse_url(\Application\Module::config('deployment', 'defaultServer'), PHP_URL_PORT);?>
+		
+		if (defaultServer == '<default-server>') {
+			defaultServer = '<?php echo $defaultHost; ?>'; 
+		}
+
+		// if the defaultServer doesn't have already port
+		if (<?php echo $defaultPort ?> != 80 && '' == '<?php echo $defaultServerPort ?>') {
+			vhost = 'http://{host}:{port}'.substitute({'host': defaultServer, 'port': <?php echo $defaultPort ?>});
+		} else {
+			vhost = 'http://{host}'.substitute({'host': defaultServer});
+		}
+	} else {
+		if (vhost.indexOf('http://') == -1 && vhost.indexOf('https://')) {
+			vhost = 'http://{host}'.substitute({'host': vhost});
+		}
+	}
+
+	path = new String(path);
+	path = path.trim(path);
+	path = path.replace(/^\/+/, '');
+	
+	var target = '{vhost}/{path}'.substitute({'vhost': vhost, 'path': path});
+
+	var parser = new URI(target);
+	// unnecessary to show the default port = 80
+	if (parser.get('port') == 80 ) {
+		parser.set('port', '');
+	}
+	target = parser.toString();
+	return target;
+}
+
+function updateDefaultServerOverwriteMessage() {
+	var vhost = $('vhosts').get('value');
+	var newVhost = $('newVhost').get('value');
+	var messageElm = $('default-server-message');
+	var content = "";
+	
+	if (messageElm) {
+		var hasPort = new String(vhost.match(/\:[0-9]+$/));
+		if (vhost.test(/\<default\-server\>/) || vhost.contains('http://defaultserver')) {
+			var path = $('path').get('value');
+			
+			path = new String(path);
+			path = path.trim();
+			path = path.replace(/^\/+/, '');
+			if ('' == path) {
+				content = _t('Deploying to http://<?php echo \Application\Module::config('deployment', 'defaultServer'); ?>/ will change your document root setting. This may cause files on your current default document root to become inaccessible.');
+			} else {
+				content = "";
+			}
+		} else if (newVhost == '1') {
+			content = _t('A new virtual host will be created after the Deploy Application wizard is completed, using the default virtual host configuration template. To modify this template, or remove the virtual host, go to the Virtual Hosts page.'); 
+		} else {
+			content = "";
+		}
+	}
+	
+	messageElm.set('text' ,content);
+	if ("" != content) {
+		messageElm.setStyle('display', 'block');
+	} else {
+		messageElm.setStyle('display', 'none');
+	}
+}
+
+function postDeploymentInstallation(wizardId) {
+	updateSiteUrlUserParam();
+	
+	// hide all errors
+	var okMsgPane = $$('#setInstallationPage .message-box').addClass('hidden');
+	
+	dataObj = $('deployment-set-installation-form').toObj();
+	
+	var valid = false;
+	
+	var myRequest = new Request({
+		data: dataObj,
+		url: '<?php echo $installationUrl; ?>?wizardId=' + wizardId,
+		async: false,
+		evalScripts: true,
+		onComplete: function(response){
+			if (response.trim() == 'ok') {
+				valid = true;
+			} else {
+				var errorMsgPane = $$('#setInstallationPage .message-box.error')[0];
+				errorMsgPane.removeClass('hidden');
+				errorMsgPane.set('text', response);
+				valid = false;
+			}
+		}
+	}).send();
+
+	return valid;
+}
+</script>
+
+<form id="deployment-set-installation-form" action="#" method="POST" onsubmit="return false;" >
+	<div class="tableDescContent" id="deployment-set-installation">
+		<div id="deployment-installation-top">
+		<table>
+			<tbody>
+				<tr>
+					<td><?php echo _t('Application'); ?></td>
+					<td><?php echo $this->escapeHtml($applicationName); ?></td>
+					<td rowspan="2"><?php echo $this->AppLogo($applicationName, $appLogo, 'application-installation-logo'); ?></td>
+			</tr>
+			<tr>
+				<td><?php echo _t('Version'); ?></td>
+				<td><?php echo $this->escapeHtml($version); ?></td>
+			</tr>
+		</table>
+		</div>
+		<table class="clear">
+			<tr>
+				<td><?php echo _t('Display Name'); ?></td>
+				<td><?php echo $this->formInput($this->form->get('displayName')); ?>
+				</td>
+			</tr>
+			<tr>
+				<td><?php echo _t('Virtual Host'); ?></td>
+				<td><?php echo $this->formSelect($this->form->get('vhosts')); ?>&nbsp;<button name="addNew" onclick="addNewVHost()"><?php echo _t('Add New'); ?></button></td>
+				
+			</tr>
+			<tr>
+				<td><?php echo _t('Path'); ?></td>
+				<td><?php echo $this->formInput($this->form->get('path')); ?>
+				</td>
+			</tr>
+			<tr>
+				<td><?php echo _t('URL'); ?></td>
+				<td>
+					<div id="target-message">
+						<?php
+							$defaultServer = \Application\Module::config('deployment', 'defaultServer');
+							$defaultServerPort = parse_url($defaultServer, PHP_URL_PORT);
+							
+							if ($defaultServerPort !== false || $defaultPort == 80 ) {
+								echo $this->escapeHtml("http://$defaultServer/");
+							} else {
+								echo $this->escapeHtml("http://$defaultServer:$defaultPort/");
+							}
+						?>
+					</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<?php echo $this->formInput($this->form->get('newVhost')); ?>
+		<div id="default-server-message"><?php echo _t('Deploying to http://' . $this->escapeHtml(\Application\Module::config('deployment', 'defaultServer')) . '/ will change your document root setting. This may cause files on your current default document root to become inaccessible.'); ?>
+		</div>
+	</div>
+</form>
+<?php endif;?>

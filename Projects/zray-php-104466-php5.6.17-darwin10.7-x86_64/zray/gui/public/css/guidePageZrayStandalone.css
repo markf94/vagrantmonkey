@@ -1,0 +1,81 @@
+#welcome-page .container {
+	width: auto;
+	padding: 10px 0;
+	margin: 0;
+}
+
+#welcome-page .centralized {
+	width: 1270px;
+	margin: 0 auto;
+}
+
+#welcome-page h1 {
+	font-size: 40px;
+	line-height: 40px;
+	padding: 10px 0;
+}
+#welcome-page h2 {
+	font-size: 30px;
+	line-height: 40px;
+	padding: 10px 0;
+	margin: 0;
+	xborder-bottom: 1px solid #CCC;
+}
+#welcome-page h3 {
+	font-size: 20px;
+	line-height: 26px;
+}
+
+#welcome-page #disclaimer {
+	font-size: 14px;
+	line-height: 18px;
+	color: #C11;
+}
+
+#welcome-page section:not(#whats-new) {
+	padding: 0;
+}
+
+#welcome-page section {
+	margin-top: 50px;
+}
+
+.screenshot-item {
+	overflow: hidden;
+	margin: 0 0 20px 0;
+	padding: 20px 0;
+	background: #EEE;
+}
+.screenshot-item:first-child {
+	margin-top: 0;
+	padding-top: 0;
+}
+.screenshot-item p {
+	font-size: 14px;
+	line-height: 18px;
+}
+.coming-soon-section {
+	width: 50%;
+	float: left;
+	padding: 0 20px;
+	box-sizing: border-box;
+}
+.wide-section {
+	width: 75%;
+	float: left;
+	padding: 0 50px;
+	box-sizing: border-box;
+}
+.wide-section img {
+	width: 100%;
+}
+.narrow-section {
+	width: 25%;
+	float: left;
+	padding: 10px;
+	box-sizing: border-box;
+}
+ul.changelog li {
+	list-style: initial;
+}
+	

@@ -1,0 +1,6 @@
+"responseData":{"eventsGroups": [
+<?php $eventsResult = array(); foreach($eventsGroups as $eventsGroup) : /* @var $eventsGroup \EventsGroup\Container */?>
+<?php $eventsResult[] = $this->eventsGroupDataJson($eventsGroup) ?>
+<?php endforeach; ?>
+<?php echo implode(', ', $eventsResult); ?>
+]}

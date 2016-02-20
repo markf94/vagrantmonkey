@@ -1,0 +1,8 @@
+<?php if ($hasEula) : ?>
+	<script type="text/javascript">
+		function enableNextButton() {
+			$('wizard-control-forward').set('disabled', (!$('accept-terms').checked) );
+		}
+	</script>
+	<?php echo $form; ?>
+<?php endif; ?>

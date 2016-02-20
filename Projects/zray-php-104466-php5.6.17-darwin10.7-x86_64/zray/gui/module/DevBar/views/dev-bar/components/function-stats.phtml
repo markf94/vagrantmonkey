@@ -1,0 +1,378 @@
+<div class="zdb-toolbar-entry zdb-funcs-details" data-name="functions">
+	<div class="zdb-toolbar-preview" title="Functions">
+		<div class="zdb-toolbar-icon"></div>
+		<span class="zdb-toolbar-info">&nbsp;</span>
+	</div>
+	<div class="zdb-toolbar-detail zdb-functions-detail-wrapper">
+		<div class="zdb-row zdb-toolbar-detail-header">
+			<div class="zdb-col-1-narrow">
+				<h1>Functions</h1>
+			</div>
+			<div class="zdb-col-3-wide">
+				<div class="zdb-pull-left">
+					<?php echo $this->devBarPager(); ?>
+				</div>
+				<div class="zdb-pull-right">
+					<ul class="zdb-toolbar-items zdb-horizontal">
+						<li class="zdb-toolbar-filter"><label
+							for="zdb-toolbar-input-filter-text">Filter by</label> <select>
+								<option value="">Parameter</option>
+						</select> <input type="text" name="zdb-toolbar-input-filter-text"
+							id="zdb-toolbar-input-filter-text" size="6"
+							class="zdb-toolbar-input zdb-toolbar-input-filter-parameter" /></li>
+						<li class="zdb-toolbar-search"> 
+							<?php echo $this->devBarSearch(); ?>
+						</li>
+						<li>
+							<div class="zdb-export-results-btn" title="Show Report"></div>
+						</li>
+						<li class="zdb-toolbar-pin">
+							<div class="zdb-popup-pin" onclick="zendDevBar.unpin()"></div>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+		<div class="zdb-row zdb-panel zsb-functions-panel">
+		
+			<!-- Left panel: summary -->
+    		<div class="zdb-col-1-narrow zdb-adaptive-height zdb-summary-table-wrapper zdb-functions-summary"></div>
+    		
+			<div class="zdb-col-3-wide zdb-adaptive-height zdb-entries-table-wrapper zsb-functions-table-wrapper"></div>
+		</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+(function() {
+
+	var producerEnabled = <?php echo $producerEnabled ? '1' : '0'; ?>;
+	if (!producerEnabled) {
+		zendDevBar.devBar.find('.zdb-funcs-details .zdb-toolbar-preview').attr('title', 'Functions tracking is disabled. You can enable it from the Zend Server UI (Configurations | Components | Z-Ray)');
+	}
+	
+	var escapeRegExp = function(str) {
+		return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+	}
+	var customNamespaces = ['<?php echo implode("', '", array_map('trim', explode(',', addslashes($custom_namespaces)))); ?>'];
+	customNamespaces = customNamespaces.filter(function(elem) {
+			// remove empty values
+			return !(/^\s*$/g.test(elem));
+		})
+		.map(function(elem) {
+			// escape string for regex
+			return escapeRegExp(elem);
+		});
+	var knownNamespaces = false;
+	if (customNamespaces.length > 0) {
+		knownNamespaces = new RegExp('^('+customNamespaces.join('|')+')');
+	} 
+	var unspecifiedNamespaceLabel = '(Custom)'; 
+	var internalNamespaceLabel = '(PHP Native)';
+
+	var tools = {
+		getContainer: function() {
+			return zendDevBar.devBar.find('.zdb-funcs-details').first();
+		},
+
+		getNamespace: function(funcData) {
+			var fullfuncname = funcData.functionFull;
+			if (funcData.isInternal) {
+				return internalNamespaceLabel;
+			} else if (knownNamespaces && knownNamespaces.test(fullfuncname)) {
+				var matches = knownNamespaces.exec(fullfuncname);
+				return matches[0];
+			}
+			
+			return unspecifiedNamespaceLabel;
+		},
+		getRequestData: (function() {
+			// store loaded data here
+			var requestsData = {};
+			// avoid double requests
+			var inProgress = {};
+			
+			return function(requestId, callback) {
+				// check if the data was already loaded
+				if (requestsData[requestId]) {
+					if (typeof (callback) == 'function') {
+						callback(requestsData[requestId]);
+					}
+				} else {
+					
+					// if ajax in process, come back later
+					if (inProgress[requestId]) {
+						setTimeout(function() {
+							tools.getRequestData(requestId, callback);
+						}, 10);
+						
+						return;
+					}
+					inProgress[requestId] = true;
+
+					// load the data and store locally
+					var url = zendDevBar.baseUrl + '/Api/zrayGetRequestFunctions?requestId=' + requestId;
+					zendDevBar.loadJSON(url, function (response){
+
+						// preset the namespace of the function
+						for(var i=0, totalFunctions=response.responseData.functions.length; i<totalFunctions; i++) {
+							response.responseData.functions[i].namespace = tools.getNamespace(response.responseData.functions[i]);
+						}
+
+						requestsData[requestId] = response.responseData.functions;
+						if (typeof (callback) == 'function') {
+							callback(requestsData[requestId]);
+						}
+						inProgress[requestId] = false;				
+					}, function(response){
+						if (response.errorData.errorCode == 'malformedRequest') {
+							callback([]);
+						}
+						inProgress[requestId] = false;				
+					});
+				}
+			};
+		})()
+	};
+	
+	
+	// define the main table
+	$zendDevBar(function() {
+
+		// set sorters
+		zendDevBar.getStorage('functions').setSorter('timeInclusive', function(data) {
+			return data.sort(function(a,b) { var a = parseInt(a.timeInclusive); var b = parseInt(b.timeInclusive); if (a == b) return 0; return (a > b) ? 1 : -1; });
+		});
+		zendDevBar.getStorage('functions').setSorter('timeExclusive', function(data) {
+			return data.sort(function(a,b) { var a = parseInt(a.timeExclusive); var b = parseInt(b.timeExclusive); if (a == b) return 0; return (a > b) ? 1 : -1; });
+		});
+		zendDevBar.getStorage('functions').setSorter('average', function(data) {
+			return data.sort(function(a,b) { 
+				var a = parseInt(a.timeInclusive) / parseInt(a.timesCalled);
+				var b = parseInt(b.timeInclusive) / parseInt(b.timesCalled);
+				if (a == b) return 0; return (a > b) ? 1 : -1; 
+			});
+		});
+		zendDevBar.getStorage('functions').setSorter('filename', function(data) {
+			return data.sort(zendDevBar.getStorage('functions')
+				.firstBy(function(a,b) { 
+					if (a.filename == b.filename) return 0; 
+					return (a.filename > b.filename) ? 1 : -1; 
+				}).thenBy(function(a,b) {
+					if (a.line == b.line) return 0; 
+					return (a.line > b.line) ? 1 : -1; 
+				})
+			);
+		});
+		var mainTable = zendDevBar.createTable(zendDevBar.getStorage('functions'), $zendDevBar('.zsb-functions-table-wrapper'));
+		// add specificly to this table resize trigger;
+		mainTable.update = function(dataManager) {
+			$zendDevBar.devbarTable.prototype.update.call(this, dataManager);
+			$zendDevBar(window).trigger('resize', 'immediately');
+		}
+		mainTable.setColumns([{
+			label: 'Function',
+			tooltip: 'Function name',
+			propertyName: 'functionFull',
+			attributes: {'class': 'zdb-monospace zdb-ellipsis'},
+			sortable: true,
+			width: '40%',
+			getHtml: function(val) {
+				var wrapper = $zendDevBar('<div></div>');
+				wrapper.text(val).attr('title', val);
+				return wrapper;
+			}
+		}, {
+			label: 'Count',
+			tooltip: 'Number of function calls',
+			propertyName: 'timesCalled',
+			width: '6%',
+			sortable: true,
+			initialSortDirection: 'desc',
+			attributes: {'class': 'zdb-numerical'},
+		}, {
+			label: 'Duration Inclusive (ms)',
+			tooltip: 'Time spent including calls to other functions or children',
+			propertyName: 'timeInclusive',
+			width: '15%',
+			sortable: true,
+			initialSortDirection: 'desc',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val) {
+				return zendDevBar.formatters.formatMicroseconds(val, 3, false);
+			}
+		}, {
+			label: 'Duration Exclusive (ms)',
+			tooltip: 'Time spent not including other functions or children',
+			propertyName: 'timeExclusive',
+			width: '15%',
+			sortable: true,
+			initialSortDirection: 'desc',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val) {
+				return zendDevBar.formatters.formatMicroseconds(val, 3, false);
+			}
+		}, {
+			label: 'Average (ms)',
+			tooltip: 'Duration (Inclusive) / call count',
+			width: '10%',
+			propertyName: 'average',
+			sortable: true,
+			initialSortDirection: 'desc',
+			defaultSort: 'desc',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val, rec) {
+				return zendDevBar.formatters.formatMicroseconds((rec.timeInclusive / rec.timesCalled), 2, false);
+			}
+		}, {
+			label: 'Defined At',
+			tooltip: 'File and line number for function',
+			width: '14%',
+			propertyName: 'filename',
+			sortable: true,
+			getHtml: function(val, rec) {
+				var shortFileName = val.split('/').pop().split('\\').pop() + ':' + rec.line;
+				var titleText = val + ':' + rec.line;
+				var fullUrl = zendDevBar.requests && zendDevBar.requests[rec.requestId] && zendDevBar.requests[rec.requestId].RequestInfo ? 
+						 zendDevBar.requests[rec.requestId].RequestInfo.url : false;
+				<?php if ($azure || $zrayStandalone) : ?>
+				var showInIDEParams = false;
+				<?php else : ?>
+				var showInIDEParams = fullUrl ? {filePath: val, line: rec.line, fullUrl: fullUrl} : false;
+				<?php endif; ?>
+				
+				return zendDevBar.getFileActions(shortFileName, val, titleText, showInIDEParams);
+			}
+		}]);
+
+		// bind search
+		new $zendDevBar.zdbSearch(zendDevBar.getStorage('functions'), $zendDevBar('.zdb-functions-detail-wrapper .zdb-toolbar-input-search').first(), mainTable);
+			
+		// define the summary table
+		var table = zendDevBar.createSummaryTable(zendDevBar.getStorage('functions'), $zendDevBar('.zdb-functions-summary'));
+		table.setFilterColumn('namespace');
+		table.setFilterValues([unspecifiedNamespaceLabel]);
+		table.setUpdateCallback(function(data) {
+	
+			// collect namespaces
+			namespaces = {};
+			var timeTotal = 0;
+			data.forEach(function(funcData) {
+				
+				// calculate the total time
+				timeTotal += funcData.timeExclusive;
+				
+				// aggregate
+				if (typeof namespaces[funcData.namespace] == 'undefined') {
+					namespaces[funcData.namespace] = {
+						rows: 1,
+					    time: parseInt(funcData.timeExclusive, 10),
+					    type: funcData.namespace
+			    	};
+			    } else {
+			    	namespaces[funcData.namespace]['rows']++;
+			    	namespaces[funcData.namespace]['time']+= parseInt(funcData.timeExclusive, 10);
+			    }
+			});
+			namespaces = zendDevBar.sortByKeys(namespaces);
+			
+			// build rows
+			var rows = [];
+			if (Object.keys(namespaces).length > 0) {
+				rows.push({'type': 'All', 'time': timeTotal, 'rows': data.length});
+				$zendDevBar.each(namespaces, function(index, value) {
+				    rows.push(value);
+				});
+			}
+			
+			return rows;
+		});
+
+		table.setTableHeaderHtml('<th colspan="100%">Show (<a href="/ZendServer/Z-Ray/<?php echo isAzureEnv() || isZrayStandaloneEnv() ? 'Advanced' : 'Settings'; ?>/#panel=devbar-settings" target="_blank">Manage Function Groups</a>)</th>');
+		table.setColumns([{
+			label: 'Types',
+			propertyName: 'type',
+			width: '10%',
+			getHtml: function(val, rec) { return table.createCheckboxColumn(val, rec); }
+		}, {
+			label: 'Types',
+			propertyName: 'type',
+			width: '40%'
+		}, {
+			label: 'Rows',
+			propertyName: 'rows',
+			width: '10%',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val) {
+				return '(' + val + ')';
+			}
+		}, {
+			label: 'Time',
+			propertyName: 'time',
+			width: '50%',
+			attributes: {'class': 'zdb-numerical'},
+			getHtml: function(val) {
+				return zendDevBar.formatters.formatMicroseconds(val);
+			}
+		}]);
+
+		// bind to save button
+		$zendDevBar('.zdb-functions-detail-wrapper .zdb-export-results-btn').click(function() { mainTable.exportResults('Request function statistics', table); });
+	});
+
+	var selectedRequestId = null;
+	zendDevBar.registerOnUpdateLabel('functions', function($, requests) {
+		// check parameter
+		if (!requests) return;
+		if (!(requests instanceof Array)) requests = [requests];
+		
+		// update the label
+		var functionsCount = 0;
+		// loop, but request should be one!
+		var data = requests[0];
+		selectedRequestId = data.RequestInfo.id;
+		functionsCount = (data && data.extraData && data.extraData.functionsCount) ? data.extraData.functionsCount : '0';
+		zendDevBar.updateLabel('functions', producerEnabled?functionsCount:'N/A');
+		
+	});
+	
+	zendDevBar.registerResetHandler('functions', function($, data) {
+		zendDevBar.getStorage('functions').reset();
+		zendDevBar.updateLabel('functions', producerEnabled?'0':'N/A');
+	});
+
+	var loadingInProgress = false;
+	zendDevBar.registerHandler('functions', function($, data) {
+		if (!data) {
+			if (!loadingInProgress) {
+				zendDevBar.finishLoading('functions');
+			}
+			return;
+		}
+		
+		// clear the data
+		zendDevBar.getStorage('functions').reset();
+
+		// display `blocker` or functions list
+		if (Object.keys(data) && Object.keys(data).length == 1) {
+			loadingInProgress = true;
+ 			tools.getRequestData(Object.keys(data)[0], function(functionsList) {
+				zendDevBar.getStorage('functions').addData(functionsList);
+				loadingInProgress = false;
+				zendDevBar.finishLoading('functions');
+ 			});
+		}
+		
+	});
+
+	// (pre)load functions data when the mouse is over the functions button
+	tools.getContainer().find('.zdb-toolbar-preview').on('mouseenter', function() {
+		if (selectedRequestId) {
+			tools.getRequestData(selectedRequestId);
+		}
+	});
+
+})();
+
+new $zendDevBar.zdbPager(zendDevBar.getStorage('functions'), $zendDevBar('.zdb-functions-detail-wrapper .zdb-pager').first());
+</script>

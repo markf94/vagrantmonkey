@@ -1,0 +1,94 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css") ?>
+
+<?php echo $this->partial('users/index/bar.phtml') ?>
+<?php $isAllowedMultipleRoles = $this->isAllowedEdition('data:useMultipleUsers');?>
+
+<div class="settings-form-wrapper bordered-form">
+	<h3 class="users-list-table-header"><?php echo _t('Users Password Management') ?></h3>
+	<div class="form-row">
+		<table id="users_list_table">
+			<thead>
+				<tr>
+					<th><?php echo _t('Username') ?></th>
+					<th><?php echo _t('Role') ?></th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php foreach ($users as $user) { ?>
+				<?php   
+				// display a user if current identity may change it
+				// OR
+				// if the current edition may not use multiple roles, in which case we want to show the row (in a limited way)
+				if ($user['CAN_CHANGE'] || (!$isAllowedMultipleRoles)) { ?>
+				<tr>
+					<td class="user_list_username"><?php echo $user['NAME'] ?></td>
+					<td class="user_list_role"><?php echo $user['ROLE'] ?></td>
+					<td>
+					<?php
+					// Show a change password link if the edition is allowed multiple users
+					// OR
+					// if the user row is the admin, in which case we want to allow him to change password as well
+					if ($isAllowedMultipleRoles || ($user['ROLE'] == 'administrator')) { // Either we may display all users or we display only admin roles ?>
+					<a id="users_list_change_password-<?php echo $user['NAME'] ?>" class="users_list_change_password" href="javascript:void(0)"><?php echo _t('Change password'); ?></a>
+					<?php } else { ?>
+					<span><?php echo _t('User is disabled') ?></span>
+					<?php } ?>
+					</td>
+				</tr>
+				<?php } ?>
+			<?php } ?>
+			</tbody>
+		</table>
+		<div id="change_password_form_box"><?php echo $this->zendForm($changePasswordForm) ?></div>
+	</div>
+	<?php if ($this->isAllowed('route:UsersWebAPI', 'userAuthenticationSettings')) { ?>
+	<div class="form-row">
+		<input type="submit" id="auth_settings_button" title="<?php echo _t('Change authentication method') ?>" value="<?php echo _t('Settings') ?>" />
+	</div>
+	<?php } ?>
+
+</div>
+
+<div class="clear-content">
+	<script type="text/javascript">
+	window.addEvent('load', function() {
+		$$('.users_list_change_password').addEvent('click', function(){
+			simpleModal = new SimpleModal({width: 673, closeButton: false,
+				hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+				template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+					<div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+					<div class=\"simple-modal-footer\"></div></div>"});
+			simpleModal.addButton("<?php echo _t("Cancel") ?>", "btn");
+			simpleModal.addButton("<?php echo _t("Save Password") ?>", "btn primary", function(){
+				var actionUrl = "<?php echo $this->basePath() . ($isAllowedToChangeUserPassword ? '/Api/userSetPassword' : '/Api/setPassword'); ?>";
+				var params = $('simple-modal-box').getElement('table').toObj();
+				var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+				
+					onSuccess: function(response) {
+						this.hide();
+						document.fireEvent('toastNotification', {'message': '<?php echo _t("The password has been saved"); ?>'});
+					}.bind(this),
+					onFailure: function(response) {
+						var errorData = this.decodeResponse(response, true).errorData;
+						document.fireEvent('toastAlert', {'message': _t("The password could not be saved. {errorMessage}", errorData)});
+					}});
+				
+				request.post();
+		    }.bind(simpleModal));
+			
+			var username = this.getParent('tr td.user_list_username').get('text');
+			var form = $('change_password_form_box').getElement('table');
+			form.getElement('input[name="username"]').set('value', username);
+			simpleModal.show({
+		      "model":	"modal",
+		      "title": _t('Change "{username}" password', {username: username}),
+		      "contents": form.outerHTML
+		    });
+		});
+	});
+	</script>
+</div>
+<?php if ($this->isAllowed('route:UsersWebAPI', 'userAuthenticationSettings')): ?>
+<?php echo $this->partial('users/index/authentication-settings', array('authSource' => $authSource, 'ldapPropertiesForm' => $ldapPropertiesForm)) ?>
+<?php endif ?>

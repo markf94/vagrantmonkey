@@ -1,0 +1,9 @@
+"responseData":{"filters":[
+    <?php
+	$filterJson = array();
+	foreach($filters as $filter) {
+	    $filterJson[] = $this->filterJson($filter);
+	}
+	echo implode(',', $filterJson);
+	?>
+]}

@@ -1,0 +1,6 @@
+<script type="text/javascript">
+var uploadStatus = <?php echo ($success) ? 'true' : 'false'; ?>;
+uploading = false;
+parent.wizard.uploadComplete(uploadStatus, "<?php echo $message; ?>");
+$('wizard-control-forward').set('disabled', false);
+</script>

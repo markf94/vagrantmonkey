@@ -1,0 +1,57 @@
+<?php
+$zrayExtensions = array();
+foreach ($dataTypesMap as $extension => $datatypes) {
+	$datatypes = array_map(function($datatype){
+		return array('dataname' => $datatype, 'display' => true);
+	}, $datatypes);
+	$zrayExtensions[] = array("extensionName" => $extension, "datatypes" => $datatypes, 'metadata' => isset($metadata[$extension]) ? $metadata[$extension] :  array());
+}
+
+$customDataJsoned = array();
+$customDataGrouped = array();
+
+$isArray = false;
+$dataArray = array();
+foreach ($customData as $key => $container) { /* @var $container \DevBar\ExtensionContainer */
+    $data = $container->getData();
+    $dataArray[$key] = $data;
+    if (is_array($data) && is_array(current($data))) {
+        $isArray = true;
+    }
+}
+
+foreach ($customData as $key => $container) { /* @var $container \DevBar\ExtensionContainer */
+	$dataname = "{$container->getExtension()}/{$container->getDataType()}";
+	$data = $dataArray[$key];
+	if (is_array($data)) {
+	    $data['__row_index'] = $container->getRowIndex();
+	}
+	if (is_array($data) && is_array(current($data)) && ! $isArray && ! isset($customDataGrouped[$dataname])) {
+	    $customDataGrouped[$dataname] = $data;
+	} else {
+		$customDataGrouped[$dataname][] = $data;
+	}
+}
+
+foreach ($dataTypesMap as $extension => $datatypes) {
+	foreach ($datatypes as $datatype) {
+		$dataGroupName = "{$extension}/{$datatype}";
+		$parameters = $this->superglobalStructureJson($customDataGrouped[$dataGroupName], $maxTreeDepth);
+		if (empty($parameters)) {
+			$parameters = '[]';
+		}
+		
+		$customDataJsoned[] = <<<EXTENSIONBLOCK
+	        	{
+	        		"extensionName": "{$extension}",
+	        		"datatype": "{$datatype}",
+	        		"parameters": {$parameters}
+	        	}
+EXTENSIONBLOCK;
+	}
+} ?>
+
+"responseData": {
+        "zrayExtensions": <?php echo $this->json($zrayExtensions) ?>,
+        "zrayExtensionsData": [<?php echo implode(','.PHP_EOL, $customDataJsoned)?>]
+    }

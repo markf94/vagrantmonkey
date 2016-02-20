@@ -1,0 +1,455 @@
+<?php 
+$perPage = Application\Module::config('list', 'resultsPerPage'); 
+$this->headLink()->appendStylesheet("{$this->basePath()}/css/history.css");
+
+if ($this->isAllowed('auditTrail:timelimit', 'unlimited')) {
+	$externalFilters[0]['allowedRange'] = 'unlimited';
+} else {
+	$externalFilters[0]['allowedRange'] = '2hour';
+}
+
+?>
+
+<div id="bread-wrp">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php 
+                            if (isAzureEnv()) {
+                                echo _t('View real-time info on all the requests being made to the Web server, including non-browser based requests, 
+                                    such as APIs, Web services, and mobile requests. All the information recorded by Z-Ray, such as request execution time, 
+                                    events, exceptions, errors, database queries, functions, request headers, and more, is displayed in one central location.');
+                            } elseif (isZrayStandaloneEnv()) {
+                                echo _t('Want to see a record of all the requests sent to your web server and inspect them with Z-Ray? 
+									Z-Ray history allows you to go back in time, and see exactly what took place with a specific request.');
+                            } else {
+                                echo _t('View real-time info on all the requests being made to your Web server,
+                        	    including non-browser based requests, such as APIs, Web services, and mobile requests.
+                        	    All the information recorded by Zend Server and Z-Ray, such as request execution time,
+                        	    events, exceptions, errors, database queries, functions, request headers, and more, is displayed in one
+                        	    central location.<br/>
+                        			%sread more%s', array("<a href=\"{$this->helplink('zray_live')}\" target=\"_blank\">",'</a>'));
+                            }
+                        	?>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<?php if (!isZrayStandaloneEnv()) { ?>
+		<ul>
+		  <li><a href="<?php echo $this->url('default', array('controller' => 'ZrayHistory')) ?>"><?php echo _t("Z-Ray") ?></a></li>
+		</ul>
+		<?php } ?>
+	</div>
+</div>
+<div class="container" id="main-container" style="margin-top:20px; padding-top: 20px;">
+
+<div id="filter_details"></div>
+<div id="grid-action-bar" class="grid-action-bar">
+	<button id="remove" title="<?php echo _t("Remove zray"); ?> " onclick="deleteSelectedZray()" disabled>Remove</button>
+	<button id="refreshZrayList" onclick="refreshList()">Refresh</button>
+</div>
+
+<div id="arrow" class="arrow">
+</div>
+<div>
+    <div id="zrayTable"></div>
+	<div id="grid-count-bar"></div>
+	<div id="mypager"></div>
+	<div id="spacer" style="height: 100px;"></div>
+</div>
+<script type='text/javascript' src='<?php echo $this->basePath(); ?>/js/devbar/easyXDM.min.js'></script>
+<script>
+var pager;
+
+window.addEvent("load", function() {
+
+	// initialize: function(container, internalFilters, externalFilters, existingFilters, type, uniqueFilterTypes, defaultFilterId){
+	filterWidget = <?php echo $this->filter('filter_details', $internalFilters, $externalFilters, $existingFilters, 'zrays', array('method'), 'All Z-Ray'); ?>
+		
+	filterWidget.addEvent('saveFilter', function(data) {
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was saved", {'filterName': data.filterName})});
+    });
+
+	filterWidget.addEvent('saveFilterFailed', function(data) {
+    	document.fireEvent('toastAlert', {'message': _t("Could not save filter: {errorMessage}", data.errorData)});
+    });
+
+	filterWidget.addEvent('deleteFilter', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was deleted", {'filterName': event.filterName})});
+	});
+	
+	filterWidget.addEvent('deleteFilterFailed', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was not deleted: {errorMessage}", {'filterName': event.filterName, 'errorMessage': event.errorData.errorMessage})});
+	});
+
+	// run a regular string search in case of user passed the number in the the free search
+	filterWidget.addEvent('loadItemDetails', function(event){
+		filterWidget.selectSearchFilter(event.query, 'freeText', 'search', 'freeText');
+		filterWidget.filterChanged();
+		filterWidget.runFiltering();
+	})
+	
+	pager = <?php echo $this->zPager('mypager', $perPage); ?>
+	
+	<?php $params = array(
+        'timerpicker'    => 'true',
+        'xoffset'        => '5',
+        'yoffset'        => '0',
+		'format'		=> '%d/%b/%Y %H:%M',
+    );?>
+
+    var datePicker = <?php echo $this->datePicker('.datePicker', $params); ?>
+    filterWidget.addEvent('runFiltering',function(selectedFilters) {
+    	zgrid2.loadData();
+   	}.bind(this));
+    datePicker.addEvent('select', function(){
+		filterWidget.selectedFilters.from = new Date(this.inputs[0].value).getTime()/1000;
+		filterWidget.selectedFilters.to = new Date(this.inputs[1].value).getTime()/1000;
+	});
+
+
+    var fullData = {};
+    //////////////////// ZGRID2 /////////////////////////////////////////////////////////////////
+	var cmu2 = [
+                {
+                	'title': _t('ID'),
+                	'dataIndex': 'id',
+                	'parser': zGrid2.prototype.string,
+                	'width': '3%',
+                	'sortable': true,
+                	'sortBy': 'id',
+                	'ellipsis': false
+                },
+                {
+    				'title': _t('Severity'),
+    				'dataIndex': 'pageId',
+    				'parser': function(column, data) {
+        				
+    					var statistics = getRequestStatistics(fullData[data.id]);
+    					severity = 'normal';
+    					if (statistics.sessionOversize) severity = 'warning'; 
+    					if (statistics.events.warning > 0 || statistics.logs.warning > 0) severity = 'warning'; 
+    					if (statistics.events.critical > 0 || statistics.logs.critical > 0) severity = 'critical'; 
+    					if (statistics.responseError > 0) severity = 'critical'; 
+    					if (statistics.dbError) severity = 'critical'; 
+    					
+    					var title = _t('The request has no warnings or critical errors'); 
+    					if (severity == 'warning') {
+    						title = _t('The request contains warnings');
+    					} else if (severity == 'critical') {
+    						title = _t('The request contains critical errors');
+    					}
+
+    					return '<div class="zdb-badge-'+severity+'" title="'+title+'"></div>';
+    				},
+    				'width': '1%',
+    				'ellipsis': true
+                },
+				{
+					'title': _t('Response'),
+					'dataIndex': 'httpResponse',
+					'parser': zGrid2.prototype.string,
+					'width': '4%',
+					'sortable': true,
+					'sortBy': 'status_code',
+					'ellipsis': false
+				},
+				{
+					'title': 'Method',
+					'dataIndex': 'method',
+					'parser': zGrid2.prototype.string,
+					'width': '4%',
+					'ellipsis': false,
+				},
+				{
+					'title': _t('Url'),
+					'dataIndex': 'url',
+					'parser': zGrid2.prototype.string,
+					'width': '35%',
+					'sortable': true,
+					'sortBy': 'url',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Started'),
+					'dataIndex': 'startTimeTimestamp',
+					'parser': function(val, rec) {
+						return formatDate(Math.round(val/1000));
+					},
+					'width': '7%',
+					'sortable': true,
+					'sortBy': 'start_time',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Execution Time (ms)'),
+					'dataIndex': 'runTime',
+					'parser': function(val, rec) {
+						
+						timestamp = val;
+						percision = 2;
+						showFormat = false;
+						
+						timestamp = parseInt(timestamp, 10);
+						timestamp /= 1000;
+						
+						var res = timestamp.toFixed(percision);
+						res = res.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+						if (typeof showFormat == 'undefined' || showFormat) {
+							return res + ' ms'; 
+						}
+						
+						return res;
+					},
+					'width': '7%',
+					'sortable': true,
+					'ellipsis': true
+				},
+				{
+					'title': _t('Delete'),
+					'dataIndex': 'delete',
+					'parser': zGrid2.prototype.button
+				}
+	    	];
+
+	<?php 
+		$options = array( 
+			'multiSelect' => false,
+			'idColumn'    => 'id',
+			'sortedBy'	=> 'id',
+			'limit' => $perPage,
+			'direction'	=> 'desc',
+			'totalContainer' => 'grid-count-bar'
+		);
+	?>
+	zgrid2 = <?php echo $this->zGrid2('zrayTable', 'cmu2', $options); ?>
+
+	zgrid2.addEvent('buttonClick', function(params) {
+		
+		// update spinner on the row immediately
+		switch (params.type) {
+			case 'delete':
+				deleteZrayIds([params.rowId]);
+				break;
+		}
+	});
+	
+
+	zgrid2.addEvent('descriptionOpen',function(params) {
+
+		// visible arrow if it's not empty zray
+		if (params.data.pageId != '') {
+			  $('arrow').setStyle('visibility', 'visible');
+			  setTimeout(function(){ $('arrow').setStyle('visibility', 'hidden'); }, 5000);
+		}
+		
+		var socket = null;
+		if ($('page_zray')) {
+			$('page_zray').dispose();
+		}
+
+		if($('zend-dev-bar')) {
+			$('zend-dev-bar').dispose();
+	    }
+
+		if($('zend-dev-bar-iframe')) {
+			$('zend-dev-bar-iframe').dispose();
+	    }
+
+	    if (socket) {
+	        socket.destroy();
+		}
+	
+	    var newDiv = document.createElement('div');
+	    newDiv.setAttribute('id', 'page_zray');
+	    var zrayHeader = <?php echo json_encode($zrayHeader); ?>;
+	    var zrayFooter = <?php echo json_encode($zrayFooter); ?>;
+
+	    newDiv.innerHTML =    zrayHeader.replace('$(DEVBAR_PAGE_ID)', params.data.pageId) + 
+	    	                  zrayFooter.replace('$(DEVBAR_PAGE_ID)', params.data.pageId);
+	    
+	    $('main-container').appendChild(newDiv);
+	    
+	    [].forEach.call(newDiv.querySelectorAll('script'), function(scr) {
+		    eval.call(window, scr.textContent);
+	    });
+
+    });
+
+	zgrid2.fireEvent('descriptionOpen', {'data': {'pageId' : ''}});
+
+	var url = '<?php echo $this->basePath() . '/Api/zrayGetAllRequestsInfo'; ?>';
+	var params = zgrid2.getParams();
+	zgrid2.loadRequest = new Request.WebAPI({
+		method:   'get',
+		data:     params,
+		url:      url, 
+		'link':   'cancel',
+		onComplete: function(response) {
+
+			var zrayRequests = [];
+		    fullData = [];
+			
+			var totalRequests = response.responseData.totalRequests || 0;
+			
+		    for (i = 0; i < response.responseData.RequestsInfo.length; i++) { 
+
+		    	/*********** filtering by severity *********************/
+		    	var statistics = getRequestStatistics(response.responseData.RequestsInfo[i]);
+		    	severity = 'normal';
+				if (statistics.responseError > 0) severity = 'critical'; 
+				if (statistics.events.critical > 0 || statistics.logs.critical > 0) severity = 'critical'; 
+				if (statistics.events.warning > 0 || statistics.logs.warning > 0) severity = 'warning'; 
+				if (statistics.sessionOversize) severity = 'warning'; 
+
+				// skip if devbar down't have the selected severity filter
+				if (filterWidget.selectedFilters.severity && filterWidget.selectedFilters.severity.length > 0 && !filterWidget.selectedFilters.severity.contains(severity)) {
+					continue;
+				}
+				/*********** filtering by severity *********************/
+		    	zrayRequests.push(response.responseData.RequestsInfo[i].RequestInfo);
+		    	fullData[response.responseData.RequestsInfo[i].RequestInfo.id] = response.responseData.RequestsInfo[i];
+		    }
+
+			zgrid2.setData(zrayRequests, totalRequests);
+			pager.reloadData(pager.page, totalRequests);
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	});
+	
+	zgrid2.addEvent('loadData', function(params) {
+		var params = zgrid2.getParams();
+	    params.filterId = 'dummy';
+        params.filters = filterWidget.selectedFilters;
+		
+		// manage pager
+		params.offset = params.page > 0 ? (params.page - 1) * params.limit : 0;
+
+        zgrid2.loadRequest.get(params);
+	});
+
+    zgrid2.addEvent('rowChecked', function(params) {
+        $('remove').set('disabled',(! $('zrayTable').getElements('input[type=checkbox].zgrid-checkbox')
+    		.some(function(item){
+	            return item.checked;
+	        })));
+    });
+
+	pager.addEvent('pageSelect', function(params) {
+		pager.setPage(params.page);
+		zgrid2.reloadData(params);
+	});
+	
+	zgrid2.loadData();
+
+	// rewrite the severity zgrid title
+	$('Severity').addClass('zdb-badge-title');
+	$('Severity').innerHTML = '';
+	
+});
+
+function refreshList() {
+	zgrid2.loadData();
+}
+
+
+function deleteSelectedZray() {
+	if (Object.keys(zgrid2.getSelectedRows()).length == 0) {
+		return;
+	}
+	
+	// collect selected IDs
+	var zrayIds = Array();
+	Object.each(zgrid2.getSelectedRows(), function(row) {
+		zrayIds.push(row.id);
+	});
+
+	deleteZrayIds(zrayIds);
+}
+
+function deleteZrayIds(zrayIds) {
+	if (!confirm('Are you sure you would like to delete the currently selected zray entries?')) {
+		return;
+	}
+	
+	var params = {
+		ids: zrayIds
+	};
+
+	var actionUrl = "<?php echo $this->basePath('/Api/zrayDeleteByIds'); ?>";
+	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+
+        	onSuccess: function(response) {
+        		document.fireEvent('toastNotification', {'message': '<?php echo _t("The selected zray entries will be removed..."); ?>'}); 
+        		zgrid2.loadData();
+        	},
+        	onFailure: function() {
+        		document.fireEvent('toastAlert', {'message': '<?php echo _t("The zray entries could not be deleted"); ?>'});
+        	},
+        	onComplete: function(){
+        		$('remove').set('disabled', (0 == Object.getLength(zgrid2.getSelectedRows())));
+    }});
+        
+    request.post();
+	
+}
+
+var getRequestStatistics = function(requestFullData) {
+		var result = {
+			'sessionOversize': requestFullData.SuperGlobals.sessionOversized,
+			'responseError': 0, // in case of response status 400+ / 500+
+			'events': {'critical': 0, 'warning': 0},
+			'logs': {'critical': 0, 'warning': 0},
+			'dbError': false
+		};
+
+		// look at the request response status
+		result['responseError'] = (requestFullData.RequestInfo.httpResponse >= 400 && requestFullData.RequestInfo.httpResponse < 600) ? 1 : 0;
+
+		// look at monitor events
+		var monitorEvents = requestFullData.MonitorEvents;
+		monitorEvents.forEach(function(event) {
+			if (event.severity.toLowerCase() == 'critical') {
+				result['events']['critical']++;
+			} else if (event.severity.toLowerCase() == 'warning') {
+				result['events']['warning']++;
+			}
+		});
+
+		// look at log entries
+		var logEntries = requestFullData.LogEntries;
+		
+		logEntries.forEach(function(logEntry) {
+			var logType = logEntry.type.toLowerCase();
+			if (logType.indexOf('error') >= 0 || logType.indexOf('parse') >= 0 || logType.indexOf('fatal') >= 0) {
+				result['logs']['critical']++;
+			} else if (logType.indexOf('warning') >= 0) {
+				result['logs']['warning']++;
+			}
+		});
+		
+		// look at the database queries
+		requestFullData.SqlQueries.forEach(function(queryData) {
+			if (queryData.success.toLowerCase() != 'success') {
+				result['dbError'] = true;
+			}
+		});
+		
+	return result;
+};
+
+</script>

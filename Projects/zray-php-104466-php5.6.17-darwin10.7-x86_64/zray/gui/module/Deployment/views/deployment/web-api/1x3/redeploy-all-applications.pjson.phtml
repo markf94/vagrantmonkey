@@ -1,0 +1,8 @@
+<?php $applications = $applications ?: new \ZendServer\Set(array()); ?>
+<?php $limitCount = $applications->count(); ?>
+"responseData":{"applicationsList":[
+<?php $counter = 0; foreach($applications as $application) : /* @var $application \Deployment\Application\Container */?>
+<?php   echo $this->applicationInfoJson($application);?>
+<?php echo (++$counter < $limitCount ? ',' : ''); ?>
+<?php endforeach ?>
+]}

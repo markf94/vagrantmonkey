@@ -1,0 +1,27 @@
+<?php $application = $application ?: new \Deployment\Application\Container(new \ZendDeployment_Application()); ?>
+<?php $servers = $servers ?: array(); ?>
+<?php
+$userParams = $application->getUserParams();
+foreach ($userParams as $key => $param) {
+	if (strpos(strtolower($key), 'pass') !== false) {
+		$userParams[$key] = str_repeat('*', strlen($param));
+	}
+}
+?>
+
+<responseData>
+    <applicationDetails>
+<?php   echo $this->applicationInfoXml($application, $servers);?>
+    <applicationPackage>
+    	<prerequisites><![CDATA[<?php echo $prerequisites ?>]]></prerequisites>
+        <userParams>
+<?php foreach ($userParams as $name => $value) :?>
+            <parameter>
+                <name><?php echo $name ?></name>
+                <value><?php echo $value ?></value>
+            </parameter>
+<?php endforeach ?>
+        </userParams>
+    </applicationPackage>
+    </applicationDetails>
+</responseData>

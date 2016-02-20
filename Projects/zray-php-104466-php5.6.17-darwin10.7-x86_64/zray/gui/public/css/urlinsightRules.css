@@ -1,0 +1,29 @@
+@CHARSET "UTF-8";
+
+#rule-url {
+	width: 550px;
+}
+
+#manage-rules {
+	float: right;
+	margin-top: 7px;
+}
+
+#manage-rules:before {
+	content: "\e138";
+	margin-right: 10px;
+	margin-left: 0px;
+}
+
+.create-rule-type,
+#rule-create {
+	margin-left: 10px;
+}
+
+#batch-delete:before {
+	content: "\e198";
+}
+
+#rule-create:before {
+	content: "\e191";
+}

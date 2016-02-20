@@ -1,0 +1,8 @@
+<responseData>
+    <extensions>
+    <?php // This view serves other Extension related actions, such as configurationExtensionsOn ?>
+    <?php foreach($extensions as $ext) : // @var $extensions \ZendServer\Set @var $extension ExtensionContainer ?>
+	<?php echo $this->extensionXml($ext); ?>
+	<?php endforeach; ?>
+  </extensions>
+</responseData>

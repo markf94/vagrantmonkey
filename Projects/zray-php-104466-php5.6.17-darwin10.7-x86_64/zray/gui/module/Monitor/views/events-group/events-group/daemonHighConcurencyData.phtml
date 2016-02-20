@@ -1,0 +1,11 @@
+<ul class="jobqueue_event_properties">
+<?php if ((string)$xml->queueName != ""): ?>
+	<li><strong><?php echo _t('Queue Name'); ?></strong><?php echo (string)$xml->queueName ?></li>
+<?php endif;?>
+<?php if ((int)$xml->runningJobsCount != 0): ?>
+	<li><strong><?php echo _t('Number of Running Jobs'); ?></strong><?php echo (string)$xml->runningJobsCount ?></li>
+<?php endif;?>
+<?php if ((int)$xml->maximumCountAllowed != 0): ?>
+	<li><strong><?php echo _t('Maximum Concurrency Level'); ?></strong><?php echo (string)$xml->maximumCountAllowed ?></li>
+<?php endif;?>
+</ul>

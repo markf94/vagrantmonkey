@@ -1,0 +1,275 @@
+<?php $this->headLink()->appendStylesheet($this->basePath('/css/webApi.css')); ?>
+
+<script type="text/javascript">
+
+var addKeyTip;
+var initData = {<?php echo $this->partial('web-api/keys-web-api/api-keys-get-list.pjson.phtml', array('keys' => $keys)) ?>};
+var rowsChecked = 0;
+
+function hideAddKeyTip() {
+	addKeyTip.hide($('add-api-key-btn'));
+}
+
+function addKey() {
+	var url = '<?php echo $this->basePath('/Api/apiKeysAddKey'); ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url:url, 
+		data: $$('.simple-modal-body #addWebApiKey')[0].toObj(), 
+		onSuccess: function(response) {
+			addApiKeysDialog.hide();
+			zgrid2.updateData(response.responseData.keys);
+			document.fireEvent('toastNotification', {'message': '<?php echo _t('The new key was successfully added'); ?>'});
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+}
+
+window.addEvent("domready", function(){
+	persistantHeaders.addHeader('keys-bar');
+	persistantHeaders.addHeader('keys_list_tableHead');
+	
+	var cmu2 = [
+				{
+					'title': _t('ID'),
+					'dataIndex': 'id',
+					'parser': zGrid2.prototype.string,
+					'width': '3%',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Name'),
+					'dataIndex': 'name',
+					'parser': zGrid2.prototype.string,
+					'width': '10%',
+				},
+				{
+					'title': _t('Hash'),
+					'dataIndex': 'hash',
+					'parser': zGrid2.prototype.string,
+					'width': '50%',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Username'),
+					'dataIndex': 'username',
+					'parser': zGrid2.prototype.string,
+					'width': '20%',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Creation Time'),
+					'dataIndex': 'creationTimeTimestamp',
+					'parser': zGrid2.prototype.timestamp,
+					'width': '17%',
+					'sortable': true,
+					'sortBy': 'creation_time',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Remove Key'),
+					'dataIndex': 'remove',
+					'parser': zGrid2.prototype.button
+				},
+	    	];
+
+	<?php 
+    	$options = array(
+    		'idColumn' 	=> 'id',
+			'sortBy'	=> 'name',
+			'multiSelect'	=> true,
+			'rowExpand' => false
+    	);
+
+	?>
+	zgrid2 = <?php echo $this->zGrid2('keys_list', 'cmu2', $options); ?>
+
+	var url = '<?php echo "{$this->basePath()}/Api/apiKeysGetList"; ?>';
+	zgrid2.loadRequest = new Request.WebAPI({
+		method: 'get',
+		url:url,
+		link:'cancel',
+		onComplete: function(response) {
+			zgrid2.setData(removeSystemKeys(response.responseData.keys));
+		}
+	});
+	
+	zgrid2.addEvent('loadData', function(params) {
+		zgrid2.loadRequest.get(params);
+	});
+
+	zgrid2.setData(removeSystemKeys(initData.responseData.keys));
+	
+
+	$('keys_delete').addEvent('click', function(event) {
+		var params = {"ids":Object.keys(zgrid2.getSelectedRows())};
+		removeKeys(params);
+	});
+
+	zgrid2.addEvent('rowChecked',function(params) {
+	    if (params.checked) {
+	    	if (rowsChecked == 0) {
+	    		$('keys_delete').set('disabled', false);
+	    	}
+			rowsChecked++;
+		} else {
+			rowsChecked--;
+			if (rowsChecked == 0) {
+	    		$('keys_delete').set('disabled', true);
+	    	}
+		}
+	});
+
+	zgrid2.addEvent('buttonClick', function(params) {
+		if (params.type == 'remove') {
+			
+			var params = {
+	    		ids: [params.data.id]
+    		};
+
+			removeKeys(params);
+    		
+		}
+	});
+
+	function removeSystemKeys(data) {
+		var newData = [];
+		for (var i = 0; i < data.length; i++) {
+			if (data[i].username == 'System Key') {
+				continue;
+			}
+		    
+		    newData[i] = data[i];
+		}
+
+		return newData;
+	}
+
+	
+	function removeKeys(params) {
+		if (! confirm(_t("Are you sure you would like to delete the WebAPI Key(s)?"))) {
+			return;
+		}
+		
+		var actionUrl = "<?php echo $this->basePath('/Api/apiKeysRemoveKey'); ?>";
+		
+		var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post',
+
+		onSuccess: function(response) {
+			zgrid2.setData(removeSystemKeys(response.responseData.keys));
+			document.fireEvent('toastNotification', {'message': '<?php echo _t("The key(s) was deleted"); ?>'});
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			if (decoded.errorData.errorMessage) {
+				document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			} else {
+				document.fireEvent('toastAlert', {'message': '<?php echo _t("The key(s) could not be deleted"); ?>'});
+			}
+		}});
+		
+		request.post();
+	}
+
+	$('add-api-key-btn').addEvent('click', function(){
+		/******************** New Dialog for adding keys *********************/
+		addApiKeysDialog = new SimpleModal({closeButton: false,
+			hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+			template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+					   <div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+					   <div class=\"simple-modal-footer\"></div></div>"
+		});
+		
+		addApiKeysDialog.addButton(_t("Cancel"), "btn");
+		addApiKeysDialog.addButton(_t("Add Key"), "btn primary", function(btn){
+			addKey();
+		}.bind(this));
+
+		addApiKeysDialog.show({
+		      "model":	"modal",
+		      "title": '<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('working_with_api_keys'); ?>"></a>', 
+		      "contents": $('add-key-modal').get('html')
+		});
+		/*********************************************************************/	
+	});	
+
+});
+
+
+</script>
+<div id="add-key-modal" style="display: none;">
+	<h2><?php echo _t('Add API Key'); ?></h2>
+	<form action="" method="POST" name="addWebApiKey" onsubmit="return false;" id="addWebApiKey">
+		<table class="zend-form-table">
+			<tbody>
+				<tr>
+					<td class="required-field">
+						<label for="name"><?php echo _t('Key Name') ?></label>
+					</td>
+					<td>
+						<input name="name" type="text">
+					</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td class="required-field">
+						<label for="username"><?php echo _t('Key Owner') ?></label>
+					</td>
+					<td>
+						<?php if ($isSimpleAuth) : ?>
+						<select name="username">
+							<?php foreach ($users as $user) : ?>
+							<option value="<?php echo $user; ?>"><?php echo $user; ?></option>
+							<?php endforeach; ?>
+						</select>
+						<?php else : ?>
+						<input name="username" type="text" placeholder="<?php echo _t('e.g. admin, developer')?>" >
+						<div class="zend-form-table-description"><em><?php echo _t('Enter the username of the key owner') ?></em></div>
+						<?php endif; ?>
+					</td>
+					<td></td>
+				</tr>
+			</tbody>
+		</table>
+	</form>
+</div>
+
+
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Zend Server is fully Web service enabled, meaning that Zend Server features - including provisioning, application deployment, automated cluster management, job queuing, and more - are all accessible using APIs, 
+                            unlocking the full power of Zend Server for programmatic access. The WebAPI keys, consisting of a key name and hash, will enable you to integrate with this functionality using the various available Web API methods.<br/> 
+            				%sread more%s', array("<a href=\"{$this->helplink('supported_methods')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/integration-and-webaapi-in-zend-server-6-embed?ecat=breadcrumbs&amp;eaction=Integration and Web API">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/webapi-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration") ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div id="keys-bar" class="grid-action-bar">
+	<button id="keys_delete" title="<?php echo _t('Delete WebAPI key');?>" disabled="disabled"><?php echo _t('Delete');?></button>
+	<button id="add-api-key-btn" title="<?php echo _t('Add a WebAPI key');?>"><?php echo _t('Add Key'); ?></button>
+</div>
+<div id="keys_list"></div>

@@ -1,0 +1,134 @@
+<script type="text/javascript">
+function checkDownloadStatus() {
+	// prevent to check download if window was closed
+	if (! allowAutoPolling) {
+		return;
+	}
+
+	var url = '<?php echo $this->basepath('/Api/deploymentDownloadFileStatus') ?>';
+	var request = new Request.WebAPI({
+		url: url,
+		data: {url: '<?php echo $url; ?>'},
+		onSuccess: function(response) {
+			var data = response.responseData;
+
+			if (data.status == 'downloading') {
+				if (data.size > 0 && data.downloaded > 0) {
+					var precent = Math.floor((data.downloaded / data.size) * 100);
+					$('downloadProgressValue').set('text', precent + '%');
+					$('progressbar').set('value', precent);
+
+					var sizeInKB = (data.size / (1024)).toFixed(1);
+					var downloadedInKB = (data.downloaded / (1024)).toFixed(1);
+					$('downloadProgressSize').set('text', downloadedInKB + '/' + sizeInKB + ' KB');			
+				}
+
+				setTimeout(function() { checkDownloadStatus(); }, 1000);
+			} else if (data.status == 'error') {
+				$('downloadProgressBar').addClass('hidden');
+				$('downloadErrorContainer').removeClass('hidden');
+				$('downloadErrorMessage').set('text', data.message);
+			} else if (data.status == 'ok') {
+				$('downloadProgressValue').set('text', '100%');
+				$('progressbar').set('value', 100);
+
+				var sizeInKB = (data.size / (1024)).toFixed(1);
+				$('downloadProgressSize').set('text', sizeInKB + '/' + sizeInKB + ' KB');
+
+				// call to load the package
+				var myRequest = new Request({
+					data: {path: data.path},
+					url: '<?php echo $this->url('default', array('controller' => 'PluginsWizard', 'action' => 'finishDownload')); ?>?wizardId=<?php echo $wizardId; ?>',
+					async: false,
+					evalScripts: true,
+					onComplete: function(response){
+					}
+				}).send();
+				
+			} else {
+				setTimeout(function() { checkDownloadStatus(); }, 1000);
+			}
+		},
+		onFailure: function(response) {
+            var responseData = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': _t("Failed to download a deployment package: {error}", {'error': responseData.errorData.errorMessage})});
+		}
+	}).get();
+}
+
+function retry() {
+	// prevent to check download if window was closed
+	if (! allowAutoPolling) {
+		return;
+	}
+
+	$('downloadProgressBar').removeClass('hidden');
+	$('downloadErrorContainer').addClass('hidden');
+
+	// reset progress
+	$('downloadProgressValue').set('text', '0%');
+	$('progressbar').set('value', 0);
+	$('downloadProgressSize').set('text', '');
+	
+	var url = '<?php echo $this->basepath('/Api/deploymentDownloadFile') ?>?wizardId=<?php echo $wizardId; ?>';
+	var request = new Request.WebAPI({
+		data: {url: '<?php echo $url; ?>', name: '<?php echo $name; ?>', version: '<?php echo $version; ?>', 'override': 'TRUE'},
+		url: url,
+		onComplete: function(response){
+			checkDownloadStatus();	
+		},
+		onFailure: function(response) {
+            var responseData = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': _t(failedMessage, responseData.errorData)});
+		}
+	}).post();
+}
+
+allowAutoPolling = true;
+</script>
+
+<?php if (! $allowDownloading) : ?>
+<div id="downloadNotAllowedContainer">
+	<div class="wizard-inner-error">
+		<?php $enableUrl = '<a href="' . $this->basepath('/ZendComponents/#search=&grid=Zend--Deployment'). '">' . _t('enable') . '</a>'; ?>
+		<?php $manuallyDownloadUrl = '<a href="' . $url . '">' . _t('download') . '</a>'; ?>
+		
+		<?php 
+		if (isZrayStandaloneEnv()) {
+			$deploymentIniPath = getCfgVar("zend.conf_dir") . DIRECTORY_SEPARATOR . 'deployment.ini';
+			$managePluginsPage = '<a href="'.$this->basepath('/Plugins').'">Manage Plugins page</a>';
+			echo _t('Failed to download plugin package - Z-Ray Automatic Download is disabled.'.
+				'You can either enable this feature by manually setting "zend_deployment.auto_download=1" '.
+				'in the file %s and retry the automatic download process, or manually %s the plugin '.
+				'package and deploy it through %s.', array($deploymentIniPath, $manuallyDownloadUrl, $managePluginsPage)); 
+		} else {
+			echo _t('Failed to download plugin package - Zend Server Automatic Download is disabled. You can either %s this feature and retry the automatic download process, or manually %s the plugin package.', array($enableUrl, $manuallyDownloadUrl)); 
+		}
+		?><br/>
+	</div>
+</div>
+<?php else : ?>
+
+<div class="progress-bar-wrapper" id="downloadProgressBar">
+	Zend Server is downloading <?php echo (empty($version)) ? $name : $name . ' version ' . $version; ?> ... <br/><br/>
+	<progress id="progressbar" value="0" max="100"></progress>
+	<span class="progress-value" id="downloadProgressValue">0%</span>
+	<span class="progress-size" id="downloadProgressSize"></span>
+</div>
+
+<div id="downloadErrorContainer" class="hidden">
+	<div class="wizard-inner-error">
+		<?php echo _t('Zend Server failed to download the plugin package.'); ?><br/>
+		<span id="downloadErrorMessage"></span>
+	</div>
+	<br/>
+	<a href="javascript:void(0);" onclick="retry()">Retry</a> or <a href="<?php echo  $url; ?>">download manually</a>
+</div>
+
+<?php endif; ?>
+
+<script type="text/javascript">
+<?php if ($allowDownloading) : ?>
+checkDownloadStatus();
+<?php endif; ?>
+</script>

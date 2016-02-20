@@ -1,0 +1,9 @@
+"responseData":{"plugins": [
+<?php 
+	$pluginInfo = array();
+	foreach ($plugins as $plugin) {
+		$pluginInfo[] = $this->pluginJson($plugin, $updates);
+	}
+	echo implode(',', $pluginInfo);
+?>
+]}

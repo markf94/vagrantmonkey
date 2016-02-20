@@ -1,0 +1,40 @@
+<responseData>
+<?php if (isset($totalRequests) && is_numeric($totalRequests)) { ?>
+<totalRequests><?php echo $totalRequests; ?></totalRequests>
+<?php } ?>
+<requestsInfo><?php foreach($requests as $request) : ?>
+    <?php $requestId = $request ? $request->getId() : null; ?>
+    <?php if (!$requestId) continue; ?>
+	<?php $requestMonitorEvents = array(); ?>
+	<?php if (isset($monitorEvents[$requestId]) && count($monitorEvents[$requestId])) foreach ($monitorEvents[$requestId] as $monitorEvent) { ?>
+		<?php if ($monitorEvent && count($monitorEvent)) foreach ($monitorEvent as $issueKey => $issue) { ?>
+		      <?php 
+		      $requestEventsData = isset($eventsData[$requestId]) && 
+		          isset($eventsData[$requestId][0]) && 
+		          isset($eventsData[$requestId][0][$issue->getMaxEventGroup()->getEventsGroupId()]) ? 
+		          $eventsData[$requestId][0][$issue->getMaxEventGroup()->getEventsGroupId()] : null;
+		      ?>
+			<?php $requestMonitorEvents[] = $this->issueXml($issue, null, $requestEventsData); ?>
+		<?php } ?> 
+	<?php } ?>
+	<?php $requestMonitorEvents = (! empty($requestMonitorEvents)) ? implode(PHP_EOL, $requestMonitorEvents) : ''; ?>
+	<request>
+		<?php echo $this->requestInfoXml($request);?>
+		<?php if (isset($runtime[$requestId])) echo $this->runtimeXml($runtime[$requestId]);?>
+		<sqlQueries><?php if (isset($sqlQueries[$requestId])) echo $this->sqlQueriesXml($sqlQueries[$requestId]); ?></sqlQueries>
+		<logEntries><?php if (isset($logEntries[$requestId])) echo $this->logEntriesXml($logEntries[$requestId]); ?></logEntries>
+		<exceptions><?php if (isset($exceptions[$requestId])) echo $this->exceptionsXml($exceptions[$requestId]); ?></exceptions>
+		<monitorEvents><?php echo $requestMonitorEvents; ?></monitorEvents>
+		<SuperGlobals>
+			<sessionOversized><?php 
+			 echo isset($superglobals[$requestId]) && isset($superglobals[$requestId]['oversizedSession']) ? 
+			     $superglobals[$requestId]['oversizedSession'] : ''; 
+			?></sessionOversized>
+		</SuperGlobals>
+		<extraData>
+			<functionsCount><?php echo isset($functionsCount[$requestId]) ? $functionsCount[$requestId] : ''; ?></functionsCount>
+		</extraData>
+		<hasCustomData><?php echo json_encode($hasCustomData);?></hasCustomData>
+	</request>
+<?php endforeach ?></requestsInfo>
+</responseData>

@@ -1,0 +1,99 @@
+<div class="JobsTable" id="tableDescContent_<?php echo $job['id'] ?>">
+	<ul class="tabs">
+	
+	<li class="tab"><?php echo _t('Details'); ?></li>
+	
+	<?php if (isset($job['variables']) && $job['variables'] != '') : ?>
+		<li class="tab"><?php echo _t('Variables'); ?></li>
+	<?php endif; ?>
+	
+	<?php if (isset($job['httpHeaders']) && $job['httpHeaders'] != '') : ?>
+		<li class="tab"><?php echo _t('HTTP Headers'); ?></li>
+	<?php endif; ?>
+	
+	<?php if (isset($job['output']) && $job['output'] != '') : ?>
+		<li class="tab"><?php echo _t('Output'); ?></li>
+	<?php endif; ?>
+	
+	<?php if (isset($job['error']) && $job['error'] != '') : ?>
+		<li class="tab"><?php echo _t('Error'); ?></li>
+	<?php endif; ?>
+	
+	</ul>
+		
+	<div class="content">
+		<table class="tableWithDesc">
+			<tbody>
+				<tr>
+					<td><?php echo _t('URL'); ?></td>
+					<td><?php echo $job['script']; ?></td>
+				</tr>
+				<tr>
+					<td><?php echo _t('Name'); ?></td>
+					<td><?php echo $job['name']; ?></td>
+				</tr>
+				<tr>
+					<td><?php echo _t('Created'); ?></td>
+					<td><?php echo $this->UiDate(strtotime($job['creation_time'])); ?></td>
+				</tr>
+				<tr>
+					<td><?php echo _t('Run Time'); ?></td>
+					
+					<?php if(! empty($job['start_or_schedule_time'])): ?>
+					<td><?php echo $this->UiDate(strtotime($job['start_or_schedule_time'])); ?></td>
+					<?php else: ?>
+					<td></td>
+					<?php endif; ?>
+				</tr>
+				<tr>
+					<td><?php echo _t('End Time'); ?></td>
+					
+					<?php if(! empty($job['end_time'])): ?>
+					<td><?php echo $this->UiDate(strtotime($job['end_time'])); ?></td>
+					<?php else: ?>
+					<td>-</td>
+					<?php endif; ?>
+				</tr>
+				<tr>
+					<td><?php echo _t('Priority'); ?></td>
+					<td><?php echo $priorities[$job['priority']]; ?></td>
+				</tr>
+				<tr>
+					<td><?php echo _t('Schedule'); ?></td>
+					<td><?php echo $this->jobDetailsCronToHuman($job['schedule']); ?></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+		
+	<?php if (isset($job['variables']) && $job['variables'] != '') : ?>
+		<div class="content">
+		<li class="mui-vars-open"><?php echo $this->selectAll('variables-'.$job['id']); ?>
+		<ul id="variables-<?php echo $job['id']; ?>"><li><?php echo $this->variablesTree(json_decode($job['variables'], true)) ?></li></ul></li>	
+		</div>
+	<?php endif; ?>
+	
+	<?php if ( isset($job['httpHeaders']) && $job['httpHeaders'] != '') : ?>
+		<div class="content">
+			<li class="mui-vars-open"><?php echo $this->selectAll('httpHeaders-'.$job['id']); ?>
+			<div id="httpHeaders-<?php echo $job['id']; ?>"><?php echo $job['httpHeaders']; ?></div>
+		</div>
+	<?php endif; ?>
+	
+	<?php if (isset($job['output']) && $job['output'] != '') : ?>
+		<div class="content">
+			<li class="mui-vars-open"><?php echo $this->selectAll('output-'.$job['id']); ?>
+			<pre class="code-section" id="output-<?php echo $job['id']; ?>"><?php echo nl2br(htmlentities($job['output'])); ?></pre>
+		</div>
+	<?php endif; ?>
+	
+	<?php if (isset($job['error']) && $job['error'] != '') : ?>
+		<div class="content">
+			<li class="mui-vars-open"><?php echo $this->selectAll('error-'.$job['id']); ?>
+			<div id="error-<?php echo $job['id']; ?>"><?php echo $job['error']; ?></div>
+		</div>
+	<?php endif; ?>
+		
+	<div class="clear">
+	</div>
+</div>

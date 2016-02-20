@@ -1,0 +1,141 @@
+<?php $isAuthorized = $this->isAllowed('route:JobQueueWebApi', 'jobqueueCreateQueue') && $this->isAllowed('route:JobQueueWebApi', 'jobqueueUpdateQueue'); ?>
+<?php $title = $queueId ? _t("Update Queue") : _t("Add Queue"); ?>
+<?php $queuesListUrls = $this->url('default', array('controller' => 'Queues', 'action' => 'index')); ?>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content" style="width: 700px;">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Job Queue is a job management system that provides offline
+            				asynchronous processing of tasks and activities that can be run independently of
+            				the end user experience. Using the Job Queue API you can delay the execution of "heavy" parts
+            				of your Web application that originate from direct user interaction with a Web server,
+            				helping you to significantly improve response time and reduce Web server load<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('jobs_component')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/8-zend-server-performance-features-embed?ecat=breadcrumbs&amp;eaction=8 Zend Server Performance Features">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/performance-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'JobQueue')) ?>"><?php echo _t('Job Queue'); ?></a></li>
+			<li><a href="<?php echo $queuesListUrls; ?>"><?php echo _t('Queues'); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="settings-form-wrapper bordered-form">
+	<?php if (!$isAuthorized) { ?>
+	<div class="warningTopMessage warningTopMessageBorderedForm">Creating or updating queues is allowed only to the adminitstrator</div>
+	<?php } ?>
+    <?php echo $this->ZForm($queueForm, $queueData); ?>
+	<?php // toolbar // ?>
+	<div class="form-row">
+		<div id="jobs-grid-actions-bar" class="grid-action-bar">
+			<input type="submit" id="queue_add" title="<?php echo $title; ?>" onclick="submitForm();" disabled="disabled" value="<?php echo $title; ?>" />
+			<input type="button" id="queue_close" title="<?php echo _t('Cancel'); ?>" onclick="cancel()" value="<?php echo _t('Cancel'); ?>" />
+		</div>
+	</div>
+</div>
+<script>
+function cancel() {
+	document.location.href = '<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'index')); ?>';
+}
+
+function getFormValues() {
+	var vals = {};
+	$$('.settings-form-wrapper input, .settings-form-wrapper select').each(function(elem, i) {
+		if (elem.get('type') == 'button' || elem.get('type') == 'submit') return;
+		vals[elem.get('name')] = elem.get('value');
+	});
+	return vals;
+}
+
+function submitForm() {
+	<?php if (!$isAuthorized) { ?>
+	return;
+	<?php } ?>
+	document.body.onbeforeunload = null;
+	
+	var url, spinInitialized = false;
+    var sendParams = getFormValues();
+	
+   	$('queue_add').spin();
+    if (<?php echo $queueId ? 'true' : 'false'; ?>) {
+	    sendParams.id = <?php echo $queueId ?: '""'; ?>;
+	    url = '<?php echo $this->url('jobqueueUpdateQueue'); ?>';
+    } else {
+    	url = '<?php echo $this->url('jobqueueCreateQueue'); ?>';
+    }
+
+	// send POST to the web API
+	new Request.WebAPI({
+		method: 'post',
+		url: url,
+		onSuccess: function(response) {
+			if (response && response.responseData && response.responseData.result == 'success') {
+				// get all queues data 
+				document.location.href = '<?php echo $this->url('default', array('controller' => 'Queues', 'action' => 'index')); ?>';
+			} else if (response && response.errorData && response.errorData.errorMessage) {
+				document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+			} else {
+				document.fireEvent('toastAlert', {'message': 'Error adding the queue'});
+			}
+		}.bind(this),
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+		}.bind(this),
+		onComplete: function() {
+		    $('queue_add').unspin();
+		}
+	}).post(sendParams);
+}
+
+function enableDisableSubmitButton() {
+	<?php if (!$isAuthorized) { ?>
+	// is not allowed to add/update. keep it disabled
+	$('queue_add').set('disabled', true);
+	return;
+	<?php } ?>
+	
+	var nameInput = $('JobQueue_queue_name');
+	if (nameInput.value.length >= 2 && nameInput.value.length <= 32) {
+		$('queue_add').set('disabled', false);
+	} else {
+		$('queue_add').set('disabled', true);
+	}
+}
+
+window.addEvent('load', function() {
+	enableDisableSubmitButton();
+	
+	var nameInput = $('JobQueue_queue_name');
+	nameInput.addEventListener('change', enableDisableSubmitButton);
+	nameInput.addEventListener('keyup', enableDisableSubmitButton);
+	nameInput.addEventListener('paste', enableDisableSubmitButton);
+	
+	document.getElementById('JobQueue_queue').addEventListener('change', function() {
+		document.body.onbeforeunload = function() {
+			return 'Changes were made to the form.';
+		}
+	});
+	
+	<?php if ($queueId == \JobQueue\Db\Mapper::DEFAULT_QUEUE_ID || !$isAuthorized) { ?>
+	nameInput.set('readonly', true).set('disabled', true);
+	<?php } ?>
+
+});
+
+</script>

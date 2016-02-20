@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Updated: $Date: 2010-08-10 13:44:23 +0300 (Tue, 10 Aug 2010) $
+	Revision: $Rev: 39741 $
+-->
+<xs:schema id="eventGroup" xmlns=""	xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="eventGroup">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="details">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="issueId" type="xs:positiveInteger" />
+							<xs:element name="groupId" type="xs:positiveInteger" />
+							<xs:element name="ruleName" type="xs:string" />
+							<xs:element name="eventType">
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="PHP Error" />
+										<xs:enumeration value="Function Error" />
+										<xs:enumeration value="Slow Script Execution" />
+										<xs:enumeration value="Slow Function Execution" />
+										<xs:enumeration value="Java Exception" />
+										<xs:enumeration value="Excess Memory Usage" />
+										<xs:enumeration value="Inconsistent Output Size" />
+										<xs:enumeration value="Custom Event" />
+										<xs:enumeration value="" />
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:element>
+							<xs:element name="totalCount" type="xs:positiveInteger" />
+							<xs:element name="firstOccurrence" type="xs:positiveInteger" />
+							<xs:element name="lastOccurrence" type="xs:positiveInteger" />
+							<xs:element name="schema">
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="http" />
+										<xs:enumeration value="https" />
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:element>
+							<xs:element name="server" type="xs:string" />
+							<xs:element name="port" type="xs:positiveInteger" />
+							<xs:element name="path" type="xs:string" />
+							<xs:element name="functionName" type="xs:string" />
+							<xs:element name="file" type="xs:string" />
+							<xs:element name="line" type="xs:integer" />
+							<xs:element name="severity">
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="Info" />
+										<xs:enumeration value="Notice" />
+										<xs:enumeration value="Warning" />
+										<xs:enumeration value="Critical" />
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:element>
+							<xs:element name="aggregationHint" type="xs:string" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="groupData">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="functionDetails">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="name" type="xs:string" />
+										<xs:element name="arguments" type="xs:string" />
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="superGlobals">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="get" type="xs:string" />
+										<xs:element name="post" type="xs:string" />
+										<xs:element name="cookie" type="xs:string" />
+										<xs:element name="session" type="xs:string" />
+										<xs:element name="env" type="xs:string" />
+										<xs:element name="server" type="xs:string" />
+										<xs:element name="rawData" type="xs:string" />
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="backtrace">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="row" minOccurs="0" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="className" type="xs:string" />
+													<xs:element name="objectName" type="xs:string" />
+													<xs:element name="functionName" type="xs:string" />
+													<xs:element name="lineNumber" type="xs:nonNegativeInteger" />
+													<xs:element name="file" type="xs:string" />
+													<xs:element name="isStatic" type="xs:boolean" />
+												</xs:sequence>
+												<xs:attribute name="id" type="xs:nonNegativeInteger" />
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="additionalData">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="groupCount" type="xs:positiveInteger" />
+										<xs:element name="errorString" type="xs:string" />
+										<xs:element name="classIdentifier" type="xs:string" />
+										<xs:element name="userData" type="xs:string" />
+										<xs:element name="javaBacktrace" type="xs:string" />
+										<xs:element name="execTime">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="absolute" type="xs:integer" />
+													<xs:element name="average" type="xs:float" />
+												</xs:sequence>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="memoryUsage">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="absolute" type="xs:integer" />
+													<xs:element name="average" type="xs:float" />
+												</xs:sequence>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="outputSize">
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="absolute" type="xs:integer" />
+													<xs:element name="average" type="xs:float" />
+												</xs:sequence>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="issueLoad" type="xs:float" />
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="version" use="required">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:pattern value="[1-9]+\.[0-9]+\.[0-9]+"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

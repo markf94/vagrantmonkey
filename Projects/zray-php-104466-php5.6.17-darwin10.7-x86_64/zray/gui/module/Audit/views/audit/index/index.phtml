@@ -1,0 +1,293 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/admin.css") ?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/ToolTip.js' ); ?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/FragmentManager.js' );?>
+
+<?php 
+
+if ($this->isAllowed('auditTrail:timelimit', 'unlimited')) {
+	$externalFilters[0]['allowedRange'] = 'unlimited';
+} else {
+	$externalFilters[0]['allowedRange'] = '2hour';
+}
+?>
+
+<div class="settings-form-wrapper hidden">
+	<h2>Configure the Audit Trail settings</h2>
+	<?php 
+		echo $this->form()->openTag($settingsForm);
+		$renderer = $this->zendFormTable();
+		echo $renderer->openTag();
+		
+		echo '<tr>
+			<td><label for="audit-days">History</label></td>
+			<td>
+				<input type="radio" id="audit-period-forever" name="audit-period" value="forever" onchange="changeAuditHistory(this)"> Forever
+				<input type="radio" id="audit-period-custom" name="audit-period" value="custom" onchange="changeAuditHistory(this)"> Custom
+				<div id="audit-select-days" style="display: none;">
+					<input name="audit-days" type="text" id="audit-days" value=""> ' . _t('months') . '
+				</div>
+				<div class="zend-form-table-description">'. _t('Save audit entries for selected time frame') .'</div>
+			</td>
+			<td></td>
+		</tr>';
+		echo $renderer->element($settingsForm->get('email'));
+		echo $renderer->element($settingsForm->get('callbackUrl'));
+		
+		echo $renderer->closeTag();
+		
+		echo $this->form()->closeTag($settingsForm);
+	?>
+</div>
+<script type="text/javascript">
+
+window.addEvent("domready", function(){
+	persistantHeaders.addHeader('audit-grid-action-bar');
+	persistantHeaders.addHeader('audit_log_tableHead');
+	
+    filterWidget = <?php echo $this->filter('filter_details', $internalFilters, $externalFilters, $existingFilters, 'audit', array('outcome'), 'All Audit Entries'); ?>
+	
+	filterWidget.addEvent('saveFilter', function(data) {
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was saved", {'filterName': data.filterName})});
+    });
+
+	filterWidget.addEvent('saveFilterFailed', function(data) {
+    	document.fireEvent('toastAlert', {'message': _t("Could not save filter: {errorMessage}", data.errorData)});
+    });
+
+	filterWidget.addEvent('deleteFilter', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was deleted", {'filterName': event.filterName})});
+	});
+	
+	filterWidget.addEvent('deleteFilterFailed', function(event){
+    	document.fireEvent('toastNotification', {'message': _t("Filter '{filterName}' was not deleted: {errorMessage}", {'filterName': event.filterName, 'errorMessage': event.errorData.errorMessage})});
+	});
+
+	// run a regular string search in case of user passed the number in the the free search
+	filterWidget.addEvent('loadItemDetails', function(event){
+		filterWidget.selectSearchFilter(event.query, 'freeText', 'search', 'freeText');
+		filterWidget.filterChanged();
+		filterWidget.runFiltering();
+	})
+	
+	<?php $params = array(
+        'timerpicker'    => 'true',
+        'xoffset'        => '5',
+        'yoffset'        => '0',
+		'format'		=> '%d/%b/%Y %H:%M',
+    );?>
+
+    var datePicker = <?php echo $this->datePicker('.datePicker', $params); ?>
+    filterWidget.addEvent('runFiltering',function(selectedFilters) {
+    	zgrid2.loadData();
+   	}.bind(this));
+    datePicker.addEvent('select', function(){
+		filterWidget.selectedFilters.from = new Date(this.inputs[0].value).getTime()/1000;
+		filterWidget.selectedFilters.to = new Date(this.inputs[1].value).getTime()/1000;
+	});
+
+	//////////////GRID CALLBACKS //////////////
+	var outcomeStatus = function(value, data) {
+		if (value == 'OK') {
+			return '<div class="zgrid-status-ok" title="' + value + '">' + value + '</div>';
+		} else if (value == 'In Progress') {
+			return '<div class="zgrid-status-progress" title="' + value + '">' + value + '</div>';
+		}
+
+		return '<div class="zgrid-status-error" title="' + value + '">' + value + '</div>';
+	}
+	
+	var auditInfo = <?php echo $this->ZGridAuditInfo($this->basePath() . '/Api/auditGetDetails'); ?>;
+	var cmu2 = [
+				{
+					'title': _t('ID'),
+					'dataIndex': 'id',
+					'parser': zGrid2.prototype.string,
+					'width': '5%',
+					'sortable': true,
+					'sortBy': 'audit_id',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Origin'),
+					'dataIndex': 'requestInterface',
+					'parser': function(column, data) {
+						var dictionary = {
+								"INTERFACE_UI": _t('GUI'),
+								"INTERFACE_WEBAPI": _t('WebAPI'),
+								"INTERFACE_FILE_SYSTEM": _t('File System'),
+								"INTERFACE_DEVBAR": _t('Z-Ray'),
+							};
+						
+						return '{remoteAddr} ({accessInterface})'.substitute(
+								{remoteAddr: data.remoteAddr, accessInterface: zGrid2.prototype.string(dictionary[column])});
+					},
+					'width': '18%',
+					'ellipsis': true
+				},
+				{
+					'title': _t('User'),
+					'dataIndex': 'username',
+					'parser': zGrid2.prototype.string,
+					'width': '14%',
+					'sortable': true,
+					'sortBy': 'username',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Creation Time'),
+					'dataIndex': 'creationTimeTimestamp',
+					'parser': zGrid2.prototype.timestamp,
+					'width': '12%',
+					'sortable': true,
+					'sortBy': 'creation_time',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Operation'),
+					'dataIndex': 'auditTypeTranslated',
+					'parser': zGrid2.prototype.string,
+					'width': '13%',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Outcome'),
+					'dataIndex': 'outcome',
+					'parser': outcomeStatus,
+					'width': '10%',
+					'ellipsis': false
+				},
+				{
+					'title': _t('Extra Details'),
+					'dataIndex': 'extraData',
+					'parser': zgridAuditInfo.prototype.parseExtraDataLimited,
+					'width': '28%',
+					'sortable': false
+				}
+	    	];
+
+	<?php 
+    	$options = array(
+    		'idColumn' 	=> 'id',
+			'sortBy'	=> 'id',
+			'limit'		=> $perPage,
+			'totalContainer' => 'grid-count-bar'
+    	);
+	?>
+	zgrid2 = <?php echo $this->zGrid2('audit_log', 'cmu2', $options); ?>
+
+	pager = <?php echo $this->zPager('mypager', $perPage); ?>
+
+	zgrid2.addEvent('descriptionOpen',function(params) {
+    	this.loadData(params);
+    }.bind(auditInfo));
+
+	var url = '<?php echo $this->basePath() . '/Api/auditGetList'; ?>';
+	zgrid2.loadRequest = new Request.WebAPI({
+		method: 'get',
+		url:url, 
+		'link': 'cancel',
+		onSuccess: function(response) {
+			zgrid2.setData(response.responseData.auditMessages, response.responseData.totalCount);
+			pager.reloadData(pager.page, response.responseData.totalCount);
+			changeLimitedMessageColor(response.responseData.auditMessages.length);
+		},
+		onFailure: function(response) {
+			var response = JSON.decode(response.responseText);
+			document.fireEvent('toastAlert', {'message': response.errorData.errorMessage});
+			zgrid2.postLoad();
+			zgrid2.setData([], 0);
+			pager.reloadData(1, 0);
+		}
+	});
+
+	zgrid2.addEvent('loadData', function(params) {
+		zgrid2.preLoad();
+	    params.filterId = 'dummy';
+        params.filters = filterWidget.selectedFilters;
+
+        zgrid2.loadRequest.get(params);
+	});
+
+	pager.addEvent('pageSelect',function(params) {
+		pager.page = params.page;
+		this.reloadData(params);
+	}.bind(zgrid2));
+	
+	zgrid2.loadData();
+
+	$('audit-export').addEvent("click", function() {
+		var selectedFilters = {};
+		selectedFilters.filters = filterWidget.selectedFilters;
+		var selectedFiltersStr = Object.toQueryString(selectedFilters);
+		location.href='<?php echo $this->basePath()?>/Audit/export?' + selectedFiltersStr;
+	});
+});
+
+function changeAuditHistory(element) {
+	if (element.get('value') == 'custom') {
+		$('simple-modal-box').getElement('#audit-select-days').setStyle('display', 'inline');
+	} else {
+		$('simple-modal-box').getElement('#audit-select-days').setStyle('display', 'none');
+	}
+}
+
+function changeLimitedMessageColor(count) {
+	if (count % 2 == 0) {
+		$$('.limitedMessage').removeClass('odd');
+	} else {
+		$$('.limitedMessage').addClass('odd');
+	}
+}
+</script>
+<div id="bread-wrp" class="page-description">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('The Audit Trail tracks changes made to your system, whether made via the UI, API or system files.
+				Any time a user performs a significant activity, a record indicating what happened and when it happened is logged by Zend Server.
+				You can filter the trail for easier viewing, and configure it to send email notifications or execute customized actions<br/>
+				%sread more%s', array("<a href=\"{$this->helplink('audit_trail')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/tracking-users-embed?ecat=breadcrumbs&amp;eaction=Tracking Users">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/tracking-users-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'ZendComponents')) ?>"><?php echo _t("Administration"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<?php if (! $this->isAllowed('auditTrail:timelimit', 'unlimited')): // add message for all but enterprise ?>
+<div>
+<h2 class="limitedTopMessage"><?php echo _t('The Audit Trail is only displaying data from the last 2 hours. Want to view a complete audit of changes to your system? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-audit-trail') . '">', '</a>'));?></h2>
+</div>
+<?php endif; ?>
+
+
+<div id="filter_details"></div>
+<div class="grid-action-bar" id="audit-grid-action-bar">
+	<button id="audit-export" title="Export log"><?php echo _t('Export') ?></button>
+</div>
+<div id="audit_log"></div>
+<?php if (! $this->isAllowed('auditTrail:timelimit', 'unlimited')): // add message for all but enterprise ?>
+<div>
+<h2 class="limitedMessage"><?php echo _t('The Audit Trail displays data only from the last two hours. Want to view a complete audit of changes to your system? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-audit-trail') . '">', '</a>'));?></h2>
+</div>
+<?php endif; ?>
+
+<div id="grid-count-bar"></div>
+
+<div id="mypager"></div>

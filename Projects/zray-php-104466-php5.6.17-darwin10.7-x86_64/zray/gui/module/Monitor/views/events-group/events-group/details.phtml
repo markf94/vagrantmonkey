@@ -1,0 +1,156 @@
+<?php $this->headScript()->appendFile($this->basePath('/js/ToolTip.js')); ?>
+<?php
+$alternateServer = isset($alternateServer) ? $alternateServer : null;
+$event; /* @var $event EventsGroup\DataContainer */
+$eventsGroup; /* @var $eventsGroup EventsGroup\Container */
+
+$typesToTabs = array(
+			ZM_TYPE_ZSM_NODE_ADDED_SUCCESSFULLY => array('ui-event' => 'Ui Event'),
+			ZM_TYPE_ZSM_NODE_REMOVED_SUCCESSFULLY => array('ui-event' => 'Ui Event'),
+			ZM_TYPE_ZSM_NODE_IS_NOT_RESPONDING => array('ui-event' => 'Ui Event'),
+			ZM_TYPE_ZSM_NODE_DISABLED_SUCCESSFULLY => array('ui-event' => 'Ui Event'),
+			ZM_TYPE_ZSM_NODE_ENABLED_SUCCESSFULLY => array('ui-event' => 'Ui Event'),
+			ZM_TYPE_ZSM_CONFIGUATION_MISMATCH => array('ui-event' => 'Ui Event'),
+			ZM_TYPE_CUSTOM => array('error-data' => 'Error Data', 
+									'custom-variables' => 'Custom Variables', 
+									'server-variables' => 'Server Variables', 
+									'request-variables' => 'Request Variables', 
+									'backtrace' => 'Backtrace'),
+			ZM_TYPE_FUNCTION_SLOW_EXEC => array('error-data' => 'Error Data', 
+												'function-data' => 'Function Data',
+												'server-variables' => 'Server Variables',
+												'request-variables' => 'Request Variables',
+												'backtrace' => 'Backtrace'),
+			ZM_TYPE_FUNCTION_ERROR => array('backtrace' => 'Backtrace', 
+											'function-data' => 'Function Data', 
+											'server-variables' => 'Server Variables',
+											'request-variables' => 'Request Variables'),
+			ZM_TYPE_REQUEST_SLOW_EXEC => array('server-variables' => 'Server Variables',
+					 						   'request-variables' => 'Request Variables'),
+			ZM_TYPE_REQUEST_RELATIVE_SLOW_EXEC => array('server-variables' => 'Server Variables',
+					 									'request-variables' => 'Request Variables'),
+			ZM_TYPE_REQUEST_LARGE_MEM_USAGE => array('server-variables' => 'Server Variables',
+					 								 'request-variables' => 'Request Variables'),
+			ZM_TYPE_REQUEST_RELATIVE_LARGE_MEM_USAGE => array('server-variables' => 'Server Variables',
+					 										  'request-variables' => 'Request Variables'),
+			ZM_TYPE_REQUEST_RELATIVE_LARGE_OUT_SIZE => array('server-variables' => 'Server Variables',
+					 										  'request-variables' => 'Request Variables'),
+			ZM_TYPE_ZEND_ERROR => array('backtrace' => 'Backtrace', 
+										'function-data' => 'Function Data',
+					 					'error-data' =>  'Error Data',
+					 					'server-variables' => 'Server Variables', 
+										'request-variables' => 'Request Variables'),
+			ZM_TYPE_JAVA_EXCEPTION => array('error-data' =>  'Error Data'),
+			ZM_TYPE_JQ_JOB_EXEC_ERROR => array('job-queue' => 'Job Queue'),
+			ZM_TYPE_JQ_JOB_LOGICAL_FAILURE => array('job-queue' => 'Job Queue'),
+			ZM_TYPE_JQ_JOB_EXEC_DELAY => array('job-queue' => 'Job Queue'),
+			ZM_TYPE_TRACER_FILE_WRITE_FAIL => array('code-tracing' => 'Code Tracing'),
+		);
+
+$tabs = array(
+	'error-data' => _t('Error Data'),
+	'function-data' => _t('Function Data'),
+	'job-queue' => _t('Job Queue'),
+	'code-tracing' => _t('Code Tracing'),
+	'custom-variables' => _t('Custom Variables'),
+	'server-variables' => _t('Server Variables'),
+	'request-variables' => _t('Request Variables'),
+	'ui-event' => _t('UI Event'),
+	'backtrace' => _t('Backtrace'),
+);
+
+$tabsToPartials = array(
+	'error-data' => 'events-group/events-group/errorData.phtml',
+	'function-data' => 'events-group/events-group/functionData.phtml',
+	'code-tracing' => 'events-group/events-group/codeTracing.phtml',
+	'job-queue' => 'events-group/events-group/jobqueue.phtml',
+	'custom-variables' => 'events-group/events-group/customVariables.phtml',
+	'server-variables' => 'events-group/events-group/serverGlobals.phtml',
+	'request-variables' => 'events-group/events-group/requestGlobals.phtml',
+	'route-details' => 'events-group/events-group/routeDetails.phtml',
+	'ui-event' => 'events-group/events-group/xmlList.phtml',
+	'backtrace' => 'events-group/events-group/backtrace.phtml',
+);
+
+$typeTabs = $typesToTabs[$eventsGroup->getEventType()];
+
+//// filter tabs by missing tabs' data
+if (isset($typeTabs['error-data']) && (! ($event->getJavaBacktrace() || $event->getClass() || $event->getErrorString()))) {
+	unset($typeTabs['error-data']);
+}
+
+if (isset($typeTabs['function-data']) && (! $event->getFunctionName())) {
+	unset($typeTabs['function-data']);
+}
+
+if (isset($typeTabs['backtrace']) && (! $event->getBacktrace())) {
+	unset($typeTabs['backtrace']);
+}
+
+if (isset($typeTabs['request-variables'])) {
+	$superGlobals = $event->getSuperGlobalsData();
+	if ((! $superGlobals) || (! (isset($superGlobals[ZM_DATA_VAR_GET]) || isset($superGlobals[ZM_DATA_VAR_POST]) || isset($superGlobals[ZM_DATA_VAR_RAW_POST_DATA]) || isset($superGlobals[ZM_DATA_VAR_FILES]) || isset($superGlobals[ZM_DATA_VAR_COOCKIE])))) {
+		unset($typeTabs['request-variables']);
+	}
+}
+
+if (isset($typeTabs['server-variables'])) {
+	$superGlobals = $event->getSuperGlobalsData();
+	if ((! $superGlobals) || (! (isset($superGlobals[ZM_DATA_VAR_SERVER]) || isset($superGlobals[ZM_DATA_VAR_ENV]) || isset($superGlobals[ZM_DATA_VAR_SESSION])))) {
+		unset($typeTabs['server-variables']);
+	}
+}
+
+?>
+
+<script type="text/javascript">
+var alternateServer = '<?php echo $alternateServer?>';
+
+function saveAlternateServer() {
+	var url = '<?php echo $this->basePath('/Api/saveAlternateServer'); ?>';
+	var alternateServerInput = $('alternate-server').value;
+	var runOnChoise = $$('input[name=debugServer]:checked')[0].value;
+	//make the request
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'debugServer': runOnChoise, 'alternateServer': alternateServerInput},
+		onSuccess: function(response) {
+			if (runOnChoise == 'alternate') {
+				// update the global for the next time opening tips
+				alternateServer = alternateServerInput;
+				var message = '<?php echo _t("IDE diagnostics will now run on \'"); ?>' + alternateServerInput + '\'';
+			} else {
+				var message = _t('IDE diagnostics will now run on the server upon which the event occurred');
+				alternateServer = '';
+			}
+			document.fireEvent('toastNotification', {'message': message});
+		}.bind(this),
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();	
+}
+
+
+</script>
+<div id="action-buttons-bar" class="">
+    <nav id="new-tabs-container">
+	<ul class="action-text-buttons">
+<?php foreach ($typeTabs as $key => $tab): ?>
+		<li class="diagonal-tab hidden">
+			<a href="javascript:void(0);" id="event-details-btn-<?php echo $key; ?>"><?php echo $tabs[$key]; ?></a>
+		</li>
+<?php endforeach;?>
+	</ul>
+	</nav>
+</div>
+<div id="issue-details-content">
+
+<?php foreach($typeTabs as $key => $tab): ?>
+	<div id="event-details-<?php echo $key ?>" style="position: relative;">
+<?php	echo $this->partial($tabsToPartials[$key], array('event' => $event, 'eventsGroup' => $eventsGroup))?>
+	</div>
+<?php endforeach; ?>
+</div>

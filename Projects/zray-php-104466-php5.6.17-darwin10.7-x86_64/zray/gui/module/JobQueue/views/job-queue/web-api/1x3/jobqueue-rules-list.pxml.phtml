@@ -1,0 +1,8 @@
+<responseData>
+    <rules>
+    <?php foreach($rules as $rule) : // @var $rule \JobQueue\Model\RecurringJob ?>
+	<?php echo $this->JobsRuleXml($rule, $statuses, $priorities, $applications); ?>
+	<?php endforeach; ?>
+  </rules>
+  <total><?php echo isset($total) ? $total : $rules->getTotal(); ?></total>
+</responseData>

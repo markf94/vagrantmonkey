@@ -1,0 +1,8 @@
+<?php if (!$messages) return;?>
+<?php echo $this->AppPrerequisites($messages); ?>
+<script>
+var prerequisitesValid = true;	
+<?php if (!$isValid): ?>
+	var prerequisitesValid = false;
+<?php endif ?>
+</script>

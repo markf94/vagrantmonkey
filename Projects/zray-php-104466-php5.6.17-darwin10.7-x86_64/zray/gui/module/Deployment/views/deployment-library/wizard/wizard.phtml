@@ -1,0 +1,261 @@
+<?php 
+$libraryUpdate = isset($libraryId);
+$downloadLibraryUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'Download'));
+
+$uploaderUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'Uploader'));
+$installationUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'Installation'));
+$eulaUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'eula'));
+$readmeUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'readme'));
+$PrerequisitesUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'Prerequisites'));
+$userParamsUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'User-Params'));
+$summaryUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'Summary'));
+$deployUrl = $this->url('default', array('controller' => 'LibraryWizard', 'action' => 'Deploy'));
+$pageCounter = 0;
+$lastPageId = 4;
+?>
+
+<script type="text/javascript">
+	window.addEvent('domready',function() {
+		wizard = new libraryDeploymentWizard({
+			urls: [
+				'<?php echo $deployUrl ?>',
+				'<?php echo $readmeUrl; ?>',
+				'<?php echo $eulaUrl; ?>',
+				'<?php echo $PrerequisitesUrl; ?>',
+				'<?php echo $userParamsUrl; ?>',
+				'<?php echo $summaryUrl; ?>'
+			],
+			wizardId: '<?php echo htmlentities($wizardId); ?>'
+		});
+
+		new FormWizard('deploymentWizard', {"createControlArea": true,
+			"controls": { "submit": { "title": 'Deploy' }},
+			"wizardControls": ["cancel", "submit", "forward", "backward"] }, {
+				"uploadPage": { 
+					"onEnter": function(target, current) {
+						$('wizard-control-forward').set('disabled', false);
+						return true;
+					},
+					"onExit": function(target, current) {
+						return true;
+					}
+				},
+				"readmePage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						return true;
+					},
+					"onExit": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						return true;
+					}
+				},
+				"licenseAgreementPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+						
+						if (!$('accept-terms').checked) {
+							$('wizard-control-forward').set('disabled', true);
+						}
+						
+						return true;
+					}, 
+					"onExit": function(target, current) {
+						$('wizard-control-forward').set('disabled', false);
+
+						return true;
+					}
+				},
+				"PrerequisitesPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+
+						if (! prerequisitesValid) {
+							$('wizard-control-forward').set('disabled', true);
+						} else {
+							$('wizard-control-forward').set('disabled', false);
+						}
+
+						return true;
+					},
+					"onExit":  function(target, current){
+						return true; 
+					}
+				},
+				"userParamsPage": {
+					"onEnter": function(target, current) {
+						if ($('sl' + target).hasClass('disabled')) {
+							if (target > current) {
+								return target + 1;
+							}
+							return target - 1;
+						}
+
+						return true;
+					}, 
+					"onExit":  function(target, current){
+						if (target > current) {
+							if (postDeploymentUserParams(<?php echo $wizardId; ?>)) {
+								return true;
+							} else {
+								return false;
+							}
+						}
+						
+						return true;
+					}
+				},
+				"summaryPage": { 
+					"onEnter": function(){
+						/// disable restart notification
+						document.fireEvent('disableRestartTooltip', {});
+						$('wizard-control-submit').setStyle('display', 'block');
+						return true; 
+					},
+					"onExit": function(target, current){
+						if (target == (current - 1)) {
+							$('wizard-control-submit').setStyle('display', 'none');
+							return target;
+						}
+
+						return false;
+					}
+				}
+			});
+		
+			$('wizard-control-forward').set('disabled', true);
+
+			<?php if ($libraryUpdate) : ?>
+			downloadLibraryPackage();
+			<?php endif; ?>
+     	});
+
+		<?php if ($libraryUpdate) : ?>
+		function downloadLibraryPackage() {
+			var myRequest = new Request({
+				data: {libraryId: <?php echo $libraryId; ?>},
+				url: '<?php echo $downloadLibraryUrl; ?>?wizardId=<?php echo $wizardId; ?>',
+				async: false,
+				evalScripts: true,
+				onComplete: function(response){
+					$('downloadLibraryContainer').set('html', response);
+				}
+			}).send();
+		}
+		<?php endif; ?>
+</script>
+
+<div id="deploymentWizard">
+	<a class="wizard-help-icon" target="_blank" href="<?php echo $this->helpLink('deploying_a_library'); ?>"></a>
+	<div class="side-legend">
+		<h1><?php echo _t('Deploy Library'); ?></h1>
+		<ul>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons <?php echo ($libraryUpdate) ? 'cloud-upload' : 'cloud-download'; ?>">
+				<i></i>
+				<h2><?php echo ($libraryUpdate) ? _t('Library Download ') : _t('Library Upload '); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons book">
+				<i></i>
+				<h2><?php echo _t('Readme');  ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons pen">
+				<i></i>
+				<h2><?php echo _t('License Agreement'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons ok_2">
+				<i></i>
+				<h2><?php echo _t('Prerequisites Validation'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons edit">
+				<i></i>
+				<h2><?php echo _t('User Parameters');  ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+			<li id="sl<?php echo $pageCounter++?>" class="glyphicons notes">
+				<i></i>
+				<h2><?php echo _t('Deployment Summary'); ?></h2>
+				<div class="item-selected-arrow"></div>
+			</li>
+		</ul>
+	</div>
+	<fieldset class="wizard-page" id="uploadPage">
+		<div class="page-wrapper">
+			<div class="message-box error hidden"></div>
+			<div class="message-box ok hidden"></div>
+			<?php if ($libraryUpdate) : ?>
+			<h2><?php echo _t('Library Package Download') ?></h2>
+			<p>
+				<?php echo _t('The deployment wizard will deploy a PHP packaged library in Zend Server. In the case of a clustered environment, the library will be deployed on all servers in the cluster. After you have installed the library, it will become available on the server so that users can begin using it.'); ?>
+			</p>
+			<div id="downloadLibraryContainer"></div>
+			<?php else : ?>
+			<h2><?php echo _t('Upload the Library Package') ?></h2>
+			<p>
+			<?php echo _t('The deployment wizard will deploy a PHP packaged library in Zend Server. In the case of a clustered environment, the library will be deployed on all servers in the cluster. After you have installed the library, it will become available on the server so that users can begin using it.'); ?>
+			</p>
+			<p><?php echo _t('Locate the package file that corresponds to the library you wish to install.'); ?></p>
+			<iframe src="<?php echo $uploaderUrl; ?>?wizardId=<?php echo $wizardId; ?>" scrolling="no" style="width: 100%; height: 150px; margin-top: 18px" frameborder="0"></iframe>
+			<?php endif; ?>
+		</div>		
+	</fieldset>
+	<fieldset class="wizard-page" id="readmePage">
+		<div class="page-wrapper">
+			<div id="readmeContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="licenseAgreementPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('Read the End User License Agreement');  ?></h2>
+			<p><?php echo _t('This End User License Agreement relates to the deployed library.') ?></p>
+			<div id="licenseAgreementContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="PrerequisitesPage">
+		<div class="page-wrapper">
+		    <div class="message-box error hidden"></div>
+			<h2><?php echo _t('Validate the Library Prerequisites'); ?></h2>
+			<p><?php echo _t('The library prerequisites specify the dependencies of the deployed library. To continue the deployment process, these dependencies need to be met.') ?></p>
+			<div id="prerequisitesContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="userParamsPage">
+		<div class="page-wrapper">
+			<div class="message-box error hidden"></div>
+			<h2><?php echo _t('Enter the User Parameters'); ?></h2>
+			<p><?php echo _t('The user parameters are required by the library package and will be used by the deployed library.') ?></p>
+			<div id="userParamsContent"></div>
+		</div>
+	</fieldset>
+	<fieldset class="wizard-page" id="summaryPage">
+		<div class="page-wrapper">
+			<h2><?php echo _t('View the Deployment Summary'); ?></h2>
+			<p><?php echo _t('Review the summarized details for the deployed library before submitting.') ?></p>
+			
+			<div id="summaryContent"></div>
+		</div>
+	</fieldset>
+</div>

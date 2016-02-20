@@ -1,0 +1,43 @@
+<ul>
+<li>
+	<div>
+		<h3><?php echo _t('Your Configuration Profile: %s', array(ucwords($this->escapehtml($profile)))) ?></h3>
+<?php if ($upgrade) :?>
+		<p><?php echo _t('Zend Server was upgraded without making changes to its current configuration.') ?></p>
+<?php else :?>
+<?php 	if ($profile == 'development') :?>
+		<p><?php echo _t('You have chosen to launch Zend Server with server and PHP settings optimized for a development environment.')  ?></p>
+<?php 	elseif ($profile == 'production'):?> 
+		<p><?php echo _t('You have chosen to launch Zend Server with server and PHP settings optimized for a production environment.')  ?></p>
+<?php 	elseif ($profile == 'cluster'):?> 
+		<p><?php echo _t('You have chosen to launch Zend Server with server and PHP settings optimized for a clustered production environment.') ?></p>
+<?php 	else: ?>
+		<p><?php echo _t('You have chosen to launch Zend Server without making changes to its current configuration.') ?></p>
+<?php 	endif ?>
+<?php endif ?>
+	</div>
+</li>
+
+<?php if (isset($administrator['password']) && $administrator['password'] != '') :?>
+<li>
+	<div>
+		<h3><?php echo _t('User passwords:') ?></h3>
+		<p><?php echo _t('Admin password was set')  ?></p>
+<?php if (isset($developer['password']) && $developer['password'] != '') :?>
+		<p><?php echo _t('Developer password was set')  ?></p>
+<?php else: ?>
+		<p><?php echo _t('Developer password was not set and user was disabled')  ?></p>
+<?php endif ?>
+	</div>
+</li>
+<?php endif ?>
+
+<?php if (! $isCloud): ?>
+<li>
+	<div>
+		<h3><?php echo _t('Current License Edition: %s', array(ucwords(strtolower(\Configuration\License\License::EDITION_ENTERPRISE) . ' Trial')))  ?></h3>
+		<p><?php echo _t('To update your Zend Server license, visit the Zend Online Store, and enter the new license details on the License page under the Administration tab.')  ?></p>
+	</div>
+</li>
+<?php endif ?>
+</ul>

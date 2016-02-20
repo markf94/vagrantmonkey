@@ -1,0 +1,6 @@
+"responseData":{
+    "result": <?php echo json_encode($result); ?>
+    <?php if ($result == 'error' && isset($error)) { ?>
+    ,"error": <?php echo json_encode($error); ?>
+    <?php } ?>
+}

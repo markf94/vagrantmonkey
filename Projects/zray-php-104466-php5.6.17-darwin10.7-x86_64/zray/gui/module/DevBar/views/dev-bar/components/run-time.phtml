@@ -1,0 +1,254 @@
+<div class="zdb-toolbar-entry zdb-run-time" data-name="time">
+    <div class="zdb-toolbar-preview" title="Execution Time and Memory Peak">
+        <div class="zdb-toolbar-icon"></div>
+        <span class="zdb-toolbar-info">0 ms</span>
+    </div>
+    <div class="zdb-toolbar-detail zsb-runtime-details-wrapper">
+    	<div class="zdb-col-2">
+    		<div class="zdb-row zdb-row-title-bar zdb-toolbar-detail-header">
+    			<div class="zdb-runtime-total zdb-runtime-icon"><span></span></div>
+    		</div>
+    		<div class="zdb-toolbar-info">
+    			<div class="zdb-runtime-wrapper">
+		    		<table>
+		    			<tr>
+		    				<td class="zdb-col-2">
+			    				<table class="zdb-runtime-graph-legend">
+									<tr class="zdb-php"><td class="zdb-bg zdb-legend-dot"></td><td class="zdb-legend-label">PHP</td><td class="zdb-legend-time"></td><td class="zdb-legend-perc"></td></tr>
+									<tr class="zdb-db"><td class="zdb-bg"></td><td class="zdb-legend-label">Database</td><td class="zdb-legend-time"></td><td class="zdb-legend-perc"></td></tr>
+									<tr class="zdb-io"><td class="zdb-bg"></td><td class="zdb-legend-label">IO</td><td class="zdb-legend-time"></td><td class="zdb-legend-perc"></td></tr>
+									<tr class="zdb-network"><td class="zdb-bg"></td><td class="zdb-legend-label">Network</td><td class="zdb-legend-time"></td><td class="zdb-legend-perc"></td></tr>
+								</table>
+		    				</td>
+		    				<td class="zdb-col-2">
+		    					<div class="zdb-runtime-graph-bar">
+									<div class="zdb-php zdb-bg"><div class="zdb-runtime-bar"></div></div>
+									<div class="zdb-db zdb-bg"><div class="zdb-runtime-bar"></div></div>
+									<div class="zdb-io zdb-bg"><div class="zdb-runtime-bar"></div></div>
+									<div class="zdb-network zdb-bg"><div class="zdb-runtime-bar"></div></div>
+								</div>
+		    				</td>
+		    			</tr>
+		    		</table>
+		    	</div>
+    		</div>
+    	</div>
+    	<div class="zdb-col-2">
+    		<div class="zdb-row zdb-row-title-bar zdb-toolbar-detail-header">
+    			<div class="zdb-popup-pin" onclick="zendDevBar.unpin()"></div>
+	    		<div class="zdb-memory-total zdb-memory-icon"><span></span></div>
+    		</div>
+    		<div class="zdb-toolbar-info">
+    			<div class="zdb-memory-wrapper">
+		    		<table>
+		    			<tr>
+		    				<td class="zdb-col-2">
+			    				<table class="zdb-memory-graph-legend">
+									<tr class="zdb-memory-used">
+										<td class="zdb-bg zdb-legend-dot"></td>
+										<td class="zdb-legend-label">Peak</td>
+										<td class="zdb-legend-time"></td>
+										<td class="zdb-legend-perc"></td>
+									</tr>
+									<tr class="zdb-memory-free">
+										<td class="zdb-bg"></td>
+										<td class="zdb-legend-label">Limit</td>
+										<td class="zdb-legend-time"></td>
+										<td class="zdb-legend-perc"></td>
+									</tr>
+								</table>
+		    				</td>
+		    				<td class="zdb-col-2">
+		    					<div class="zdb-memory-graph-bar">
+									<div class="zdb-memory-used zdb-bg"><div class="zdb-memory-bar"></div></div>
+								</div>
+		    				</td>
+		    			</tr>
+		    		</table>
+		    	</div>
+    		</div>
+    	</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+(function() {
+	var totalCount = 0;
+	var memoryPeak = 0;
+	var memoryLimit = 0;
+	var timeTotal = 0;
+	var totalTime = {'php': 0, 'database': 0, 'io': 0, 'network': 0};
+	
+	zendDevBar.registerOnUpdateLabel('time', function($, requests) {
+		// check parameter
+		if (!requests) return;
+		if (!(requests instanceof Array)) requests = [requests];
+
+		$.each(requests, function(i, data) {
+			if (data == undefined || data.Runtime == undefined) {
+				return;
+			}
+			
+			var runTime = data.Runtime;
+			$.each(runTime, function(key){
+				if(key == 'requestId') {
+			        delete runTime[key];
+			    }
+			});
+	
+			var total = $.map(runTime, function (value, key){
+				return value;
+			}).reduce(function(previousValue, currentValue){
+				return previousValue + currentValue;
+			});
+	
+			timeTotal += total;
+			
+			memoryPeak = Math.max(memoryPeak, data.RequestInfo.memoryPeak);
+			memoryLimit = Math.max(memoryLimit, data.RequestInfo.memoryLimit);
+			
+			var microFormat = zendDevBar.formatters.formatTime;
+
+			var runTimeLabel = 0;
+			if (timeTotal < 1000000) {
+				runTimeLabel = microFormat(timeTotal, 0);
+			} else {
+				runTimeLabel = microFormat(timeTotal, 1);
+			}
+			$('.zdb-run-time .zdb-toolbar-preview .zdb-toolbar-info').text(runTimeLabel + ' / ' + formatMemory(memoryPeak));
+			$('.zdb-runtime-total span').text('Execution Time (' + microFormat(timeTotal)+ ')');
+			
+			$('.zdb-memory-total span').text('Memory Peak (' + formatMemory(memoryPeak, 2) + ")");
+		});
+	});
+	
+	zendDevBar.registerResetHandler('time', function($, data) {
+		totalCount = 0;
+		memoryPeak = 0;
+		memoryLimit = 0;
+		timeTotal = 0;
+		totalTime = {'php': 0, 'database': 0, 'io': 0, 'network': 0};
+		
+		zendDevBar.devBar.find(".zdb-run-time").first().find(".zdb-toolbar-info").first().text("0 ms");
+		$('.zdb-runtime-total span').text('Execution Time (0 ms)');
+		$('.zdb-memory-total span').text('Memory Peak (0 kb)'); 
+
+		var microFormat = zendDevBar.formatters.formatMicroseconds;
+		
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-php .zdb-legend-time').text(microFormat(0));
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-php .zdb-legend-perc').text("0 %");
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-php .zdb-runtime-bar').css('width', '0%');
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-php .zdb-runtime-bar').attr('title', 'PHP 0%');
+
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-io .zdb-legend-time').text(microFormat(0));
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-io .zdb-legend-perc').text(formatPercentile(0, 0));
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-io .zdb-runtime-bar').css('width', '0%');
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-io .zdb-runtime-bar').attr('title', 'IO 0%');
+
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-network .zdb-legend-time').text(microFormat(0));
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-network .zdb-legend-perc').text(formatPercentile(0, 0));
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-network .zdb-runtime-bar').css('width', '0%');
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-network .zdb-runtime-bar').attr('title', 'Network 0%');
+
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-db .zdb-legend-time').text(microFormat(0));
+		$('.zdb-run-time .zdb-runtime-graph-legend .zdb-db .zdb-legend-perc').text(formatPercentile(0, 0));
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-db .zdb-runtime-bar').css('width', '0%');
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-db .zdb-runtime-bar').attr('title', 'Database 0%');
+
+		$('.zdb-run-time .zdb-memory-graph-legend .zdb-memory-used .zdb-legend-time').text(formatMemory(0));
+		$('.zdb-run-time .zdb-memory-graph-legend .zdb-memory-used .zdb-legend-perc').text(formatPercentile(0, 0));
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-memory-graph-bar div.zdb-memory-used .zdb-memory-bar').css('width', '0%');
+		$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-memory-graph-bar div.zdb-memory-used .zdb-memory-bar').attr('title', 'Peak 0%');
+
+		$('.zdb-run-time .zdb-memory-graph-legend .zdb-memory-free .zdb-legend-time').text(formatMemory(0));
+	});
+	
+	zendDevBar.registerHandler('time', function($, data) {
+		if (data == undefined) {
+			zendDevBar.finishLoading('time');
+			return;
+		}
+
+		$.each(data, function(key, request) {
+			var runTime = request.Runtime;
+			$.each(runTime, function(key){
+				if(key == 'requestId') {
+			        delete runTime[key];
+			    }
+			});
+
+			$.each(runTime, function(key, value) {
+				// added max of zero to prevent negative values
+				totalTime[key] += Math.max(0, value);
+			});
+
+			var total = 0;
+			$.each(totalTime, function(key, value) {
+				total += value;
+			});
+						
+			var microFormat = zendDevBar.formatters.formatTime;
+
+			var totalPrecent = 0;
+			var maxElement = null;
+			var maxValue = 0;
+			var percentiles = {};
+			$.each(totalTime, function (key, value) {
+				percentiles[key] = Math.round(value / total*100);
+				if (maxValue < percentiles[key]) {
+					maxValue = percentiles[key];
+					maxElement = key;
+				}
+				totalPrecent += percentiles[key]; 
+			});
+			if (totalPrecent > 100) {
+				percentiles[maxElement] -= (totalPrecent - 100);
+			}
+			
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-php .zdb-legend-time').text(microFormat(totalTime.php, 2));
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-php .zdb-legend-perc').text(percentiles.php + " %");
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-php .zdb-runtime-bar').css('width', percentiles.php + '%');
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-php .zdb-runtime-bar').attr('title', 'PHP ' + percentiles.php + '%');
+
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-io .zdb-legend-time').text(microFormat(totalTime.io, 2));
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-io .zdb-legend-perc').text(formatPercentile(percentiles.io, totalTime.io));
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-io .zdb-runtime-bar').css('width', percentiles.io + '%');
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-io .zdb-runtime-bar').attr('title', 'IO ' + percentiles.io + '%');
+
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-network .zdb-legend-time').text(microFormat(totalTime.network, 2));
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-network .zdb-legend-perc').text(formatPercentile(percentiles.network, totalTime.network));
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-network .zdb-runtime-bar').css('width', percentiles.network + '%');
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-network .zdb-runtime-bar').attr('title', 'Network ' + percentiles.network + '%');
+
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-db .zdb-legend-time').text(microFormat(totalTime.database, 2));
+			$('.zdb-run-time .zdb-runtime-graph-legend .zdb-db .zdb-legend-perc').text(formatPercentile(percentiles.database, totalTime.database));
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-db .zdb-runtime-bar').css('width', percentiles.database + '%');
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-runtime-graph-bar div.zdb-db .zdb-runtime-bar').attr('title', 'Database ' + percentiles.database + '%');
+
+			var memoryPeakPrecentage = Math.round(memoryPeak / memoryLimit * 100);
+			var memoryFreePrecentage = 100 - memoryPeakPrecentage;
+			$('.zdb-run-time .zdb-memory-graph-legend .zdb-memory-used .zdb-legend-time').text(formatMemory(memoryPeak, 2));
+			$('.zdb-run-time .zdb-memory-graph-legend .zdb-memory-used .zdb-legend-perc').text(memoryPeakPrecentage + '%');
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-memory-graph-bar div.zdb-memory-used .zdb-memory-bar').css('width', memoryPeakPrecentage + '%');
+			$('.zdb-run-time .zsb-runtime-details-wrapper .zdb-memory-graph-bar div.zdb-memory-used .zdb-memory-bar').attr('title', 'Peak ' + memoryPeakPrecentage + '%');
+
+			$('.zdb-run-time .zdb-memory-graph-legend .zdb-memory-free .zdb-legend-time').text(formatMemory(memoryLimit));
+		});
+		
+		zendDevBar.getStorage('time').fireOnChange();
+		zendDevBar.finishLoading('time');
+	});
+})();
+
+function formatPercentile(percent, value) {
+	if (percent == 0 && value > 0) {
+		return "~ 0 %";
+	}
+	return percent + " %";
+}
+
+function formatMemory(bytes, precision) {
+	return zendDevBar.formatters.formatMemory(bytes, precision);
+}
+
+</script>

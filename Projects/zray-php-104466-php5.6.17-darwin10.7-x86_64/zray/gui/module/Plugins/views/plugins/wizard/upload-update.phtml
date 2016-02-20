@@ -1,0 +1,5 @@
+<script type="text/javascript">
+uploadStatus = <?php echo ($success) ? 'true' : 'false'; ?>;
+uploading = false;
+parent.wizard.uploadComplete(uploadStatus, '<?php echo $message; ?>');
+</script>

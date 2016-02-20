@@ -1,0 +1,29 @@
+
+nav#new-tabs-container {
+  float: none;
+  height: auto;
+  position: relative;
+  top: 1px;
+  z-index: 10;
+}
+
+nav#new-tabs-container ul li.active {
+	position: relative;
+	top: 1px;
+}
+
+.tab-section {
+	border: 1px solid #DDD;
+}
+
+.settings-form-wrapper {
+	padding-bottom: 0;
+}
+
+.settings-form-wrapper .settings-wrapper {
+	padding-left: 40px;
+}
+
+.settings-form-wrapper input[type="checkbox"].zform-checkbox-for-optional.zform-checkbox-for-optional-with-label {
+	margin-top:0;
+}

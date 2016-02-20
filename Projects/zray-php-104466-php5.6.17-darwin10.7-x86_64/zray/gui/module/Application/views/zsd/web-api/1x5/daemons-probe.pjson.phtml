@@ -1,0 +1,11 @@
+"responseData":{"daemonMessages": [
+	<?php
+		$result = array();
+		foreach ($daemonMessages as $message) { /* @var $message \Messages\MessageContainer */
+			$result[] = $this->daemonMessageJson($message);
+		} 
+		
+		echo implode(',', $result);
+	?>
+	]
+}

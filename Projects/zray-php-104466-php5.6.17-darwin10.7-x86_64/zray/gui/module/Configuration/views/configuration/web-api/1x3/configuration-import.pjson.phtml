@@ -1,0 +1,8 @@
+"responseData":
+<?php 
+	$serversInfo = array();
+	foreach ($servers as $server) {
+		$serversInfo[] = $this->serverInfoJson($server);
+	}
+	echo $this->json(array('serversList' => $serversInfo));
+?>

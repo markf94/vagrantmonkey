@@ -1,0 +1,8 @@
+<responseData>
+	<requestEnvironment>
+		<requestId><?php echo $requestId ?></requestId>
+<?php 		if ($superglobals && count($superglobals)) foreach ($superglobals as $type => $superglobalHistory) { ?>
+		<<?php echo $type ?>><?php echo $this->superglobalStructureXml($superglobalHistory) ?></<?php echo $type ?>>
+<?php 		} ?>
+	</requestEnvironment>
+</responseData>

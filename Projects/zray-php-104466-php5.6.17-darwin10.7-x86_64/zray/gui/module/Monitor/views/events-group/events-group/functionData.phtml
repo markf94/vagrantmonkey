@@ -1,0 +1,54 @@
+<ul>
+<?php 	if ($event->getJavaBacktrace()): /// java exception event?>
+	<li><strong><?php echo _t('Error String'); ?></strong>
+	<?php echo $this->selectAll('error-data-error'); ?>
+	<div id="error-data-error"><?php echo htmlentities($event->getErrorString()) ?></div></li>
+	
+	<li><strong><?php echo _t('Java Stack'); ?></strong>
+	<?php echo $this->selectAll('error-data-java-stack'); ?>
+	<div id="error-data-java-stack"><?php echo htmlentities($event->getJavaBacktrace()) ?></div></li>
+	
+<?php 	elseif ($event->getClass()): /// custom event?>
+	<li><strong><?php echo _t('Error String'); ?></strong>
+	<?php echo $this->selectAll('error-data-error'); ?>
+	<div id="error-data-error"><?php echo htmlentities($event->getErrorString()) ?></div></li>
+<?php 	else: /// php error event?>
+<?php
+			$phpError = preg_replace('#(\<a.+href\=[\'\"])(.+[\'\"])(.+\>)#iU', '\\1http://www.php.net/\\2 target="_blank" \\3', $event->getErrorString());
+			if (is_null($phpError)) {
+				$phpError = $event->getErrorString();
+			}
+?>
+	<li><strong><?php echo _t('PHP Error'); ?></strong>
+	<?php echo $this->selectAll('error-data-func-error'); ?>
+	<div id="error-data-func-error"><?php echo htmlentities($phpError) ?></div></li>
+<?php 	endif;?>
+	<li><strong><?php echo _t('Function information'); ?></strong>
+	<?php echo $this->selectAll('error-data-func-and-params'); ?>
+	<div id="error-data-func-and-params">
+<?php
+
+$args = $event->getFunctionArgs();
+$argn = count($args);
+
+if ($argn > 0) {
+	$function = "{$event->getFunctionName()} (\n";
+	$unserialized = array();
+	foreach ($args as $key => $value) {
+		$lines = explode("\n", var_export(unserialize($value), true));
+		foreach ($lines as & $line) {
+			$line = preg_replace_callback("|^([ ]*)|", function($matches){
+				return "  " . $matches[1];
+			}, $line);
+		}
+		$unserialized []= implode("\n", $lines);
+	}
+	$function .= implode(",\n", $unserialized);
+	$function .= "\n)";
+} else {
+	$function = "{$event->getFunctionName()}()";
+}
+	
+echo nl2br("<div class=\"code\">" . htmlentities($function) . "</div>"); ?>
+	</div></li>
+</ul>

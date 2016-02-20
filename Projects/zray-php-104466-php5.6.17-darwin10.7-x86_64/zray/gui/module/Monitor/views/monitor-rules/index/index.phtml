@@ -1,0 +1,962 @@
+<?php use Zend\Json\Json;
+
+$this->headLink()->appendStylesheet($this->basePath() . '/css/rulesList.css'); ?>
+<?php $this->headLink()->appendStylesheet($this->basePath() . '/css/monitor-rules.css'); ?>
+<?php $this->headScript()->appendFile($this->basePath() . '/js/ToolTip.js'); ?>
+<?php $this->headScript ()->appendFile ( $this->basePath () . '/js/FragmentManager.js' );?>
+
+<div id="bread-wrp">
+	<div id="bread">
+		<ul>
+			<li><a href="<?php echo $this->url('home/dashboard') ?>"><?php echo _t("Monitoring"); ?></a></li>
+		</ul>
+	</div>
+</div>
+<script type="text/javascript">
+var fragmentManager = new FragmentManager();
+
+var rowsChecked = 0;
+var applications = {<?php echo $this->partial('deployment/web-api/1x3/application-get-status.pjson.phtml', array('applications' => $applications, 'respondingServersCount' => $applications->count()))?>};
+var allowGlobal = <?php echo $allowGlobal ? 'true' : 'false' ?>;
+var rulesCount = <?php echo json_encode($rulesCount); ?>;
+var codetracingLoaded = <?php echo $codetracingLoaded ? 'true' : 'false' ?>;
+var traceModeAllowed = <?php echo $this->isAllowedEdition('data:collectEventsCodeTrace') ? 'true' : 'false' ?>;
+var traceModeValue = <?php echo intval($eventTraceMode) ?>;
+var directivesAllowed = <?php echo $this->isAllowedIdentity('route:ConfigurationWebApi', 'configurationStoreDirectives') ? 'true':'false';?>;
+var descriptionOpened = [];
+
+function disableRules() {
+	var ruleIds = {};
+	Object.each(zgrid.getSelectedRows(), function(row) {
+		if (row.enabled == "1") {
+			ruleIds[row.originalId] = row;
+		}
+	});
+
+	// if nothing to enable, dont do anything just display message
+	if (Object.keys(ruleIds).length == 0) {
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("The rule has been disabled"); ?>'});
+		return;
+	}
+	
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("Disabling rule..."); ?>'});
+
+	var url = '<?php echo $this->basepath('/Api/monitorDisableRules') ?>';
+	//make the request
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'rulesIds': Object.keys(ruleIds)},
+		onSuccess: function(response) {
+			if (undefined != response) {
+				response.responseData.rules.each(function(newRowData) {
+					newRowData.controller = ruleIds[newRowData.id].controller;
+					newRowData.originalId = newRowData.id;
+					newRowData.id = ruleIds[newRowData.id].id;
+					zgrid.setRow(newRowData);
+					createRuleTooltip(newRowData);
+				});
+			}
+			document.fireEvent('toastNotification', {'message': '<?php echo _t("The rule has been disabled"); ?>'});
+			document.fireEvent('refreshNotifications');
+
+			reloadDescriptionContent();
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+}
+
+function reloadDescriptionContent() {
+	// reload all opened rules
+	Object.each(zgrid.getRowsData(), function(rule) {
+		if (rule['parentId'] == undefined) {
+			if (descriptionOpened.contains('tableRow_' + rule.id)) {
+				var params = zgrid.getDescriptionParams(rule.id);
+				params.reload = true;
+				zgrid.fireEvent('descriptionOpen', params);
+			}
+		}
+	});
+}
+
+function enableRules() {
+	var ruleIds = {};
+	Object.each(zgrid.getSelectedRows(), function(row) {
+		if (row.enabled != "1") {
+			ruleIds[row.originalId] = row;
+		}
+	});
+
+	// if nothing to enable, dont do anything just display message
+	if (Object.keys(ruleIds).length == 0) {
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("Rules have been enabled"); ?>'});
+		return;
+	}
+
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("Enabling rule..."); ?>'});
+
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/monitorEnableRules'; ?>';
+	//make the request
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'rulesIds': Object.keys(ruleIds)},
+		onSuccess: function(response) {
+			if (undefined != response) {
+				response.responseData.rules.each(function(newRowData) {
+					newRowData.controller = ruleIds[newRowData.id].controller;
+					newRowData.originalId = newRowData.id;
+					newRowData.id = ruleIds[newRowData.id].id;
+					zgrid.setRow(newRowData);
+					createRuleTooltip(newRowData);
+				});
+			}
+			document.fireEvent('toastNotification', {'message': '<?php echo _t("Rules have been enabled"); ?>'});
+			document.fireEvent('refreshNotifications');
+
+			reloadDescriptionContent();
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+}
+
+function canRevertRule(rule) {
+	return (rule.parentId != -1 && rule.appId != -1);
+}
+
+function canDeleteRule(rule, rowId) {
+	if (rule.creator == 0 &&
+	   (rule.parentId == undefined || rule.parentId.trim() == '' || rule.parentId.trim() == '-1')) { // global rule created by zend
+		return false;
+	}
+
+	if (rule.creator == 1 && rowId.contains('app_') && rule.appId == -1 &&
+	   (rule.parentId == undefined || rule.parentId.trim() == '' || rule.parentId.trim() == '-1')) { // global rule created by user in application section
+		return false;
+	}
+
+	return true;
+}
+
+function exportRules(params) {
+	var rowId = params.rowId.match('^app_([0-9]+)$');
+	// if Global
+	if (rowId == null) {
+		location.href = baseUrl() + '/MonitorRules/export?retrieveGlobal=TRUE';
+	} else {
+		location.href = baseUrl() + '/MonitorRules/export?applicationId=' + rowId[1]+'&retrieveGlobal=FALSE';
+	}
+}
+
+function deleteRules(params) {
+	var endFunc = false;
+	var ruleIds = {};
+	var parentIds = {};
+	var alertFlag = false; //makes sure we only get 1 alert box!
+
+	if (params) {
+		if (! canDeleteRule(params.data, params.rowId)) {
+			alert(_t('Global rules cannot be removed'));
+			endFunc = true;
+			return;
+		}
+		parentIds[params.data.parentId] = params.data;
+		var ruleId = params.data.id.replace(params.data.controller + '_', '');
+		ruleIds[ruleId] = params.data;
+	} else {
+		Object.each(zgrid.getSelectedRows(), function(row) {
+			if (! canDeleteRule(row, row.id)) {
+				if(!alertFlag){
+					alert(_t('Global rules cannot be removed'));
+					alertFlag = true;
+				}
+				endFunc = true;
+				return;
+			}
+			parentIds[row.parentId] = row;
+			var ruleId = row.id.replace(row.controller + '_', '');
+			ruleIds[ruleId] = row;
+		});
+	}
+	alertFlag = false;
+
+	if (endFunc) {
+		return;
+	}
+
+	if (params && params.type == 'revert') {
+		if (! confirm(_t('Are you sure you would like to revert the rule(s)?'))) {
+			return;
+		}
+	} else {
+		if (! confirm(_t('Are you sure you would like to remove the rule(s)?'))) {
+			return;
+		}
+	}
+	document.fireEvent('toastNotification', {'message': '<?php echo _t("Removing rule..."); ?>'});
+
+	// remove rule
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/monitorRemoveRules'; ?>';
+	var request = new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'rulesIds': Object.keys(ruleIds)},
+		onSuccess: function(response) {
+			document.fireEvent('refreshNotifications');
+
+			// update the title of the application - the count
+			Object.each(ruleIds, function(rule) {
+				var appId = rule.controller.replace('app_', '');
+				rulesCount[appId]--;
+				zgrid.updateData([zgrid.getRowData(rule.controller)]);
+			}.bind(this));
+			
+		}.bind(this),
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+
+	//make the request
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/monitorGetRulesList'; ?>';
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url,
+		data: {'filters': {'rulesIds': Object.keys(parentIds)}},
+		onSuccess: function(response) {
+			if (undefined != response) {
+				var updatedIds = [];
+				response.responseData.rules.each(function(newRowData) {
+					
+					// skip jobqueue rules
+					if (newRowData.name.toLowerCase().indexOf('job ') >= 0) return;
+
+					newId = newRowData.id;
+					newRowData.controller = parentIds[newId].controller;
+					newRowData.originalId = newId;
+					newRowData.id = newRowData.controller + '_' + newId;
+					updatedIds.push(newId);
+					if (zgrid.getRowData(newRowData.id) == null) {
+						zgrid.setRow(newRowData, 'before', parentIds[newId].id);
+						$(zgrid.options.tableRow + newRowData.id).setAttribute('parentId', 'tableRow_' + newRowData.controller);
+
+						// ZSRV-7160 Return new row to globals if needed
+						if (newRowData.appId == '-1') {
+							$('tableRow_' + newRowData.id).set('default', 'true');
+							if ($('tableRow_' + newRowData.controller + '_default').get('text').contains('Show')) {
+								$('tableRow_' + newRowData.id).addClass('hidden');
+							}
+						}
+					} else {
+						zgrid.setRow(newRowData);
+					}
+					createRuleTooltip(newRowData);
+				});
+
+				// remove old rows
+				Object.each(ruleIds, function(item) {
+					if (!updatedIds.contains(item.originalId.toInt())) {
+						zgrid.deleteRow(item.id);
+						Object.keys(zgrid.getRowsData()).each(function(gridItem) {
+							if (gridItem.replace(/app_[\w]_/,'') == item.originalId) {
+								zgrid.deleteRow(gridItem);
+							}
+						});
+					}
+				}.bind(updatedIds));
+
+				if (updatedIds.length > 0) {
+					document.fireEvent('toastNotification', {'message': '<?php echo _t("The rule has been reverted"); ?>'});
+				} else {
+					document.fireEvent('toastNotification', {'message': '<?php echo _t("The rule has been removed");  ?>'});
+				}
+			}
+		}.bind(this),
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+}
+
+function createRuleHelpTooltip() {
+	var tip = new FloatingTips('.rule-help', {
+		showDelay: 100,
+		hideDelay: 200,
+		content: 'rel',
+		position: 'right',
+		center: true, // Place the tip aligned with target
+		arrowSize: 8 // A bigger arrow!
+	});
+}
+
+window.addEvent("load", function() {
+
+	persistantHeaders.addHeader('grid-action-bar');
+	persistantHeaders.addHeader('rules_list_tableHead');
+	ruleTypes = <?php echo Json::encode($monitorRuleTypes); ?>;
+    var cmu = [
+			{
+				'title': _t('Name'),
+				'dataIndex': 'name',
+				'parser': function(name, rule) {
+					var appId = rule.id.replace('app_', '');
+					var originalAppId = appId; 
+
+					var globalCount = rulesCount['Global'];
+					var customCount = 0;
+					if (rulesCount[appId] != undefined && appId != 'Global') {
+						customCount = rulesCount[appId];
+					}
+
+					if (customCount == 0) {
+						var totalCount = '<span style="margin-left: 10px; font-size: 10px;">(' + globalCount + ' globals)</span>';
+					} else {
+						var totalCount = '<span style="margin-left: 10px; font-size: 10px;">(' + (globalCount - customCount) + ' globals and ' + customCount + ' custom)</span>';
+					}
+					
+					if (appId != 'Global' && !appId.contains('_')) {
+						return '<img src="<?php echo $this->url('default', array('controller' => 'IssueList', 'action' => 'App-Icon')) ?>?id=' + appId + '" class="tableRow_app_icon" /> ' + name.htmlEntities() + totalCount;	
+					} else if(appId != 'Global' && appId.contains('_')) {
+						
+						<?php if (! $this->isAllowed('data:useMonitorProRuleTypes')): // disable the custom and job queue rules in free edition ?>
+							if (!['jq-job-exec-error', 'jq-job-logical-failure', 'jq-job-exec-delay', 'custom'].contains(rule.type)) {
+								name = '<a herf="javascript:void(0);" onclick="zgrid.fireEvent(\'buttonClick\', {\'rowId\': \'' + rule.id + '\', \'type\': \'edit\', \'data\': zgrid.getRowData(\'' + rule.id + '\')})">' + name.htmlEntities() + '</a>';
+							}
+						<?php else: ?>
+							name = '<a herf="javascript:void(0);" onclick="zgrid.fireEvent(\'buttonClick\', {\'rowId\': \'' + rule.id + '\', \'type\': \'edit\', \'data\': zgrid.getRowData(\'' + rule.id + '\')})">' + name.htmlEntities() + '</a>';
+						<?php endif; ?>
+						
+						//returns list of rules
+						var type = '<span style="margin-left:43px;">'+ name + '</span>';
+
+						<?php $baseUrl = \Application\Module::config()->baseUrl; ?>
+						if(canDeleteRule(rule, appId)) {
+							if (originalAppId.split('_')[0] != 'Global' && rule.appId == -1) {
+								return type;
+							} else {
+								type = '<img src="<?php echo $baseUrl; ?>/images/new-rule-icon-14x14px.png" style="margin-left: 22px; margin-bottom:-2px; margin-right: 2px;" title="Custom rule"/> ' + name;
+							}
+						}
+						if(canRevertRule(rule)) {
+							type = '<img src="<?php echo $baseUrl; ?>/images/manual-trace-icon-14x14px.png" style="margin-left: 22px; margin-bottom:-2px; margin-right: 2px;" title="Overriding rule"/> '+ name;
+						}
+						
+						return type;
+					} else {
+						return name + totalCount;
+					}
+				},
+				'width': '425px',
+				'seperator': false
+			},
+			{
+				'title': _t('Type'),
+				'dataIndex': 'type',
+				'parser': function(type, rule) {
+					if (ruleTypes[type]) {
+						if (rule.description != '') {
+							// replace the char '"' into "'" not to ruin the help content. Bug #ZSRV-9691
+							return ruleTypes[type].name + '<div class="rule-help" rel="' + rule.description.replace(/"/g, "'") + '" ></div>';
+						} else {
+							return ruleTypes[type].name;
+						}
+					} else {
+						return type;
+					}
+				},
+				'width': '240px',
+				'seperator': false
+			},
+			{
+				'title': _t('Status'), 
+				'dataIndex': 'enabled',
+				'parser': function(enabled, rule) {
+					if (enabled == 1) {
+						return '<div id="monitor-enabled" title="' + _t('Rule is enabled') + '">' + _t('Enabled') + '</div>';
+					} else {
+						return '<div id="monitor-off" title="' + _t('Rule is disabled') + '">' + _t('Disabled') + '</div>';
+					}
+				},
+				'width': '100px',
+				'ellipsis': false
+			},
+			{
+				'title': _t('Thresholds'),
+				'dataIndex': 'triggers',
+				'parser': function(triggers, rule) {
+					if (rule.enabled) {	
+						var firstTrigger = triggers.pop();
+						if (typeof firstTrigger == 'undefined') {
+							return '';
+						}
+						var threshold = renderThreshold(firstTrigger, 1, rule);
+						var counterText = '';
+						
+						if (triggers.length > 0) {
+
+							counterText = '<div id="triggers-count-icon_'+rule.controller+'_'+ rule.id +'" class="triggers-count count-icon">+'+ (triggers.length) +'</div> \									<div id="triggers-count-tooltip_'+ rule.id +'" class="triggers-tooltip tooltip"> \
+										   <div class="tooltip-content triggers-tooltip-content"><ul class="flat-list"><h4>'+_t('More Thresholds: ')+'</h4>';
+	
+							
+							counterText += triggers.map (function (trigger) {
+								return '<li><div class="threshold-wrapper">' + renderThreshold(trigger, 0, rule) + '</div></li>';
+							}).join('');
+							
+							counterText += '</ul></div></div>';
+						}
+						triggers.push(firstTrigger);
+						return '<div class="threshold-wrapper">'+threshold + counterText +'</div>';
+					} else {
+						if (! ruleTypes[rule.type].supported) {
+							return zgrid.ellipsisData(true, '<?php echo _t('This rule is not available in this edition of Zend Server') ?>');
+						}
+					}
+				},
+				'width': '65%',
+				'headerSeperator': false,
+				'seperator': false,
+				'ellipsis': false
+			},
+			{
+				'title': 'Tracing Code',
+				'dataIndex': 'id',
+				'parser': function(triggers, rule) {
+					if(!rule.triggers){
+						return '';
+					}
+					triggers = rule.triggers;
+					if (rule.enabled) {	
+						triggers = triggers.sort(function (a, b) {
+						  if (parseInt(a.severity) < parseInt(b.severity) ) {
+							return 1;
+						  }
+						  if (parseInt(a.severity) > parseInt(b.severity) ) {
+							return -1;
+						  }
+						  // a must be equal to b
+						  return 0;
+						});
+						var firstTrigger = triggers.shift();
+						if (typeof firstTrigger == 'undefined') {
+							return '';
+						}
+						
+						var threshold = renderThreshold(firstTrigger, 2, rule);
+						
+						
+						var counterText = '';
+						var hasMoreTracing = false;
+						if (triggers.length > 0) {
+							
+							counterText = '<div id="triggers-tracing-count-icon_'+rule.controller+'_'+ rule.id +'" class="triggers-count count-icon">+'+ (triggers.length) +'</div> \									<div id="triggers-count-tooltip_'+ rule.id +'" class="triggers-tooltip tooltip"> \
+										   <div class="tooltip-content triggers-tooltip-content"><ul class="flat-list"><h4>'+_t('More Tracing: ')+'</h4>';
+	
+							counterText += triggers.map (function (trigger) {
+								var tracingText = renderThreshold(trigger, 3, rule);
+								if(tracingText != ''){
+									hasMoreTracing = true;
+								}
+								return '<li><div class="threshold-wrapper">' + tracingText + '</div></li>';
+							}).join('');
+							
+							if(hasMoreTracing){
+								counterText += '</ul></div></div>';
+							}else{
+								counterText = '';
+							}
+						}
+						
+						return '<div class="threshold-wrapper">'+threshold + counterText +'</div>';
+					} else {
+						if (! ruleTypes[rule.type].supported) {
+							return zgrid.ellipsisData(true, '<?php echo _t('This rule is not available in this edition of Zend Server') ?>');
+						}
+					}
+				},
+				'width': '35%',
+				'headerSeperator': false,
+				'seperator': false,
+				'ellipsis':false
+			},
+			{
+				'title': _t('Edit'),
+				'dataIndex': 'edit',
+				'parser': zGrid2.prototype.button
+			},
+			<?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+			{
+				'title': _t('Delete'),
+				'dataIndex': 'delete',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('Revert'),
+				'dataIndex': 'revert',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('Export'),
+				'dataIndex': 'export',
+				'parser': zGrid2.prototype.button
+			},
+			{
+				'title': _t('New rule'),
+				'dataIndex': 'new_rule',
+				'parser': zGrid2.prototype.button
+			}
+			<?php endif; ?> 
+    	];
+
+        <?php 
+    	$options = array(
+    		'idColumn' 		=> 'id',
+            'multiSelect'	=> true,
+			'description' => false,
+			'rowExpand' => true
+    	);
+
+		if (! $this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')) {
+			$options['multiSelect'] = false;
+		}
+        ?>
+        zgrid = <?php echo $this->ZGridMonitorRules('rules_list', 'cmu', $options); ?>
+
+        <?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+        zgrid.addEvent('rowChecked',function(params) {
+	    	if (params.checked) {
+		    	if (rowsChecked == 0) {
+		    		$('enable-rules-btn').set('disabled', false);
+		    		$('disable-rules-btn').set('disabled', false);
+		    	}
+    			rowsChecked++;
+	    	} else {
+	    		rowsChecked--;
+	    		if (rowsChecked == 0) {
+		    		$('enable-rules-btn').set('disabled', true);
+		    		$('disable-rules-btn').set('disabled', true);
+		    	}
+	    	}
+    	});
+    	<?php endif; ?>
+
+        zgrid.addEvent('buttonClick', function(params) {
+			var appId;
+			
+            if (params.data.controller) {
+            	appId = params.data.controller.replace('app_', '');
+            } else {
+               	appId = params.data.id.replace('app_', '');
+            }
+
+            if (appId.contains('Global')) {
+        		appId = '';
+        	}
+
+            switch (params.type) {
+				case 'edit':
+					if (appId != '') {
+						window.location = baseUrl() + '/MonitorEditRule?app=' + appId + '&id=' + params.data.originalId;
+						return;
+					} else {
+						window.location = baseUrl() + '/MonitorEditRule?id=' + params.data.originalId;
+						return;
+					}
+					break;
+				<?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+				case 'new_rule':
+					if (appId != '') {
+						window.location = baseUrl() + '/MonitorEditRule?app=' + appId;
+						return;
+					} else {
+						window.location = baseUrl() + '/MonitorEditRule';
+						return;
+					}
+					break;
+				case 'revert':
+					deleteRules(params);
+					break;
+				case 'export':
+					exportRules(params);
+					break;
+				case 'delete':
+					deleteRules(params);
+					break;
+				<?php endif; ?>
+			}
+		});
+
+        <?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+        zgrid.addEvent('newRowCreated', function(params) {
+            // global section
+            if (! params.data.appId) {
+            	$('tableRow_' + params.id).getElement('.edit').setStyle('display', 'none');
+            	zgrid.removeCheckbox(params.id);
+            } else { // single rule
+            	$('tableRow_' + params.id).getElement('.new_rule').setStyle('display', 'none');
+            	$('tableRow_' + params.id).getElement('.export').setStyle('display', 'none');
+            }
+
+            $('tableRow_' + params.id).getElement('.delete').setStyle('display', 'none');
+            $('tableRow_' + params.id).getElement('.revert').setStyle('display', 'none');
+
+            if (params.data.parentId != undefined) {
+	            if(canRevertRule(params.data)) {
+	            	$('tableRow_' + params.id).getElement('.revert').setStyle('display', '');
+	            } else if (canDeleteRule(params.data, params.id)) {
+	            	$('tableRow_' + params.id).getElement('.delete').setStyle('display', '');
+	            } 
+            }
+    	});
+        <?php endif; ?>
+
+        zgrid.addEvent('rowUpdated', function(params) {
+
+        	<?php if (! $this->isAllowed('data:useMonitorProRuleTypes')): // disable the custom and job queue rules in free edition ?>
+    			if (['jq-job-exec-error', 'jq-job-logical-failure', 'jq-job-exec-delay', 'custom'].contains(params.data.type)) {
+					zgrid.removeCheckbox(params.id);
+        		}
+    		<?php endif; ?>
+    		
+            $('tableRow_' + params.id).getElement('.edit').setStyle('display', 'none');
+            <?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+        	$('tableRow_' + params.id).getElement('.delete').setStyle('display', 'none');
+            $('tableRow_' + params.id).getElement('.revert').setStyle('display', 'none');
+
+            $$('.zgrid_td-triggers .zgrid_break').set('title', null);
+			$$('.zgrid_td-id .zgrid_break').set('title', null);
+
+            if (params.data.parentId != undefined) {
+	            if(canRevertRule(params.data)) {
+	            	$('tableRow_' + params.id).getElement('.revert').setStyle('display', '');
+	            } else if (canDeleteRule(params.data, params.id)) {
+	            	$('tableRow_' + params.id).getElement('.delete').setStyle('display', '');
+	            } 
+            }
+            <?php endif; ?>
+    	});
+
+    	
+        zgrid.addEvent('descriptionClose',function(params) {
+        	$$('tr[parentid="' + params.row.id + '"]').setStyle('display', 'none');
+        });
+        
+        zgrid.addEvent('descriptionOpen',function(params) {
+            descriptionOpened.push(params.row.id);
+			if ($$('tr[parentid="' + params.row.id + '"]').length > 0) {
+				if (params['reload'] == undefined || ! params['reload']) {
+					$$('tr[parentid="' + params.row.id + '"]').setStyle('display', '');
+					return;
+				}
+			}
+
+        	// check if it's the click on a rule or the application name like app_5_9 and not just app_5 Or it's Global_digit
+			if (params.id.split("_").length > 2 || (params.id.contains('Global') && params.id.contains('_'))) {
+				var fragment = fragmentManager.getFragmentObject();
+				this.removeHash('grid', params.id);
+				return;
+			}
+
+            var requestParams = {};
+        	var url = '<?php echo "{$this->basePath()}/Api/monitorGetRulesList"; ?>';
+        	if (params.id.test('^app_([0-9]+)$')) {
+	        	var rowId = params.id.match('^app_([0-9]+)$');
+        		requestParams.filters = {applications: [rowId[1], -1]};
+        	} else {
+        		requestParams.filters = {applications: [-1]};
+        	}
+			var request = new Request.WebAPI({
+				method: 'get',
+				url:url,
+				data: requestParams, 
+				onComplete: function(tableRowId, rowId, row, response) {
+					var defaults = [];
+					
+					// to reverse the array because we add the rows in the opposite order, but we want to save the order
+					response.responseData.rules.reverse(); 
+					response.responseData.rules.each(function(tableRowId, newRowData){
+						
+						// skip jobqueue rules
+						if (newRowData.name.toLowerCase().indexOf('job ') >= 0) return;
+	
+						/// controller id is important for differentiating global rule row ids between different applications 
+						newRowData.controller = tableRowId;
+						newRowData.originalId = newRowData.id;
+						newRowData.id = params.id + '_' + newRowData.id;
+
+						zgrid.setRow(newRowData, 'after', tableRowId, true);
+						$(zgrid.options.tableRow + newRowData.id).setAttribute('parentId', row.id);
+						createRuleTooltip(newRowData);
+
+						var appId = newRowData.appId;
+						if(rowId != 'Global' && ! canDeleteRule(newRowData, newRowData.id) &&  ! canRevertRule(newRowData)) {
+							$(zgrid.options.tableRow + newRowData.id).addClass('hidden');
+							$(zgrid.options.tableRow + newRowData.id).setAttribute('default', 'true');
+						}
+					}.bind(this, rowId));
+
+					if (! $('tableRow_' + rowId + '_default') && rowId != 'Global') {
+						var tr = new Element('tr', {'id': 'tableRow_' + rowId + '_default', 'class': 'even', 'parentid': 'tableRow_' + rowId});
+						tr.addEvent('click', function() {
+							toogleGlobals(this, rowId);
+						});
+						<?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+						tr.set('html', '<td colspan="7" style="text-align: left; font-weight: bold; padding-left: 41px;" >' + getShowHideDefaults(true) + _t('Show default global rules') + '</td>');
+						<?php else : ?>
+						tr.set('html', '<td colspan="6" style="text-align: left; font-weight: bold; padding-left: 41px;" >' + getShowHideDefaults(true) + _t('Show default global rules') + '</td>');
+						<?php endif; ?>
+						tr.inject($('tableRow_' + rowId), 'after');
+
+						var fragment = fragmentManager.getFragmentObject();
+						if (fragment['global'] != undefined && fragment['global'].indexOf(rowId.replace('app_', '')) != -1) {
+							toogleGlobals(tr, rowId);
+						}
+					}
+
+					$$('tr[parentid="tableRow_' + rowId + '"] .tableDescIndicator').setStyle('display', 'none');
+					zgrid.reloadZebra();
+					createRuleHelpTooltip();
+					
+				}.bind(this, params.rowId, params.id, params.row)
+			}).send();
+        });
+        // last line
+        applications.responseData.applicationsList = applications.responseData.applicationsList.map(function(item){
+        	item.id = "app_"+item.id;
+        	item.name = item.userAppName;
+            return item;});
+        zgrid.setData(applications.responseData.applicationsList);
+        if (allowGlobal) {
+            var firstRow = applications.responseData.applicationsList.pick();
+            if (firstRow) {
+    	        // Add Global row
+    	        zgrid.setRow({"id":'Global', "name":'Global Rules'}, "before", firstRow.id, true);
+            } else {
+            	zgrid.setRow({"id":'Global', "name":'Global Rules'});
+            }
+        }
+
+        // Open global row when there is no applications
+        if (applications.responseData.applicationsList.length == 0) {
+        	zgrid.fireEvent('descriptionOpen', zgrid.getDescriptionParams('Global'));
+        }
+
+        createRuleHelpTooltip.delay(300);
+        
+        <?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+        $('rules_list_tableHead').getElement('input[type="checkbox"]').setStyle('display', 'none');
+        var padd = new Element('div', {'style': "width: 24px;"});
+        padd.inject($('rules_list_tableHead').getElement('input[type="checkbox"]').getParent());
+        <?php endif; ?>
+});
+
+function toogleGlobals(element, rowId) {
+	if (element.getElement('td').get('text') == 'Show default global rules') {
+		$$('tr[parentid="tableRow_' + rowId + '"]').removeClass('hidden');
+		element.getElement('td').set('html', getShowHideDefaults() + _t('Hide default global rules'));
+	} else {
+		element.getElement('td').set('html', getShowHideDefaults(true) + _t('Show default global rules'));
+		$$('tr[default="true"]').addClass('hidden');
+	}
+}
+
+function getShowHideDefaults(show) {
+	if (show) {
+		return '<div class="direction-right" style="margin-right: 8px; margin-left: 29px;"></div>';
+	}
+
+	return '<div class="direction-asc" style="margin-right: 8px; margin-left: 29px;"></div>';
+}
+
+function createRuleTooltip(newRowData) {
+	var counter = $('triggers-count-icon_'+newRowData.controller+'_'+ newRowData.id);
+	var counter2 = $('triggers-tracing-count-icon_'+newRowData.controller+'_'+ newRowData.id);
+	if(counter) {
+		counter.addEvent('mouseover', function(event){
+			ToolTip.instance(this, this.getNext('.triggers-tooltip').get('html'),
+				{
+					hideDelay: 100,
+					position: {
+						position: 'bottomRight',
+						edge: 'left',
+						offset: {x: 0, y: 55}
+					}
+				}
+			).show();
+		});
+	}
+	if(counter2){
+		counter2.addEvent('mouseover', function(event){
+			ToolTip.instance(this, this.getNext('.triggers-tooltip').get('html'),
+				{
+					hideDelay: 100,
+					position: {
+						position: 'bottomRight',
+						edge: 'left',
+						offset: {x: 0, y: 55}
+					}
+				}
+			).show();
+		});
+	}
+}
+
+function renderThreshold(firstTrigger, thresholdType, rule) {
+	
+	switch (firstTrigger.severity) {
+	   	case '0': //warning
+			divClass = 'severity-warning';
+	   		break;
+		case '1': //critical
+			divClass = 'severity-error';
+	   		break;
+		case '-1': //info
+		default:
+			divClass = 'severity-info';
+	   		break;
+	}
+	
+	var severity =  '<div class="trigger-severity-icon ' + divClass + '"></div>';
+	switch(thresholdType){
+		case 1:
+			if (firstTrigger.conditions.length > 0) {
+				var condition = firstTrigger.conditions.pick();
+				return  severity+ '<span>' + condition.operand  + ' '  + getAttributeUnits(condition.attribute) + '</span>';
+			}
+			return '';
+			break;
+		case 2:
+		case 3:
+			if(firstTrigger.actions &&  firstTrigger.actions[0] && firstTrigger.actions[0].tracingDuration){
+				var tracingTime = firstTrigger.actions[0].tracingDuration > 0 ? firstTrigger.actions[0].tracingDuration + 's' : 'Always';
+				var br = thresholdType == 3 ? '<br/>' : '';
+				return severity + 'Tracing Duration: ' + tracingTime;
+			}
+			return '';
+			break;
+	}
+	
+	var thresholds = firstTrigger.conditions.map(function(severity, condition, index, array){
+		return  severity+ '<span>' + condition.operand + ' '  + getAttributeUnits(condition.attribute) + '</span> ';
+	}.bind(this, severity)).join('');
+	
+	return thresholds;
+}
+
+function getAttributeUnits(attribute) {
+	
+	var units;
+
+	switch(attribute) {
+		case 'mem-usage-percent-change': 
+		case 'out-size-percent-change': 
+		case 'exec-time-percent-change': 
+			units = '%';
+			break;
+		case 'mem-usage':
+		case 'out-size': 
+			units = 'KB';
+			break;
+		case 'exec-time': 
+			units = 'ms';
+			break;
+		case 'function-name':
+		case 'error-type':
+		default:
+			units = '';
+			break;
+	}
+	
+	return units;
+}
+
+</script>
+        
+<div id="grid-action-bar" class="grid-action-bar">
+	<?php if ($this->isAllowed('route:MonitorRulesWebApi', 'monitorDeleteIssues')): ?>
+	<button id="enable-rules-btn" onclick="enableRules()" title="<?php echo _t('Enable rule'); ?>" disabled><?php echo _t('Enable'); ?></button>
+	<button id="disable-rules-btn" onclick="disableRules()" title="<?php echo _t('Disable rule'); ?>" disabled><?php echo _t('Disable'); ?></button>
+	<?php endif; ?>
+	<div id="event_tracing_mode-box" class="float-right event_tracing_mode"><label><?php echo _t('Event Tracing Mode:') ?></label>
+	&nbsp;<?php if($this->isAllowedIdentity('route:ConfigurationWebApi', 'configurationStoreDirectives')): ?>
+	   <a href="#" title="<?php echo _t('Click to change mode') ?>" id="event_tracing_mode-indicator"><?php echo $this->eventTracingMode($eventTraceMode) ?></a>
+	   <?php else:?>
+	   <span id="event_tracing_mode-indicator"><?php echo $this->eventTracingMode($eventTraceMode) ?></span>
+	   <?php endif;?>
+	<div id="event_tracing_mode-select" class="hidden float-right"><select id="event_tracing_mode-element">
+		<option value="standby" <?php echo $eventTraceMode == 2 ? 'selected="selected"' : ''?>><?php echo $this->eventTracingMode(2) ?></option>
+		<option value="off" <?php echo $eventTraceMode == 0 ? 'selected="selected"' : ''?>><?php echo $this->eventTracingMode(0) ?></option>
+	</select>&nbsp;<button id="event_tracing_mode-btn"><?php echo _t('Save') ?></button></div>
+	<script type="text/javascript">
+
+	window.addEvent('load', function(){
+		$('event_tracing_mode-select').removeClass('hidden');
+		$('event_tracing_mode-select').hide();
+
+		/// open select
+		
+		$('event_tracing_mode-indicator').addEvent('click',function(){
+			if(!directivesAllowed){return;}
+			// if we're allowed to change trace mode or trace mode is enabled when we're not allowed to use it
+			if ((traceModeAllowed && codetracingLoaded) || traceModeValue == 2) {
+				$('event_tracing_mode-indicator').hide();
+				$('event_tracing_mode-select').show();
+			}
+		});
+		$('event_tracing_mode-indicator').addEvent('click',function(){
+			if(!directivesAllowed){return;}
+			/// if tracemode value is "off" and we're not allowed to use it then we should display a hint
+			if (((! traceModeAllowed) || (! codetracingLoaded)) && traceModeValue == 0) {
+				var message = '<?php echo _t('Event Code Tracing is disabled in this Edition') ?>';
+				if (! codetracingLoaded) {
+					message = '<?php echo _t('Event Code Tracing component is not loaded') ?>';
+				}
+				
+				ToolTip.instance($('event_tracing_mode-indicator'), message,
+					{
+						hideDelay: 100,
+						position: {
+							position: 'bottomRight',
+							edge: 'top',
+							offset: {x: 0, y: 0}
+						}
+					}
+				).show();
+			}
+		});
+		
+		/// respond to select
+		$('event_tracing_mode-btn').addEvent('click',function(){
+			var mode = ($('event_tracing_mode-element').value == 'off' ? 0 : 2);
+			$('event_tracing_mode-select').spin();
+			traceModeValue = mode;
+				new Request.WebAPI.TasksPolling({
+					url: '<?php echo $this->basePath('/Api/configurationStoreDirectives') ?>',
+					'onPollingDone': function(response) {
+			    		$('event_tracing_mode-select').unspin();
+						$('event_tracing_mode-select').hide();
+						$('event_tracing_mode-indicator').set('text', $('event_tracing_mode-element').options[$('event_tracing_mode-element').selectedIndex].get('text'));
+						$('event_tracing_mode-indicator').show();
+						document.fireEvent('toastNotification', {'message': '<?php echo _t('Event Tracing Mode set succeeded') ?>'});
+						
+					},
+					'onFailure': function(response) {
+						$('event_tracing_mode-select').unspin();
+						document.fireEvent('toastAlert', {'message': '<?php echo _t('Event Tracing Mode set failed') ?>'});
+					}
+				}).post({'directives': {'zend_monitor.event_tracing_mode': mode}});
+			return false;
+		});
+	});
+	</script>
+	</div>
+</div>
+	
+<div id="rules_list"></div>

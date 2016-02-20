@@ -1,0 +1,509 @@
+<?php $this->headLink()->appendStylesheet("{$this->basePath()}/css/codetracing.css") ?>
+<?php $this->headScript()->appendFile("{$this->basePath()}/js/zgridPolling.js") ?>
+<?php echo $this->SearchField(); ?>
+
+<div id="bread-wrp" <?php echo ($this->isAllowed('data:collectEventsCodeTrace')) ? 'class="page-description"' : ''; ?>>
+	<div id="bread">
+	   <?php if ($this->isAllowed('data:collectEventsCodeTrace')): ?>
+	   <div class="glyphicons bread-info-btn">
+            <i></i>
+            <div class="page-description-content-wrapper">
+                <div class="triangle"></div>
+                <div class="page-description-content">
+                <table>
+                    <tr>
+                        <td>
+                            <?php echo _t('Code Tracing is a diagnostic tool that records the real-time execution flow of production PHP requests.
+            				It provides a function-level view of PHP performance and resource consumption, which enables deep analysis of events captured by Zend Server monitoring.
+            				Code traces can also be created manually for a URL, to aid in debugging<br/>
+            				%sread more%s', array("<a href=\"{$this->helplink('code_tracing_concept')}\" target=\"_blank\">",'</a>')) ?>
+                        </td>
+                        <td>
+                            <div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/working-with-code-tracing-in-zend-server-6-embed?ecat=breadcrumbs&amp;eaction=Working with Code Tracing">
+							     <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/trace-screen.png">
+							</div>
+                        </td>
+                    </tr>
+                </table>
+            	</div>
+        	</div>
+        </div>
+        <?php endif; ?>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Logs')) ?>"><?php echo _t("Debugging"); ?></a></li>
+		</ul>
+	</div>
+</div>
+			
+<?php if (! $this->isAllowed('data:collectEventsCodeTrace')): ?>
+<div class="marketing-content">
+	<div class="marketing-wrapper">
+		<a href="<?php echo $this->contactZend('server-6-codetracing-get-pricing-info'); ?>" target="_blank">
+			<img alt="" src="<?php echo $this->basePath() . '/images/marketing/Code-Tracing-ZS6-marketing-banner.png'; ?>" border="0"/>
+		</a>
+	</div>
+	<div class="marketing-links-box code-tracing">
+		<span>Learn more about this feature:</span>
+		 <div><img alt="" src="<?php echo $this->basePath() . '/images/marketing/help-icon.png'; ?>" border="0"/><a href="<?php echo $this->helplink('code_tracing_concept') ?>" target="_blank">Zend Code Tracing</a></div>
+		 <div><img alt="" src="<?php echo $this->basePath() . '/images/marketing/help-icon.png'; ?>" border="0"/><a href="<?php echo $this->helplink('working_with_code_tracing') ?>" target="_blank">Working with Code Tracing</a></div>
+		<div><img alt="" src="<?php echo $this->basePath() . '/images/marketing/video-icon.png'; ?>" border="0"/><a class="video-link" href="http://www.zend.com/server/redirect/working-with-code-tracing-in-zend-server-6" target="_blank">Watch video</a></div>
+	</div>
+</div>
+<div class="clear"></div>
+<?php endif; ?>
+
+<script type="text/javascript">
+var servers = {<?php echo $this->partial('servers/web-api/1x3/cluster-get-server-status.pjson.phtml', array('servers' => $servers))?>};
+var rowsChecked = 0;
+var pager;
+var tableReload = false;
+
+var listPolling = new zGridPolling();
+var tasksPolling = new tasksPolling();
+
+window.addEvent("domready", function() {
+	persistantHeaders.addHeader('grid-action-bar');
+	persistantHeaders.addHeader('codetracing-grid-actions-bar');
+	persistantHeaders.addHeader('codetracing_list_tableHead');
+
+	var searchField = new SearchField();
+	searchField.addEvent('searchClicked', function(data, element) {
+		tableReload = true;
+		pager.reloadData(1, 0);
+		zgrid2.loadData();
+	});
+
+	var serverName = function(value, data) {
+		serversList = servers.responseData.serversList;
+		for (var i = 0; i < serversList.length; i++) {
+			if (parseInt(serversList[i].id) == parseInt(value)) {
+				return serversList[i].name;
+			}
+		}
+
+		return 'N/A';
+	}
+
+	var codeTracingDetails = function(value, data) {
+		var traceId = decodeId(value);
+		return '<a href="<?php echo $this->basePath() ?>/CodeTracing/details?traceId=' + traceId + '" title="<?php echo _t("Code trace file details"); ?>">' + value + '</a>';
+	}
+
+	var codeTracingUrl = function(value, data) {
+		return data.host + value;
+	}
+
+	var type = function(value, data) {
+		switch (value) {
+			case 'CodeRequest':
+				return "<img src='<?php echo $this->basePath()?>/images/trace-code-request-icon.png' title='Code request'>";
+			case 'MonitorEvent':
+				return "<img src='<?php echo $this->basePath()?>/images/trace-event-based-icon.png' title='Event based'>";
+			case 'ManualRequest':
+				return "<img src='<?php echo $this->basePath()?>/images/trace-manual-icon.png' title='Manual request'>";
+			case 'Segfault':
+				return "<img src='<?php echo $this->basePath()?>/images/trace-seg-fault-icon.png' title='Segmentation fault'>";
+		}
+	}
+
+	var removeButton = function(value, data) {		
+		deleteTraces([decodeId(value)]);
+	}
+
+	var exportButton = function(value, data) {
+		traceFile = decodeId(zgrid2.getRowData(value).id);
+		location.href = baseUrl() + '/CodeTracing/export?traceFile=' + traceFile;
+	}
+	
+	var cmu = [
+	{
+		'title': _t('Type'),
+		'dataIndex': 'createdBy',
+		'parser': type,
+		'width': '5%',
+		'sortable': true,
+		'sortBy': 'CreatedBy',
+		'ellipsis': false
+	},
+	{
+		'title': 'ID',
+		'dataIndex': 'id',
+		'parser': codeTracingDetails,
+		'width': '10%',
+		'seperator': false,
+		'sortable': true,
+		'sortBy': 'Id',
+		'ellipsis': false
+	},
+	{
+		'title': _t('URL'),
+		'dataIndex': 'url',
+		'parser': codeTracingUrl,
+		'width': '30%',
+		'sortable': true,
+		'sortBy': 'Url',
+		'seperator': false
+	},
+	/*
+	{
+		'title': _t('Route Details'),
+		'dataIndex': 'routeDetails',
+		'parser': zGrid2.prototype.string,
+		'width': '15%',
+		'seperator': false
+	},
+	*/
+	{
+		'title': _t('Time Stamp'),
+		'dataIndex': 'timestamp',
+		'parser': zGrid2.prototype.timestamp,
+		'width': '15%',
+		'sortable': true,
+		'sortBy': 'Date',
+		'seperator': false
+	},
+	{
+		'title': _t('Server'),
+		'dataIndex': 'nodeId',
+		'parser': serverName,
+		'width': '20%',
+		'seperator': false
+	},
+	{
+		'title': _t('Remove'),
+		'dataIndex': 'remove',
+		'parser': zGrid2.prototype.button
+	},
+	{
+		'title': _t('Export'),
+		'dataIndex': 'export',
+		'parser': zGrid2.prototype.button
+	}
+	];
+<?php 
+$options = array(
+	'idColumn' 		=> 'rowId',
+	'multiSelect'	=> true,
+	'description' => false,
+	'rowExpand' => false,
+	'limit' => $limit,
+    'sortedBy'	=> 'Id',
+    'direction' => 'desc',
+	'totalContainer' => 'grid-count-bar'
+);
+?>
+	pager = <?php echo $this->zPager('mypager', $limit); ?>
+	zgrid2 = <?php echo $this->zGrid2('codetracing_list', 'cmu', $options); ?>
+	
+	zgrid2.addEvent('buttonClick', function(params) {
+		switch (params.type) {
+			case 'remove':
+				removeButton(params.rowId, params.data);
+				break;
+			case 'export':
+				exportButton(params.rowId, params.data);
+				break;
+		}
+	});
+	
+	zgrid2.addEvent('rowChecked',function(params) {
+		$('codetracing-grid-actions-bar').getElements('button')
+					.set('disabled',(! $('codetracing_list').getElements('input[type=checkbox].zgrid-checkbox')
+						.some(function(item){
+							return item.checked;
+						})));
+	});
+
+	var url = '<?php echo "{$this->basePath()}/Api/codetracingList"; ?>';
+	
+	// the polling object will be stored here
+	zgrid2.pollingObj = null;
+	
+	// load trace files list 
+	zgrid2.loadRequest = new Request.WebAPI({
+		method: 'get',
+		url:url,
+		link:'cancel',
+		onSuccess: function(response) {
+
+			/// current page's content is gone, go back to the first page
+			if (response.responseData.codeTracingList.length == 0 && response.responseData.codeTracingTotalCount > 0) {
+				pager.reloadData(1, response.responseData.codeTracingTotalCount);
+				zgrid2.reloadData({'page': 1});
+				return ;
+			}
+			
+			if (tableReload || (0 == response.responseData.codeTracingTotalCount)) {
+				tableReload = false;
+            	zgrid2.setData(response.responseData.codeTracingList, response.responseData.codeTracingTotalCount);
+            } else {
+            	zgrid2.overrideData(response.responseData.codeTracingList, 'top', response.responseData.codeTracingTotalCount);
+            }
+			pager.reloadData(pager.page, response.responseData.codeTracingTotalCount);
+			changeLimitedMessageColor(response.responseData.codeTracingList.length);
+			
+			// trigger next polling request
+			zgrid2.pollingObj && zgrid2.pollingObj.next();
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		},
+		onComplete: function(response) {
+			listPolling.start();
+		}
+	});
+	
+	listPolling.addEvent('poll', function(){
+		if (!zgrid2.pollingObj) {
+			zgrid2.pollingObj = this;
+			
+			// show the spinner for the first time
+			zgrid2.preLoad();
+		}
+		
+		zgrid2.loadRequest.get();
+	});
+
+	tasksPolling.addEvent('poll', function(){
+		var request = new Request.WebAPI({
+			'url': '<?php echo $this->basepath('/Api/tasksComplete') ?>',
+			'onSuccess': function(response) {
+				if (response.responseData.tasksComplete) {
+					tableReload = true;
+					pager.enable();
+					listPolling.start();
+				} else {
+					this.next();
+				}
+			}.bind(this),
+			'onFailure': function() {
+				this.next();
+			}.bind(this)
+		});
+		request.get();
+	});
+	
+	zgrid2.addEvent('loadData', function(params) {
+		listPolling.stop();
+		zgrid2.preLoad();
+		var selectedType = $('codetracing-type').getSelected().pick();
+		zgrid2.loadRequest.setOptions({'data': {'freetext': $('codetracing-freetext_input').value, 'page': pager.page, 'type': selectedType.get("value"), 'limit': params.limit, 'offset': params.offset, 'orderBy': params.order, 'direction': params.direction}});
+		tableReload = true;
+		listPolling.start();
+	});
+	
+	zgrid2.addEvent('gridEmpty', function(params) {
+		pager.reloadData(1, 0);
+	});
+	
+	pager.addEvent('pageSelect',function(params) {
+		listPolling.stop();
+		tableReload = true;
+		pager.page = params.page;
+		zgrid2.reloadData(params);
+		listPolling.start();
+	});
+
+	var options = zgrid2.getOptions();
+	zgrid2.loadRequest.setOptions({'data': {'page': 1, 'orderBy': options.order, 'direction': options.direction, 'limit': <?php echo $limit ?>}});
+	zgrid2.setData([], 0);
+	
+	listPolling.start();
+	
+	$('code-trace-url').addEvent('input', codetraceCreateToggle);
+	$('code-trace-url').addEvent('keyup', codetraceCreateToggle);
+
+});
+
+function codetraceCreateToggle(e){
+	if (e.target.value.length == 0) {
+		$('code-trace-create').set('disabled', true);
+	} else {
+		$('code-trace-create').set('disabled', false);
+	}
+}
+
+function decodeId(id) {
+	return id.replace(/_colon_/g,':').replace(/_dot_/g,'.');
+}
+
+function batchDelete() {
+	var trace = Object.keys(zgrid2.getSelectedRows()).length > 1 ? 'code traces (' + Object.keys(zgrid2.getSelectedRows()).length + ')': 'code trace';
+	
+	if (! confirm(_t("Are you sure you would like to delete the currently selected " + trace + "?"))) {
+		return;
+	}
+	
+	var codeTraceIds = Array();
+	Object.each(zgrid2.getSelectedRows(), function(row) {
+		codeTraceIds.push(row.rowId);
+	});
+
+	deleteTraces(codeTraceIds);
+}
+
+function deleteTraces(traces) {
+	var traceIds = traces.map(function(rowid){
+		return zgrid2.getRowData(rowid).id;
+	});
+	
+	var params = {
+			traceFile: traceIds
+	};
+
+	var actionUrl = "<?php echo $this->basePath('/Api/codetracingDelete'); ?>";
+	
+	var request = new Request.WebAPI({url: actionUrl, data:params, method: 'post', 'version': '1.7',
+
+	onSuccess: function(response) {
+		zgrid2.preLoad();
+		pager.disable();
+		document.fireEvent('toastNotification', {'message': '<?php echo _t("The selected code trace entries will be removed..."); ?>'}); 
+	},
+	onFailure: function() {
+		document.fireEvent('toastAlert', {'message': '<?php echo _t("The code trace files could not be deleted"); ?>'});
+	},
+	onComplete: function(){
+		$('batch-delete').set('disabled', (0 < Object.getLength(zgrid2.getSelectedRows())));
+	}});
+
+	request.post();
+}
+
+function createTrace() {
+	var codeTraceUrl = $('code-trace-url').get('value');
+	var traceMethod = $('code-trace-method').get('value');
+
+	var url = '<?php echo $this->basepath('/Api/codetracingCreate'); ?>';
+	//make the request
+	new Request.WebAPI({
+		method: 'post',
+		url: url,
+		data: {'url': codeTraceUrl, 'traceMethod': traceMethod},
+		onSuccess: function(response) {
+			var codeTrace = response.responseData.codeTrace;
+			codeTrace = codeTrace[0];
+			if (undefined != response && !isCodeTraceCreated(codeTrace)) {
+				checkCodeTraceIsCreated(codeTrace.id);
+				return;
+			}
+			if (undefined != response) {
+				zgrid2.reloadData();
+			}
+			document.fireEvent('toastNotification', {'message': '<?php echo _t("Code trace has been created"); ?>'});
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			if (decoded.errorData.errorCode.test(/directAccessForbidden/)) {
+				var link = '<?php echo $this->url('default', array('controller' => 'IDEIntegration')) ?>';
+				document.fireEvent('toastAlert', {'message': _t('Code tracing was not generated (Your host is not in the debugger {a}Allowed Hosts{ca} list)', {'a': '<a target="_blank" href="' + link + '">', 'ca': '</a>'})}); 
+			} else {
+				document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			}
+		},
+		onComplete: function() {
+			tableReload = true;
+			this.unspin();
+		}.bind(this)
+	}).send();
+	this.spin();
+}
+
+/* 
+ * We will assume that codeTrace is not created
+ * if there are no other information available other than id (which is returned in any case) 
+ */ 
+function isCodeTraceCreated(codeTrace) {
+	return (codeTrace.id && codeTrace.date && codeTrace.url && codeTrace.filesize);
+}
+
+var maxAttempts = 20;
+function checkCodeTraceIsCreated(codeTraceId, attempts) {
+	if (attempts === undefined) {
+		attempts = 0;
+	}
+	if (attempts++ > maxAttempts) {
+		document.fireEvent('toastAlert', {'message': '<?php echo _t("Code trace creation time out"); ?>'});
+		return;
+	}
+	var url = '<?php echo $this->basepath('/Api/codetracingGetInfo') ; ?>';
+	//make the request
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url,
+		data: {'id': codeTraceId},
+		onSuccess: function(response) {
+			if (undefined != response && !response.responseData.codeTrace[0].id) {
+				checkCodeTraceIsCreated.delay(500, null, [codeTraceId, attempts]);
+				return;
+			}
+			zgrid2.loadData();
+			document.fireEvent('toastNotification', {'message': '<?php echo _t("Code trace has been created"); ?>'});
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	}).send();
+}
+
+function clearSearch() {
+	$('codetracing-freetext_input').value = '';
+	$('codetracing-type').selectedIndex = 0;
+	tableReload = true;
+	zgrid2.loadData();
+}
+
+function changeLimitedMessageColor(count) {
+	if (count % 2 == 0) {
+		$$('.limitedMessage').removeClass('odd');
+	} else {
+		$$('.limitedMessage').addClass('odd');
+	}
+
+	$$('.limitedMessage').removeClass('hidden');
+}
+
+</script>
+<div class="grid-action-bar grid-action-bar-dark" id="grid-action-bar">
+<input class="create-codetrace-part" type="text" id="code-trace-url"
+<?php if ($codetracingDisabled): ?>
+disabled="disabled"
+placeholder="<?php echo _t('Code Tracing component is disabled, cannot create new Traces') ?>"
+<?php else: ?>
+placeholder="<?php echo _t('Enter a new URL to trace') ?>"
+<?php endif ?>
+>
+<select class="create-codetrace-part" id="code-trace-method">
+	<option value="get"><?php echo _t('GET Request') ?></option>
+	<option value="post"><?php echo _t('POST Request') ?></option></select>
+<button id="code-trace-create" class="create-codetrace-part" onclick="createTrace.bind(this).attempt()" title="<?php echo _t('Trace URL'); ?>" disabled="disabled"><?php echo _t('Create Trace'); ?></button>
+</div>
+<div id="codetracing-grid-actions-bar" class="grid-action-bar">
+	<button id="batch-delete" disabled onclick="batchDelete()" title="<?php echo _t('Delete trace'); ?>"><?php echo _t('Delete'); ?></button>
+	<div class="float-right" >
+		<div class="searchField" id="codetracing-freetext" placeholder="<?php echo _t("Search..."); ?>"></div>
+	</div>
+	<div class="float-right">
+		 <?php echo _t('Show: '); ?> 
+		 <select id="codetracing-type" onchange="zgrid2.loadData()">
+			<option value="-1" selected><?php echo _t('All Types'); ?></option>
+			<option value="<?php echo \Codetracing\TraceFileContainer::ZCT_REASON_CODE_REQUEST ?>"><?php echo _t('Triggered by Code');  ?></option>
+			<option value="<?php echo \Codetracing\TraceFileContainer::ZCT_REASON_MONITOR_EVENT ?>"><?php echo _t('Triggered by Event');  ?></option>
+			<option value="<?php echo \Codetracing\TraceFileContainer::ZCT_REASON_MANUAL_REQUEST ?>"><?php echo _t('Manual Request'); ?></option>
+			<option value="<?php echo \Codetracing\TraceFileContainer::ZCT_REASON_SEQFAULT ?>"><?php echo _t('Triggered by Segfault'); ?></option>
+		</select>
+	</div>
+</div>
+<div id="codetracing_list"></div>
+<?php if (! $this->isAllowed('dataRentention:timelimit', '2weeks')) : ?>
+<div>
+<?php // MARKETING ?>
+<h2 class="limitedMessage hidden"><?php echo _t('Want to view line-by-line code execution for PHP requests? %sContact Zend%s to upgrade.', array('<a target="_blank" href="' . $this->contactZend('server-6-upgrade-code-tracing') . '">', '</a>'));?></h2>
+</div>
+<?php endif; ?>
+
+<div id="grid-count-bar"></div>
+
+<div id="mypager"></div>

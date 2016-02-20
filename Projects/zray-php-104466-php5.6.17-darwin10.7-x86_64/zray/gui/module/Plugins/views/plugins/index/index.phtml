@@ -1,0 +1,890 @@
+<?php 
+$wizardUrl = $this->url ( 'default', array (
+	'controller' => 'PluginsWizard',
+	'action' => 'Wizard'
+) );
+
+$prerequisitesUrl = $this->url ( 'default', array (
+	'controller' => 'Plugins',
+	'action' => 'Get-Plugin-Prerequisites'
+) );
+
+$pluginUrl = $this->url ( 'default', array (
+	'controller' => 'PluginsStore',
+	'action' => 'Plugin'
+) );
+
+// add the custom css tags for this page
+// TODO the blue tab design is in other places? if so maybe add it to a generic
+// tabs css files?
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/appList.css' );
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/prereq.css' );
+$this->plugin ( 'headLink' )->appendStylesheet ( $this->basePath () . '/css/plugins.css' );
+
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/pluginDeploymentWizard.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/mootools-autocompleter-1.2.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/zgridPolling.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/FragmentManager.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/plugins.js' );
+$this->plugin ( 'headScript' )->appendFile ( $this->basePath() . '/js/plugins/updates.js' );
+
+?>
+<style>
+.zgrid_td-name{
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+</style>
+<div id="bread-wrp">
+	<div id="bread">
+	   <div class="glyphicons bread-info-btn">
+			<i></i>
+			<div class="page-description-content-wrapper">
+				<div class="triangle"></div>
+				<div class="page-description-content">
+				<table>
+					<tr>
+						<td>
+							<?php echo _t( 'Zend Server Plugins is a mechanism that allows you to extend Zend Server\'s functionality by plugging in a 3rd party extension, or an extension developed by you. Using our extension API, you can either extend Z-Ray, or build a routing extension to help Zend Server understand the specific routing logic of your system. Plugins can be easily deployed, managed and updated via the Zend Server UI.<br/>
+							%sread more%s', array("<a href=\"{$this->helplink('plugins_concept')}\" target=\"_blank\">",'</a>')) ?>
+						</td>
+						<td>
+							<div class="video-box video-box-tiny" href="http://www.zend.com/server/redirect/extending-zray?ecat=breadcrumbs&amp;eaction=Extending Z-Ray">
+								 <img src="<?php echo $this->basePath(); ?>/images/welcome/videos/zray-apps.png">
+							</div>
+						</td>
+					</tr>
+				</table>
+				</div>
+			</div>
+		</div>
+		<ul>
+			<li><a href="<?php echo $this->url('default', array('controller' => 'Plugins')) ?>"><?php echo _t("Plugins"); ?></a></li>
+		</ul>
+	</div>
+</div>
+
+<div id="grid-action-bar" class="grid-action-bar">
+<?php if ($this->isAllowed('route:PluginsWebAPI', 'pluginDeploy')): ?>
+	<button class="gallery-btn" onclick="window.location='<?php echo $this->url('pluginsGalleryPage', array('controller' => 'PluginsGallery')) ?>';" title="<?php echo _t('Gallery'); ?>"><?php echo _t('Gallery'); ?></button>
+	<button class="deploy-btn" onclick="openWizard()" title="<?php echo _t('Deploy a plugin'); ?>"><?php echo _t('Deploy Plugin'); ?></button>
+							
+	<button id="enable" title="<?php echo _t("Enable plugin"); ?> " onclick="enable()" disabled>Enable</button>
+	<button id="disable" title="<?php echo _t("Disable plugin"); ?>" onclick="disable()" disabled>Disable</button>
+	
+	<button id="check-updates-btn" class="float-right-updates-plugins" title="<?php echo _t('Check for plugins updates'); ?>"><?php echo _t('Check for Updates'); ?></button>
+	 
+<?php endif; ?>
+</div>
+<div>
+	<div id="pluginsTable"></div>
+</div>
+
+<div template="modal-plugin">
+	<div class="plugin-modal">
+		<header class="plugin-cover" style="background-image: url({{cover}} );">
+			<h2>{{display_name}}</h2>
+			<label class="version">{{version}}</label>
+		</header>
+		<nav class="tabs">
+			<a onclick="switchTab(this);" tab="main" selected>Main</a>
+			<a onclick="switchTab(this);" tab="package-details">Package Details</a>
+			<a onclick="switchTab(this); loadPrerequisites(this, {{id}}, '<?php echo $prerequisitesUrl; ?>')" tab="prerequisites">Prerequisites</a>
+			<a onclick="switchTab(this);" tab="license">License</a>
+			<a onclick="switchTab(this);" tab="changelog">Changelog</a>
+		</nav>
+		<div class="content-tabs">
+			<div tab="main" selected>
+				{{long_description}}
+			</div>
+			<div tab="package-details">
+				<table>
+					<tbody>
+					</tbody>
+				</table>
+			</div>
+			<div tab="prerequisites">
+			</div>
+			<div tab="license">
+				{{license}}
+			</div>
+			<div tab="changelog">
+				{{changelog}}
+			</div>
+		</div>
+		<div class="plugin-gallery">
+			<a href="#" class="plugin-gallery-prev glyphicons chevron-left"><i></i></a>
+			<div class="plugin-gallery-items-wrapper">
+				<div class="plugin-gallery-items">
+				</div>
+			</div>
+			<a class="plugin-gallery-next glyphicons chevron-right"><i></i></a>
+		</div>
+		<footer>
+			
+		</footer>
+	</div>
+</div>
+
+<script>
+
+var rowsChecked = 0;
+var allowAutoPolling = false;
+var pluginsDataPolling = new tasksPolling();
+var checkUpdatesFlag = false; // flag to use it in show the updates messages for users
+var saveUpdatesCompleteFlag = false; // flag to use it in show the updates messages for users
+var checkUpdateNameFlag = ''; // flag to use it to remember what name user choose to run "Check Update"
+pluginsDataPolling.options.params = {};
+var storeDownloadApiUrl = '<?php echo $this->storeDownloadApiUrl; ?>';
+var storeListApiUrl = '<?php echo $this->storeListApiUrl; ?>';
+var storeUpdateApiUrl = '<?php echo $this->storeUpdateApiUrl; ?>';
+var serverInfo = <?php echo json_encode($this->serverInfo); ?>;
+var tableReload = false;
+
+document.addEvent('saveUpdatesComplete', function() {
+	saveUpdatesCompleteFlag = true;
+	if ($('check-updates-btn').spinner) {
+		$('check-updates-btn').spinner.hide();
+	}
+}.bind(this));
+
+function checkUpdates(data) {
+	checkUpdatesFlag = true;
+	$('check-updates-btn').spinner = new Spinner($('check-updates-btn'));
+	$('check-updates-btn').spinner.show();
+
+	var installedPlugins = [];
+
+	// case of user choose a specific row to run "Check Update"
+	if (! data.event) {
+		checkUpdateNameFlag = data.name;
+		installedPlugins.push(data);
+	} else {
+		// init again the flag of check updates of specific name
+		checkUpdateNameFlag = '';
+		var rows = zgrid2.getRowsData();
+		Object.each(rows, function(row) {
+			installedPlugins.push({'name' : row.name, 'version' : row.version});
+		});
+	}
+	
+	var updatesUrl = '<?php echo $this->basepath('/Api/pluginSaveUpdates') ?>';
+	var pluginsUpdatesObj = new pluginsUpdates(updatesUrl, storeUpdateApiUrl, serverInfo);
+	pluginsUpdatesObj.runUpdate(installedPlugins);
+
+}
+
+
+function tasksMessages(pluginId, task) {
+	var message = '';
+					
+	switch (task) {
+		case 'remove':
+			message = _t('Plugin was successfully removed'); 
+			break;
+		case 'redeploy':
+			message = _t('Plugin was successfully redeployed');
+			break;
+		case 'deploy':
+			message = _t('Plugin was successfully deployed');
+			break;
+		case 'update':
+			message = _t('Plugin was successfully updated');
+			break;
+	}
+
+	return message;
+}
+
+function rowEligible(status) {
+	EligibleStates = ['deployed', 'error', 'uploadError', 'stageError', 'activateError', 'deactivateError', 'unstageError', 'unknown', 'notExists'];
+	return ! EligibleStates.contains(status);
+}
+
+function enable() {
+
+	if ($('disable')) {
+		$('disable').set('disabled', true); // also disable the opposite action
+	}
+	if ($('enable')) {
+		$('enable').spinner.show();
+	}
+
+	var enabledPlugins = new Object();
+	Object.keys(zgrid2.getSelectedRows()).each(function(item) {
+		enabledPlugins[item] = item;
+	});
+
+	var params = {
+		"plugins": enabledPlugins
+	};
+
+	var urlRequest = '<?php echo $this->basePath(); ?>' + '/Api/enablePlugins';
+		
+	var request = new Request.WebAPI({url: urlRequest, data: params});
+	request.post();
+	checkTasksComplete('enableDone'); 
+}
+
+
+function enableDone(data) {
+	if ($('enable')) $('enable').spinner.hide();
+	if ($('disable')) $('disable').set('disabled', false);
+
+	resetData();
+	zgrid2.loadData();
+}
+
+function checkTasksComplete(doneFunction, retry) {
+	if (!retry) {
+		retry = 0;
+	}
+	var maxRetries = 50;
+	var url = '<?php echo \Application\Module::config()->baseUrl . '/Api/tasksComplete'; ?>';
+	var request = new Request.WebAPI({
+		method: 'get',
+		url: url,
+		data:{},
+		onComplete: function(response) {
+			if (undefined != response && response.responseData.tasksComplete == true) {
+				return eval(doneFunction)(true);
+			}
+			
+			retry++;  
+			if (retry > maxRetries) {
+				return eval(doneFunction)(false);
+			}
+				
+			checkTasksComplete.delay('700', this, [doneFunction, retry]);
+	
+		}
+	}).send();
+}
+
+function disable() {
+	if ($('enable')) $('enable').set('disabled', true);
+	if ($('disable')) $('disable').spinner.show();
+	
+	var disabledPlugins = new Object();
+	Object.keys(zgrid2.getSelectedRows()).each(function(item) {
+		disabledPlugins[item] = item;
+	});
+	
+	var params = {
+		"plugins": disabledPlugins
+	};
+	
+	var urlRequest = '<?php echo $this->basePath(); ?>' + '/Api/disablePlugins';
+	var request = new Request.WebAPI({url: urlRequest, data: params});
+	request.post();
+	checkTasksComplete('disableDone'); 
+}
+
+function disableDone(data) {
+	if ($('disable')) $('disable').spinner.hide();
+	if ($('enable')) $('enable').set('disabled', false);
+
+	resetData();
+	zgrid2.loadData();
+}
+
+function resetData() {
+	// unmark rows
+	$$('#pluginsTable input[type="checkbox"]').set('checked', false);
+	
+	if ($('enable')) {
+		$('enable').set('disabled', true);
+	}
+	if ($('disable')) {
+		$('disable').set('disabled', true);
+	}
+	rowsChecked = 0;		
+}
+
+
+<?php if ($this->isAllowed('route:PluginsWebAPI', 'pluginDeploy')): ?>
+function openWizard(action, options) {
+	// if user clicked check updates
+	if (options && typeof options['download_id'] != 'undefined') {
+		options.url = storeDownloadApiUrl + '?id=' + options.download_id;
+	}
+	var wizardUrl = '<?php echo $wizardUrl . '?wizardId=' . mt_rand(100000,999999); ?>';
+	if (action == 'update') {
+		wizardUrl += '&action=update&pluginId=' + options.pluginId;
+		lastPageId = 4;
+	} else if (action == 'download') {
+		wizardUrl += '&action=download&url=' + options.url + '&name=' + options.name;
+	} else if (action == 'update-download') {
+		wizardUrl += '&action=update-download&url=' + options.url + '&name=' + options.name;
+	}
+
+	simpleModel = new SimpleModal({
+		width: 673,
+		closeButton: false,
+		hideHeader: true,
+		hideFooter: true,
+		draggable: false,
+		draggableContainer: 'wizard-title',
+		overlayClick: false,
+		template: "<div class=\"contents\">{_CONTENTS_}</div>"
+	});
+	simpleModel.show({
+		"model": "modal-ajax",
+		"param": {
+			"url": wizardUrl,
+			"onRequestComplete": function() { /* Action on request complete */ }
+		}
+	});
+}
+<?php else : ?>
+function openWizard() {
+	document.fireEvent('toastAlert', {'message': '<?php echo _t("You do not have the correct permissions for deploy plugins"); ?>'});
+}
+<?php endif; ?>
+
+function cancelDialog() {
+	simpleModel.hide();
+	wizard.wizardClosed();
+}
+
+function closeDialog() {
+	simpleModel.hide();
+}
+
+var pluginInfo;
+
+window.addEvent("load", function() {
+
+	pluginInfo = <?php echo $this->ZGridPluginInfo($this->basePath() . '/Api/pluginGetDetails'); ?>
+	
+	if ($('enable') && typeof $('enable').spinner == 'undefined') {
+		$('enable').spinner = new Spinner($('enable'));
+		$('enable').spinner.hide();
+	}
+
+	if ($('disable') && typeof $('disable').spinner == 'undefined') {
+		$('disable').spinner = new Spinner($('disable'));
+		$('disable').spinner.hide();
+	}
+	
+	var deleteButton = function(value, data) {
+		//Remove all jobs related to app flag
+		var params = {
+			pluginId: data.id,
+			removePluginData: 1
+		};
+
+		var actionUrl = "<?php echo $this->basePath() . '/Api/pluginRemove'; ?>";
+		pluginsDataPolling.stop();
+		var request = new Request.WebAPI({
+			url: actionUrl, 
+			data:params, 
+			method: 'post', 
+			onSuccess: function(response) {
+				document.fireEvent('toastNotification', {'message': '<?php echo _t("Removing plugin..."); ?>'});
+				pluginsDataPolling.setTask(data.id, 'remove');
+			},
+			onFailure: function() {
+				var errorText = '<div class="errorMsg"><?php echo _t("Failed to remove the plugin"); ?></div>';
+				$('messageList_' + data.id).set('html', errorText);
+				document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to remove the plugin"); ?>'});
+				},
+				onComplete: function() {
+					pluginsDataPolling.start();
+				}
+			});
+			
+		request.post();
+		return '';
+	 }
+
+	 var redeployButton = function(value, data) {
+		   if (window.confirm("<?php echo _t('Redeploying a plugin will remove and deploy it again. During this process, the plugin may be unavailable.\\n\\nAre you sure you wish to proceed?'); ?>")) {
+				// Synchronize plugin
+				var params = {
+					pluginId: data.id
+				};
+				pluginsDataPolling.stop();
+				var actionUrl = "<?php echo $this->basePath() . '/Api/pluginSynchronize'; ?>";
+			  
+				var request = new Request.WebAPI({
+					url: actionUrl, 
+					data:params, 
+					method: 'post', 
+					onSuccess: function(response) {
+						document.fireEvent('toastNotification', {'message': '<?php echo _t("Redeploying plugin..."); ?>'});
+						pluginsDataPolling.setTask(data.id, 'redeploy');
+					},
+					onFailure: function() {
+						var errorText = '<div class="errorMsg"><?php echo _t("Failed to synchronize the plugin"); ?></div>';
+						$('messageList_' + data.id).set('html', errorText);
+						document.fireEvent('toastAlert', {'message': '<?php echo _t("Failed to synchronize the plugin"); ?>'});
+					},
+					onComplete: function() {
+						document.fireEvent('toastAlert', {'message': '<?php echo _t("xxx"); ?>'});
+						pluginsDataPolling.start();
+					}
+				});
+					
+				request.post();
+		 }
+	 };
+	 
+	//////////////GRID CALLBACKS //////////////
+	var displayStatus = function(value, data) {
+
+		var valueToShow = '';
+		switch (value) {
+			case "ENABLED":
+				divClass = 'zgrid-status-ok';
+				valueToShow = 'Active';
+				break;
+			case "STAGED":
+				divClass = 'zgrid-status-ok';
+				valueToShow = 'Active';
+				break;
+			case "DEPLOYING":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Deploying';
+				break;
+			case "REMOVING":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Removing';
+				break;
+			case "WAITING_FOR_DEPLOY":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Waiting For Deploy';
+				break;
+			case "WAITING_FOR_REDEPLOY":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Waiting For Redeploy';
+				break;
+			case "WAITING_FOR_REMOVE":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Waiting For Remove';
+				break;
+			case "WAITING_FOR_DISABLE":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Waiting for disable';
+				break;
+			case "WAITING_FOR_ENABLE":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Waiting for enable';
+				break;
+			case "STAGING":
+				divClass = 'zgrid-status-progress';
+				valueToShow = 'Waiting for active';
+				break;
+			case "UNSTAGED":
+				divClass = 'zgrid-status-disabled';
+				valueToShow = 'Disabled';
+				break;
+			case "DISABLED":
+				divClass = 'zgrid-status-disabled';
+				valueToShow = 'Disabled';
+				break;
+			default:
+				divClass = 'zgrid-status-error';
+				valueToShow = 'Error';
+				break;
+		}
+	
+		return '<div class="' + divClass + '" title="' + valueToShow + '">' + valueToShow + '</div>';
+	}
+
+	var displayType = function(value, data) {
+		var dictionary = {
+				"type_zs_ui":   _t('GUI'),
+				"type_route":     _t('Route'),
+				"type_zray":    _t('Z-Ray'),
+			};
+
+		var returnedType = '';
+
+		Array.each(value, function(type, index) {
+			var concat = ' ';
+			if (returnedType) {
+				concat = ', ';    
+			}
+			returnedType = returnedType + concat + dictionary[type];
+		}.bind(this)); 
+		
+		return '<div>' + returnedType + '</div>';
+	}
+	
+	var auditInfo = <?php echo $this->ZGridAuditInfo($this->basePath() . '/Api/pluginGetList'); ?>;
+	var cmu2 = [
+				{
+					'title': _t('Name'),
+					'dataIndex': 'displayName',
+					'parser': function(name, data) {
+						return name;
+					},
+					'width': '10%',
+					'sortable': true,
+					'sortBy': 'name',
+					'ellipsis': false
+				},
+				{
+					'title': '',
+					'dataIndex': 'storePluginId',
+					'parser': zGrid2.prototype.string,
+					'width': '37px',
+					'ellipsis': false,
+					'parser': function(name, data) {
+						if (data.needUpdate != -1 && data.storePluginId != -1) {
+							return "<div class=\"glyphicons info\" onclick=\"getPlugin(" + data.storePluginId + ", '" + storeListApiUrl + "')\"><i></i></div>";	
+						}
+						return "";
+					}
+				},
+				{
+					'title': _t('Version'),
+					'dataIndex': 'version',
+					'parser': zGrid2.prototype.string,
+					'width': '5%',
+					'sortable': true,
+					'sortBy': 'version',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Type'),
+					'dataIndex': 'type',
+					'parser': displayType,
+					'width': '8%',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Deployed'),
+					'dataIndex': 'creationTimeTimestamp',
+					'parser': zGrid2.prototype.timestamp,
+					'width': '7%',
+					'sortable': true,
+					'sortBy': 'creationTimeTimestamp',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Status'),
+					'dataIndex': 'status',
+					'parser': displayStatus,
+					'width': '10%',
+					'ellipsis': true
+				},
+				{
+					'title': _t('Message'),
+					'dataIndex': 'message',
+					'parser': function(name, data) {
+						return getUpdateRowMessage(data.name, data.updateVersion, data.download_id, data.needUpdate, data.message, data.storePluginId);
+					},
+					'width': '20%',
+					'ellipsis': false
+				},
+				<?php if ($this->isAllowed('route:PluginsWebAPI', 'pluginRemove')): ?>
+				{
+					'title': _t('Delete'),
+					'dataIndex': 'delete',
+					'parser': zGrid2.prototype.button
+				},
+				{
+					'title': _t('Redeploy'),
+					'dataIndex': 'redeploy',
+					'parser': zGrid2.prototype.button,
+				},
+				/* FREEZING {
+					'title': _t('Check for plugin updates'),
+					'dataIndex': 'runCheckUpdates',
+					'parser': zGrid2.prototype.button
+				},*/
+				{
+					'title': _t('Update'),
+					'dataIndex': 'update',
+					'parser': zGrid2.prototype.button
+				}
+				<?php endif ; ?> 
+			];
+
+	<?php 
+		$options = array( 'multiSelect' => $this->isAllowed('route:PluginsWebAPI', 'pluginRemove'),
+						  'direction'   => 'asc',
+						  'idColumn'    => 'id',
+						  'sortedBy'	=> 'displayName',
+		);
+		
+	?>
+
+	zgrid2 = <?php echo $this->zGrid2('pluginsTable', 'cmu2', $options); ?>
+
+	zgrid2.addEvent('buttonClick', function(params) {
+		// MARKETING if not permistted
+		//	document.fireEvent('toastAlert', {'message': 'This action is not available in this edition of Zend Server. Contact Zend to upgrade.'});
+		//	return;
+	
+		
+		// update spinner on the row immediately
+		switch (params.type) {
+			case 'redeploy':
+				redeployButton(params.rowId, params.data);
+				break;
+			case 'delete':
+				var modelMessage = _t("The plugin will be deleted from the list and your server.<br/>Are you sure you wish to proceed?");
+				
+				deletePluginDialog = new SimpleModal({width: 673, closeButton: false,
+					hideHeader: false, hideFooter: false, draggable: false, overlayClick: false,
+					template: "<div id=\"simple-modal-box\"><div class=\"simple-modal-header wizard-title\">{_TITLE_}</div>\
+							   <div class=\"simple-modal-body\">{_CONTENTS_}</div>\
+							   <div class=\"simple-modal-footer\"></div></div>"
+				});
+
+				deletePluginDialog.addButton(_t("Cancel"), "btn");
+				deletePluginDialog.addButton(_t("Remove"), "btn primary", function(btn){
+					// create the actual delete
+					deleteButton(params.rowId, params.data);
+					deletePluginDialog.hide();
+				}.bind(this));
+
+				deletePluginDialog.show({
+					  "model":	"modal",
+					  "title": _t('Remove Plugin'), 
+					  "contents": '<div id="modal-msg" style="font-weight:bold;">' + modelMessage + '</div>'
+				});
+
+				return;
+				break;
+			
+			case 'update':
+				openWizard('update', {pluginId : params.rowId});
+				break;
+
+			case 'runCheckUpdates':
+				checkUpdates({'name' : params.data.name, 'version' : params.data.version});
+				break;
+
+				
+		}
+	});
+
+
+	var url = '<?php echo $this->basePath() . '/Api/pluginGetList'; ?>';
+	var params = zgrid2.getParams();
+	zgrid2.loadRequest = new Request.WebAPI({
+		method: 'get',
+		data:params,
+		url:url, 
+		'link': 'cancel',
+		onComplete: function(response) {
+			if (response && response.responseData && response.responseData.plugins) {
+				zgrid2.updateData(response.responseData.plugins);
+			}
+			
+			pluginsDataPolling.start();
+		},
+		onFailure: function(response) {
+			var decoded = this.decodeResponse(response);
+			document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+		}
+	});
+
+	zgrid2.addEvent('rowUpdated', function(params) {
+		if (params.data.prerequisitesIsValid == false) {
+			zgrid2.removeCheckbox(params.id);
+			$('redeploy_' + params.id).setStyle('display', 'none');
+		}
+	});
+	
+	zgrid2.addEvent('loadData', function(params) {
+		pluginsDataPolling.stop();
+		if (params.sort) {
+			tableReload = true;
+			pluginsDataPolling.options.params = params;
+		}
+		zgrid2.loadRequest.get(params);
+	});
+		
+	 zgrid2.addEvent('descriptionOpen',function(params) {
+		 pluginInfo.loadData(params);
+	 });
+
+	zgrid2.loadData();
+	
+	zgrid2.addEvent('rowChecked',function(params) {
+		if (params.checked) {
+			if (rowsChecked == 0) {
+				$('enable').set('disabled', false);
+				$('disable').set('disabled', false);
+			}
+			rowsChecked++;
+		} else {
+			rowsChecked--;
+			if (rowsChecked == 0) {
+				$('enable').set('disabled', true);
+				$('disable').set('disabled', true);
+			}
+		}
+	});
+
+	var plugins = {<?php echo $this->partial('plugins/web-api/plugin-get-list.pjson.phtml', array('plugins' => $plugins, 'updates' => $updates))?>};
+	pluginsCount = plugins.responseData.plugins.length;
+	zgrid2.setData(plugins.responseData.plugins, pluginsCount);
+
+	
+	
+	<?php if ($this->isAllowed('route:PluginsWebAPI', 'pluginDeploy')): ?>
+	$('check-updates-btn').addEvent('click', checkUpdates);
+	<?php endif; ?>
+
+
+	var url = '<?php echo $this->basepath('/Api/pluginGetList') ?>';
+	var params = zgrid2.getParams();
+	var pollingRequest = new Request.WebAPI({
+		method: 'get',
+		data: params,
+		url: url
+	});
+
+	pollingRequest.addEvent('complete', function(response) {
+		this.next();
+	}.bind(pluginsDataPolling));
+	plugins_version = {};
+	pollingRequest.addEvent('success', function(response) {
+		
+		pluginsCount = response.responseData.plugins.length;
+
+		if (tableReload) {
+			tableReload = false;
+			zgrid2.setData(response.responseData.plugins, pluginsCount);
+		} else {
+		   zgrid2.overrideData(response.responseData.plugins, 'top', pluginsCount);
+		}
+
+		response.responseData.plugins.each(function(plugin){
+			var task = this.getTask(plugin.id);
+			if (plugins_version[plugin.id] && plugins_version[plugin.id] != plugin.version) {
+				Object.each(zgrid2.data,function(v,k){
+					if(v.id==plugin.id){
+						pluginInfo.reloadData(zgrid2.getDescriptionParams(k));
+					}
+				});
+			}
+			plugins_version[plugin.id] = plugin.version;
+			if (task && (! rowEligible(plugin.masterStatus))) {
+				var message = '';
+				if (['uploadError', 'stageError', 'activateError', 'deactivateError', 'unstageError'].contains(plugin.masterStatus)) {
+					message = tasksFailedMessages(plugin.id, task);
+					if (message) {
+						document.fireEvent('toastAlert', {'message': message});
+					}
+				} else {
+					message = tasksMessages(plugin.id, task);
+					if (message) {
+						document.fireEvent('toastNotification', {'message': message});
+					}
+				}
+				
+				if (task == 'redeploy') {
+					/// cause servers list items to stop spinning
+					//pluginInfo.endRedeploy(plugin.id, zgrid2.getRowData(plugin.id));
+				}
+				this.removeTask(plugin.id);
+			}
+		}.bind(this));
+
+		var removedPlugins = this.hasTask('remove');
+		Object.each(removedPlugins, function(task, id) {
+			var plugin = zgrid2.getRowData(id);
+			if (plugin == null || (task && (! rowEligible(plugin.status)))) {
+				var message = tasksMessages(id, task);
+				if (message) {
+					document.fireEvent('toastNotification', {'message': message});
+				}
+				this.removeTask(id);
+			}
+		}.bind(this));
+
+		
+		
+	}.bind(pluginsDataPolling));
+
+	pollingRequest.addEvent('failure', function(response) {
+		if (response.responseData) {
+			document.fireEvent('toastAlert', {'message': response.responseData.errorData.errorMessage})
+		}
+	}.bind(pluginsDataPolling));
+
+	pluginsDataPolling.addEvent('poll', function(polling) {
+		pollingRequest.get(zgrid2.getParams());
+	});
+
+	pluginsDataPolling.start();
+});
+
+
+function getUpdateRowMessage(name, updateVersion, download_id, needUpdate, message, storePluginId) {
+
+	if (needUpdate==="false") { needUpdate=false; }
+	
+	var updateRow = message;
+	<?php if ($this->isAllowed('route:PluginsWebAPI', 'pluginDeploy')): ?>
+	if (needUpdate && needUpdate != -1  && needUpdate != -2 && (download_id != undefined)) {
+		updateRow +=  ' ' + _t('A new plugin version ({version}) is available' + 
+				'<a href="javascript:void(0);" onclick="getPlugin({id}, \'{storeListApiUrlParam}\')" class="more-details-button"> (More Details). </a>', {'version': updateVersion, 'id' : storePluginId, 'storeListApiUrlParam' : storeListApiUrl}) +
+					  _t(' <a href="javascript:void(0)" onclick="openWizard(\'update-download\', {\'download_id\' : \'{download_id}\', \'name\' : \'{name}\'})" title="Update library">Update</a>' ,{'download_id': download_id, 'name' : name});
+	}
+	<?php endif; ?>
+	
+	// if user choose run check updates on specific name
+	if (checkUpdateNameFlag && (name != checkUpdateNameFlag)){
+		return updateRow;
+	}
+	
+	if (checkUpdatesFlag) {
+		// case when the checkUpdates was run and right after deployed a new plugin, that wasn't in checkupdates, so we don't know what its status, bug #ZSRV-15182
+		if (needUpdate == -2) {
+			return updateRow;
+		}
+		if (needUpdate == -1) {
+			updateRow += ' ' + _t('This plugin is not included in the Zend plugins gallery.');
+		}
+		if (!needUpdate) {
+			// if check updates was run but saving the results is not completed
+			if (checkUpdatesFlag && !saveUpdatesCompleteFlag) {
+				return updateRow;
+			} else {
+				updateRow += ' ' + _t('This plugin version is up-to-date.');
+			}
+		}
+	}
+	
+	return updateRow;
+}
+
+//called when the wizard is closed
+function cancelWizard() {
+	allowAutoPolling = false;
+}
+
+
+function getPluginPrerequisites(pluginId) {
+	if ($('prerequisites_' + pluginId).get('html') == '') {
+		$('prerequisites_' + pluginId).set('html', 'Loading... <img src="<?php echo $this->basePath('/images/preload-16.gif')?>" style="margin-top: 7px;" />');
+
+		//make the request
+		var prerequisitesUrl = '<?php echo $prerequisitesUrl; ?>';
+		var request = new Request.HTML({
+			method: 'post',
+			url: prerequisitesUrl,
+			data: {"plugin" : pluginId}, 
+			onSuccess: function(responseTree, responseElements, responseHTML, responseJavaScript) {
+				if(responseHTML == '') {
+					responseHTML = 'No prerequisites';
+				}
+				$('prerequisites_' + pluginId).set('html', responseHTML);
+			},
+			onFailure: function(response) {
+				var decoded = this.decodeResponse(response);
+				document.fireEvent('toastAlert', {'message': decoded.errorData.errorMessage});
+			}
+		}).send();
+	}
+}
+
+</script>

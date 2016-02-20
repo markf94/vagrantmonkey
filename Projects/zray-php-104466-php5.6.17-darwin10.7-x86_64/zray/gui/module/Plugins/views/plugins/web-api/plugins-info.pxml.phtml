@@ -1,0 +1,9 @@
+
+
+<responseData>
+	<plugins>
+	    <?php foreach($plugins as $plugin) :?>
+	    <?php echo $this->pluginInfoXml($plugin, array()) ?>
+		<?php endforeach; ?>
+	</plugins>
+</responseData>
