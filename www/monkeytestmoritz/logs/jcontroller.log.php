@@ -22,3 +22,4 @@
 2016-02-27T23:02:06+00:00	INFO 127.0.0.1	controller	Holding edit ID com_modules.edit.module.124 Array (     [0] => 124 ) 
 2016-02-27T23:03:46+00:00	INFO 127.0.0.1	controller	Holding edit ID com_modules.edit.module.126 Array (     [0] => 124     [1] => 126 ) 
 2016-02-27T23:04:02+00:00	INFO 127.0.0.1	controller	Holding edit ID com_modules.edit.module.126 Array (     [0] => 124     [1] => 126 ) 
+2016-02-27T23:21:06+00:00	INFO 127.0.0.1	controller	Releasing edit ID com_modules.edit.module.126 Array (     [0] => 124 ) 

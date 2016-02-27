@@ -117,6 +117,8 @@ define('SOCIAL_APPS_ICON_SMALL', 'small');
 define('SOCIAL_APPS_GROUP_USER', 'user');
 define('SOCIAL_APPS_GROUP_GROUP', 'group');
 define('SOCIAL_APPS_GROUP_EVENT', 'event');
+define('SOCIAL_APPS_GROUP_PROJECT', 'project');
+
 
 // States
 define('SOCIAL_STATE_TRASHED', -1);
@@ -245,6 +247,9 @@ define('SOCIAL_TYPE_ACTIVITY', 'activity');
 define('SOCIAL_TYPE_FILES', 'files');
 define('SOCIAL_TYPE_EVENT', 'event');
 define('SOCIAL_TYPE_EVENTS', 'events');
+define('SOCIAL_TYPE_PROJECT', 'project');
+define('SOCIAL_TYPE_PROJECTS', 'projects');
+
 define('SOCIAL_TYPE_POLLS', 'polls');
 define('SOCIAL_TYPE_VIDEO', 'video');
 define('SOCIAL_TYPE_VIDEOS', 'videos');
@@ -295,6 +300,7 @@ define('SOCIAL_THEME_COMPILE_CACHE', 'cache');
 define('SOCIAL_FIELDS_GROUP_USER', 'user');
 define('SOCIAL_FIELDS_GROUP_GROUP', 'group');
 define('SOCIAL_FIELDS_GROUP_EVENT', 'event');
+define('SOCIAL_FIELDS_GROUP_PROJECT', 'project');
 define('SOCIAL_FIELDS_PREFIX', 'es-fields-');
 
 // Profiles
@@ -376,6 +382,8 @@ define('SOCIAL_INDEXER_TYPE_PHOTOS', 'photos');
 define('SOCIAL_INDEXER_TYPE_ALBUMS', 'albums');
 define('SOCIAL_INDEXER_TYPE_GROUPS', 'groups');
 define('SOCIAL_INDEXER_TYPE_EVENTS', 'events');
+define('SOCIAL_INDEXER_TYPE_PROJECTS', 'projects');
+
 
 // Album constants
 define('SOCIAL_ALBUM_PROFILE_PHOTOS', 1);
@@ -423,6 +431,22 @@ define('SOCIAL_EVENT_GUEST_PENDING', 2);
 define('SOCIAL_EVENT_GUEST_MAYBE', 3);
 define('SOCIAL_EVENT_GUEST_NOT_GOING', 4);
 define('SOCIAL_EVENT_GUEST_NOTGOING', 4);
+
+// Projects
+define('SOCIAL_PROJECT_VIEW_REGISTRATION', 'registration');
+define('SOCIAL_PROJECT_VIEW_EDIT', 'edit');
+define('SOCIAL_PROJECT_VIEW_DISPLAY', 'display');
+define('SOCIAL_PROJECT_TYPE_PUBLIC', 1);
+define('SOCIAL_PROJECT_TYPE_PRIVATE', 2);
+define('SOCIAL_PROJECT_TYPE_INVITE', 3);
+
+// Project guests state
+define('SOCIAL_PROJECT_GUEST_INVITED', 0);
+define('SOCIAL_PROJECT_GUEST_GOING', 1);
+define('SOCIAL_PROJECT_GUEST_PENDING', 2);
+define('SOCIAL_PROJECT_GUEST_MAYBE', 3);
+define('SOCIAL_PROJECT_GUEST_NOT_GOING', 4);
+define('SOCIAL_PROJECT_GUEST_NOTGOING', 4);
 
 define('SOCIAL_STREAM_STATE_TRASHED', '0');
 define('SOCIAL_STREAM_STATE_PUBLISHED', '1');
