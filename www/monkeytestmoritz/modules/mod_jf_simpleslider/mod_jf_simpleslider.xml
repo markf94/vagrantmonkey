@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" version="2.5" client="site" method="upgrade">
+	<name>JF SimpleSlider</name>
+	<author>JoomForest.com</author>
+	<creationDate>18.01.15</creationDate>
+	<copyright>Copyright (C) 2011-2015 JoomForest. All rights reserved.</copyright>
+	<license>GNU General Public License version 2 or later; see LICENSE.txt</license>
+	<authorEmail>support@joomforest.com</authorEmail>
+	<authorUrl>http://www.joomforest.com/</authorUrl>
+	<version>1.0</version>
+	<description><![CDATA[
+		JoomForest.com - JF SimpleSlider v1.0 (Joomla 2.5/3.2 Module). It is based on beautiful Responsive "Simple jQuery/CSS3 slider" (https://github.com/dirkgroenen/simple-jQuery-slider/).
+		<style type='text/css'>
+			.spacer{display:block;width:400px;height:10px;background:#ddd}
+			.jf_size_width_medium{width:50%;min-height:50px}
+			.jf_size_width_full{width:100%;min-height:150px}
+			.jf_size_width_input_medium{width:50%}
+			.jf_size_width_input_wide{width:80%}
+		</style>
+	]]></description>
+	<files>
+		<filename module="mod_jf_simpleslider">mod_jf_simpleslider.php</filename>
+		<filename>index.html</filename>
+		<filename>mod_jf_simpleslider.xml</filename>
+		<filename>jf_ss_mob_det.php</filename>
+		<filename>LICENSE.txt</filename>
+		<folder>assets</folder>
+		<folder>tmpl</folder>
+	</files>
+	<languages>
+		<language tag="en-GB">en-GB.mod_jf_simpleslider.ini</language>
+	</languages>
+	<config>
+		<fields name="params">
+			<fieldset name="basic" label="JF slidesjs" class="jf_special jf_slidesjs">
+				<field name="jf_ss_ID" 					type="text" 		label="Special ID"				default="jf_SS_1" 		description="Type Module Special ID" />
+				<field name="jf_ss_type" 				type="list" 		label="Type" 					default="1" 			description="Choose which type slider you want. For example 'Testimonials' type has different design.">
+					<option value="1">Slideshow</option>
+					<option value="2">Testimonials</option>
+				</field>
+				<field name="jf_ss_Swipe" 				type="list" 		label="Touch Swipe" 			default="true" 			description="Choose Enable or to Disable touchSwipe.">
+					<option value="true">Enable</option>
+					<option value="false">Disable</option>
+				</field>
+				<field name="jf_ss_SwipeDevice" 		type="list" 		label="Touch Swipe - Device" 	default="2" 			description="Choose on which Device you want to use TouckSwipe function">
+					<option value="1">Only Mobile</option>
+					<option value="2">Mobile + Tablet</option>
+					<option value="3">Only Tablets</option>
+					<option value="4">Tablets + Desktop</option>
+					<option value="5">Only Desktop</option>
+					<option value="6">ALL Devices</option>
+				</field>
+				<field name="jf_ss_Trans" 				type="radio" 		label="Transition" 				default="slide" 		description="Choose which transition you want" class="btn-group">
+					<option value="slide">Slide</option>
+					<option value="fade">fade</option>
+				</field>
+				<field name="jf_ss_Auto" 				type="list" 		label="AutoPlay" 				default="true" 			description="Choose Enable or to Disable AutoPlay.">
+					<option value="true">Enable</option>
+					<option value="false">Disable</option>
+				</field>
+				<field name="jf_ss_Interval" 			type="text" 		label="AutoPlay Interval" 		default="8000" 			description="Type AutoPlay Interval in milliseconds (default is '5000')." />
+				<field name="jf_ss_Duration" 			type="text" 		label="Slide Duration" 			default="1500" 			description="Type Slide Duration in milliseconds (default is '1500')." />
+				<field name="jf_ss_Easing" 				type="list" 		label="Animation Easing" 		default="ease" 			description="Choose Animation Easing Effect.">
+					<option value="linear">linear</option>
+					<option value="ease">ease</option>
+					<option value="in">in</option>
+					<option value="out">out</option>
+					<option value="in-out">in-out</option>
+					<option value="snap">snap</option>
+					<option value="easeOutCubic">easeOutCubic</option>
+					<option value="easeInOutCubic">easeInOutCubic</option>
+					<option value="easeInCirc">easeInCirc</option>
+					<option value="easeOutCirc">easeOutCirc</option>
+					<option value="easeInOutCirc">easeInOutCirc</option>
+					<option value="easeInExpo">easeInExpo</option>
+					<option value="easeOutExpo">easeOutExpo</option>
+					<option value="easeInOutExpo">easeInOutExpo</option>
+					<option value="easeInQuad">easeInQuad</option>
+					<option value="easeOutQuad">easeOutQuad</option>
+					<option value="easeInOutQuad">easeInOutQuad</option>
+					<option value="easeInQuart">easeInQuart</option>
+					<option value="easeOutQuart">easeOutQuart</option>
+					<option value="easeInOutQuart">easeInOutQuart</option>
+					<option value="easeInQuint">easeInQuint</option>
+					<option value="easeOutQuint">easeOutQuint</option>
+					<option value="easeInOutQuint">easeInOutQuint</option>
+					<option value="easeInSine">easeInSine</option>
+					<option value="easeOutSine">easeOutSine</option>
+					<option value="easeInOutSine">easeInOutSine</option>
+					<option value="easeInBack">easeInBack</option>
+					<option value="easeOutBack">easeOutBack</option>
+					<option value="easeInOutBack">easeInOutBack</option>
+				</field>
+				<field name="jf_ss_Pause" 				type="list" 		label="Pause On Hover?" 		default="false" 		description="Choose Enable or to Disable to Pause On Hover.">
+					<option value="true">Enable</option>
+					<option value="false">Disable</option>
+				</field>
+				<field name="jf_ss_Arrows" 				type="radio" 		label="Arrows" 					default="1" 			description="Choose Enable or to Disable Arrow Buttons" class="btn-group">
+					<option value="0">Disable</option>
+					<option value="1">Enable</option>
+				</field>
+				<field name="jf_ss_Nav" 				type="radio" 		label="Navigation" 				default="1" 			description="Choose Enable or to Disable Navigation Buttons" class="btn-group">
+					<option value="0">Disable</option>
+					<option value="1">Enable</option>
+				</field>
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_ss_CSS3" 				type="radio" 		label="CSS3 Animation" 			default="0" 			description="Choose Enable or Disable CSS3 Animations. 'Animate.css' option loads Stylesheet which is set in below field. 'Custom' Field loads stylesheet which is located in 'joomla_root/modules/mod_jf_simpleslider/assets/custom_css3.css'. (NOTE! - If you use our Joomla Template and if you use CSS3 Animations there, you dont need to Enable this feature here)" class="btn-group">
+					<option value="0">Disable</option>
+					<option value="1">Animate.css</option>
+					<option value="2">Custom</option>
+				</field>
+				<field name="jf_ss_AnimateCSS"			type="text" 		label="Animate.css Stylesheet" 	default="//cdnjs.cloudflare.com/ajax/libs/animate.css/3.2.0/animate.min.css" description="Type Animate.css stylesheet which you want to attach. (NOTE! - Make sure you have enabled 'Animate.css' option above)" class="jf_size_width_input_medium"/>
+				<field name="jf_ss_AnimateFunc" 		type="radio" 		label="Animate CSS Function" 	default="0" 			description="Choose Enable or to Disable Animate CSS Function - This feature enables 'data-animation' and 'data-animation-delay' attributes in slide captions. (NOTE! - If you use our Joomla Template and if you use CSS3 Animations there, you dont need to Enable this feature here)" class="btn-group">
+					<option value="0">Disable</option>
+					<option value="1">Enable</option>
+				</field>
+				<field name="jf_ss_styles" 				type="textarea" 	label="Custom CSS Styles" 		default="" 				description="You can add your own custom CSS styles" filter="raw" class="jf_size_width_medium" />
+				
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_1" 		type="media"		label="Slide #1" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_1_color" 	type="color"		label="Slide #1 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_1_html" 	type="textarea" 	label="Slide #1 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_2" 		type="media"		label="Slide #2" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_2_color" 	type="color"		label="Slide #2 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_2_html" 	type="textarea" 	label="Slide #2 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_3" 		type="media"		label="Slide #3" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_3_color" 	type="color"		label="Slide #3 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_3_html" 	type="textarea" 	label="Slide #3 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_4" 		type="media"		label="Slide #4" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_4_color" 	type="color"		label="Slide #4 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_4_html" 	type="textarea" 	label="Slide #4 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_5" 		type="media"		label="Slide #5" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_5_color" 	type="color"		label="Slide #5 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_5_html" 	type="textarea" 	label="Slide #5 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_6" 		type="media"		label="Slide #6" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_6_color" 	type="color"		label="Slide #6 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_6_html" 	type="textarea" 	label="Slide #6 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_7" 		type="media"		label="Slide #7" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_7_color" 	type="color"		label="Slide #7 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_7_html" 	type="textarea" 	label="Slide #7 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_8" 		type="media"		label="Slide #8" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_8_color" 	type="color"		label="Slide #8 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_8_html" 	type="textarea" 	label="Slide #8 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_9" 		type="media"		label="Slide #9" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_9_color" 	type="color"		label="Slide #9 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_9_html" 	type="textarea" 	label="Slide #9 / Caption" 		default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					<field name="jf_ss_slide_10" 		type="media"		label="Slide #10" 				size="20" directory="jf/modules/jf_simpleslider" description="Choose Image."/>
+					<field name="jf_ss_slide_10_color" 	type="color"		label="Slide #10 / Color" 		default="" 				description="Choose Slide Color. This feature is useful if you dont want to use image as background. (NOTE! - For using it make sure you that you have not choosed image above in option)" />
+					<field name="jf_ss_slide_10_html" 	type="textarea" 	label="Slide #10 / Caption" 	default="" 				description="You can type here caption HTML tags. Leave it Empty if you dont want to use it" filter="raw" class="jf_size_width_full" />
+					
+				<field type="spacer" hr="true" />
+				
+					
+			</fieldset>
+			
+			<fieldset name="advanced">
+				<field name="layout" type="modulelayout" label="JFIELD_ALT_LAYOUT_LABEL" description="JFIELD_ALT_MODULE_LAYOUT_DESC" />
+				<field name="moduleclass_sfx" type="text" label="COM_MODULES_FIELD_MODULECLASS_SFX_LABEL" description="COM_MODULES_FIELD_MODULECLASS_SFX_DESC" />
+				<field name="cache" type="list" default="1" label="COM_MODULES_FIELD_CACHING_LABEL" description="COM_MODULES_FIELD_CACHING_DESC">
+					<option value="1">JGLOBAL_USE_GLOBAL</option>
+					<option value="0">COM_MODULES_FIELD_VALUE_NOCACHING</option>
+				</field>
+				<field name="cache_time" type="text" default="900" label="COM_MODULES_FIELD_CACHE_TIME_LABEL" description="COM_MODULES_FIELD_CACHE_TIME_DESC" />
+				<field name="cachemode" type="hidden" default="static">
+					<option value="static"></option>
+				</field>
+			</fieldset>
+		</fields>
+	</config>
+</extension>

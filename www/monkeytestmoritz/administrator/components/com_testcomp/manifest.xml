@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+<extension type="component" version="3.4" method="upgrade">
+
+    <!-- Some basic information -->
+    <name>com_testcomp</name>
+    <author>Mark Fingerhuth</author>
+    <version>1.0.0</version>
+    <description>This is my first Test Component</description>
+
+    <!-- Specify FRONTEND file paths -->
+        <files folder="components/com_testcomp">
+            <filename>testcomp.php</filename>
+            <filename>index.html</filename>
+            <filename>controller.php</filename>
+        </files>
+    <languages folder="language/en-GB">
+        <language tag="en-GB">en-GB.com_testcomp.ini</language>
+    </languages>
+
+
+    <!-- BACKEND starts here! -->
+    <administration>
+        <languages folder="administrator/language/en-GB">
+            <language tag="en-GB">en-GB.com_testcomp.ini</language>
+            <language tag="en-GB">en-GB.com_testcomp.sys.ini</language>
+        </languages>
+        <files folder="administrator/components/com_testcomp">
+            <filename>testcomp.php</filename>
+            <filename>index.html</filename>
+            <filename>controller.php</filename>
+        </files>
+        <menu link="option=com_testcomp">COM_TESTCOMP_MENU</menu>
+        <submenu>
+            <menu link="option=com_testcomp&amp;task=create">COM_TESTCOMP_CREATE_MENU</menu>
+        </submenu>
+
+    </administration>
+    </extension>

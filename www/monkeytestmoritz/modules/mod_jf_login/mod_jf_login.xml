@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" version="2.5" client="site" method="upgrade">
+	<name>JF Login</name>
+	<author>JoomForest.com</author>
+	<creationDate>27.02.15</creationDate>
+	<copyright>Copyright (C) 2011-2015 JoomForest. All rights reserved.</copyright>
+	<license>GNU General Public License version 2 or later</license>
+	<authorEmail>support@joomforest.com</authorEmail>
+	<authorUrl>http://www.joomforest.com/</authorUrl>
+	<version>1.1</version>
+	<description><![CDATA[JoomForest.com - JF Login v1.1 (Joomla 3.x Module).<style type='text/css'>.spacer{display:block;width:400px;height:10px;background:#ddd}</style>]]></description>
+	<files>
+		<filename module="mod_jf_login">mod_jf_login.php</filename>
+		<filename>index.html</filename>
+		<filename>helper.php</filename>
+		<filename>LICENSE.txt</filename>
+		<folder>assets</folder>
+		<folder>tmpl</folder>
+	</files>
+	<languages>
+		<language tag="en-GB">en-GB.mod_jf_login.ini</language>
+	</languages>
+	<help key="JHELP_EXTENSIONS_MODULE_MANAGER_LOGIN" />
+	<config>
+		<fields name="params">
+			<fieldset name="basic">
+				<field name="pretext" type="textarea" filter="safehtml" cols="30" rows="5" label="MOD_JF_LOGIN_FIELD_PRE_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_PRE_TEXT_DESC" />
+				<field name="posttext" type="textarea" filter="safehtml" cols="30" rows="5" label="MOD_JF_LOGIN_FIELD_POST_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_POST_TEXT_DESC" />
+				<field name="login" type="menuitem" disable="separator" label="MOD_JF_LOGIN_FIELD_LOGIN_REDIRECTURL_LABEL" description="MOD_JF_LOGIN_FIELD_LOGIN_REDIRECTURL_DESC" >
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="logout" type="menuitem" disable="separator" label="MOD_JF_LOGIN_FIELD_LOGOUT_REDIRECTURL_LABEL" description="MOD_JF_LOGIN_FIELD_LOGOUT_REDIRECTURL_DESC" >
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="greeting" type="radio" default="1" label="MOD_JF_LOGIN_FIELD_GREETING_LABEL" description="MOD_JF_LOGIN_FIELD_GREETING_DESC">
+					<option value="0">JNo</option>
+					<option value="1">JYes</option>
+				</field>
+				<field name="name" type="list" default="0" label="MOD_JF_LOGIN_FIELD_NAME_LABEL" description="MOD_JF_LOGIN_FIELD_NAME_DESC">
+					<option value="0">MOD_JF_LOGIN_VALUE_NAME</option>
+					<option value="1">MOD_JF_LOGIN_VALUE_USERNAME</option>
+				</field>
+				<field name="usesecure" type="radio" default="0" label="MOD_JF_LOGIN_FIELD_USESECURE_LABEL" description="MOD_JF_LOGIN_FIELD_USESECURE_DESC">
+					<option value="0">JNo</option>
+					<option value="1">JYes</option>
+				</field>
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_bs_tooltips" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_BS_TOOLTIPS_LABEL" description="MOD_JF_LOGIN_FIELD_BS_TOOLTIPS_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_fa" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_FA_LABEL" description="MOD_JF_LOGIN_FIELD_FA_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				
+				<field type="spacer" hr="true" />
+				<field name="jf_login_register" type="radio" class="btn-group" default="1" label="MOD_JF_LOGIN_FIELD_REGISTER_LABEL" description="MOD_JF_LOGIN_FIELD_REGISTER_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_register_link_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_REGISTER_URL_LABEL" description="MOD_JF_LOGIN_FIELD_REGISTER_URL_DESC" />
+				<field name="jf_login_register_link_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_REGISTER_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_REGISTER_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>				
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_1" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_1_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_URL_DESC" />
+				<field name="jf_login_custom_link_1_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_1_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_1_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_2" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_2_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_URL_DESC" />
+				<field name="jf_login_custom_link_2_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_2_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_2_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_3" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_3_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_URL_DESC" />
+				<field name="jf_login_custom_link_3_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_3_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_3_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_4" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_4_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_URL_DESC" />
+				<field name="jf_login_custom_link_4_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_4_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_4_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_5" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_5_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_URL_DESC" />
+				<field name="jf_login_custom_link_5_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_5_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_5_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_6" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_6_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_URL_DESC" />
+				<field name="jf_login_custom_link_6_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_6_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_6_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_7" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_7_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_URL_DESC" />
+				<field name="jf_login_custom_link_7_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_7_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_7_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_8" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_8_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_URL_DESC" />
+				<field name="jf_login_custom_link_8_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_8_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_8_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_9" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_9_LABEL" description="Enable or to Disable 'Custom Link 9' in module? - This link will be shown after login in module popup">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_9_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_9_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_9_URL_DESC" />
+				<field name="jf_login_custom_link_9_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_9_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_9_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_9_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_9_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_9_TEXT_DESC" />
+				
+				<field type="spacer" hr="true" />
+				
+				<field name="jf_login_custom_link_10" type="radio" class="btn-group" default="0" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_DESC">
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
+				<field name="jf_login_custom_link_10_url" type="text" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_URL_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_URL_DESC" />
+				<field name="jf_login_custom_link_10_menu" type="menuitem" default="" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_MENUITEM_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_MENUITEM_DESC">
+					<option value="">JDEFAULT</option>
+				</field>
+				<field name="jf_login_custom_link_10_text" type="text" label="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_TEXT_LABEL" description="MOD_JF_LOGIN_FIELD_CUSTOM_LINK_10_TEXT_DESC" />
+				
+			</fieldset>
+			
+			<fieldset name="advanced">
+				<field name="layout" type="modulelayout" label="JFIELD_ALT_LAYOUT_LABEL" description="JFIELD_ALT_MODULE_LAYOUT_DESC" />
+				<field name="moduleclass_sfx" type="text" label="COM_MODULES_FIELD_MODULECLASS_SFX_LABEL" description="COM_MODULES_FIELD_MODULECLASS_SFX_DESC" />
+				<field name="cache" type="list" default="0" label="COM_MODULES_FIELD_CACHING_LABEL" description="COM_MODULES_FIELD_CACHING_DESC">
+					<option value="0">COM_MODULES_FIELD_VALUE_NOCACHING</option>
+				</field>
+			</fieldset>
+		</fields>
+	</config>
+</extension>

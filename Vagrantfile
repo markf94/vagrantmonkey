@@ -14,7 +14,7 @@ Vagrant.configure(2) do |config|
   # boxes at https://atlas.hashicorp.com/search.
   config.vm.box = "joomlatools/box"
   # config.vm.provision :shell, path: "bootstrap.sh"
-  config.vm.network :forwarded_port, guest: 80, host: 4567
+  config.vm.network :forwarded_port, guest: 80, host: 10000
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
